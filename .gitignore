@@ -1,0 +1,18 @@
+# Local upstream checkout is a git repository; the pinned source archive is tracked instead.
+third_party/vpn-core-current/
+
+# Local application state and build products.
+*.log
+*.tmp
+*.new
+*.user
+*.suo
+bin/
+obj/
+dist/*.lnk
+
+# Secrets and runtime profile data must never be committed.
+server.txt
+profiles.dat
+proxy-backup.dat
+settings.txt
