@@ -9,6 +9,7 @@ third_party/vpn-core-current/
 *.suo
 bin/
 obj/
+rust-client/target/
 dist/*.lnk
 
 # Secrets and runtime profile data must never be committed.

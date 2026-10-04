@@ -1,5 +1,7 @@
 # Reality Client for Windows
 
+> **Development note:** the current downloadable Windows client in `dist/RealityClient.exe` is still the C# WinForms release. An incomplete Rust/Slint GUI spike lives in `rust-client/` on the `rust-rewrite` branch; its Connect button does not start the VPN core and profile data is not persisted yet.
+
 Функциональный Windows GUI для `reality-core`; сборка предназначена для Windows 10/11 x64. Главный артефакт — `dist/RealityClient.exe`: Windows Forms-интерфейс и ядро находятся в одном EXE; при первом запуске ядро извлекается в закрытую пользовательскую папку `%LOCALAPPDATA%\RealityClient`.
 
 ## Что умеет текущая сборка

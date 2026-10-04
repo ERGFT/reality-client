@@ -1,0 +1,107 @@
+import { Button, LineEdit } from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    title: "Reality Client";
+    width: 920px;
+    height: 680px;
+    background: #0b1117;
+
+    in-out property <string> profile-name;
+    in-out property <string> vless-link;
+    in-out property <string> status-text: "Отключено";
+    in-out property <string> detail-text: "Добавьте VLESS-профиль для начала работы.";
+    callback save-profile();
+    callback connect-requested();
+
+    VerticalLayout {
+        padding: 28px;
+        spacing: 18px;
+
+        HorizontalLayout {
+            height: 54px;
+            spacing: 12px;
+            Text {
+                text: "REALITY  /  CLIENT";
+                color: #43d9bd;
+                font-size: 28px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+            Text {
+                text: root.status-text;
+                color: #a8bed0;
+                font-size: 15px;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            background: #101a22;
+            border-width: 1px;
+            border-color: #40515d;
+            border-radius: 8px;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text { text: "Профиль подключения"; color: #a8bed0; font-size: 16px; }
+                Text { text: "Название профиля"; color: #a8bed0; font-size: 13px; }
+                LineEdit {
+                    placeholder-text: "Например, Домашний сервер";
+                    text <=> root.profile-name;
+                }
+                Text { text: "Ссылка VLESS"; color: #a8bed0; font-size: 13px; }
+                LineEdit {
+                    placeholder-text: "Вставьте ссылку vless://…";
+                    text <=> root.vless-link;
+                }
+                Button {
+                    text: "Сохранить профиль";
+                    clicked => { root.save-profile(); }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #101a22;
+            border-width: 1px;
+            border-color: #40515d;
+            border-radius: 8px;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+                Text { text: "Подключение"; color: #a8bed0; font-size: 16px; }
+                Text { text: "Локальный прокси: 127.0.0.1:1080"; color: #d7e3ec; font-size: 14px; }
+                Button {
+                    text: "Подключить";
+                    clicked => { root.connect-requested(); }
+                }
+                Text {
+                    text: root.detail-text;
+                    color: #e1b85b;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; background: transparent; }
+        Text { text: "Состояние клиента"; color: #a8bed0; font-size: 14px; }
+        Rectangle {
+            height: 104px;
+            background: #0d141a;
+            border-width: 1px;
+            border-color: #72828b;
+            border-radius: 4px;
+            Text {
+                x: 12px;
+                y: 12px;
+                width: parent.width - 24px;
+                text: root.detail-text;
+                color: #d7e3ec;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
