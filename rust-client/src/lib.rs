@@ -2685,12 +2685,41 @@ fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Resul
             dns.entry("final")
                 .or_insert_with(|| serde_json::json!("remote"));
         }
-        let servers = dns
-            .get_mut("servers")
-            .and_then(serde_json::Value::as_array_mut)
-            .ok_or("dns.servers должен быть массивом.")?;
-        if !servers.iter().any(is_sing_box_fakeip_server) {
-            servers.push(serde_json::json!({"type":"fakeip","tag":"reality-client-fakeip"}));
+        let fakeip_tag = {
+            let servers = dns
+                .get_mut("servers")
+                .and_then(serde_json::Value::as_array_mut)
+                .ok_or("dns.servers должен быть массивом.")?;
+            if !servers.iter().any(is_sing_box_fakeip_server) {
+                servers.push(serde_json::json!({"type":"fakeip","tag":"reality-client-fakeip"}));
+            }
+            servers
+                .iter()
+                .find(|server| is_sing_box_fakeip_server(server))
+                .and_then(|server| server.get("tag"))
+                .and_then(serde_json::Value::as_str)
+                .ok_or("У Fake-IP DNS-сервера должен быть непустой tag.")?
+                .to_owned()
+        };
+        let rules = dns
+            .entry("rules")
+            .or_insert_with(|| serde_json::json!([]))
+            .as_array_mut()
+            .ok_or("dns.rules должен быть массивом.")?;
+        let has_fakeip_fallback = rules.iter().any(|rule| {
+            rule.get("server").and_then(serde_json::Value::as_str) == Some(fakeip_tag.as_str())
+                && rule
+                    .get("domain_regex")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|patterns| {
+                        patterns.len() == 1 && patterns[0].as_str() == Some(".*")
+                    })
+        });
+        if !has_fakeip_fallback {
+            rules.push(serde_json::json!({
+                "domain_regex": [".*"],
+                "server": fakeip_tag
+            }));
         }
         let fakeip = dns.entry("fakeip").or_insert_with(|| serde_json::json!({}));
         let fakeip = fakeip
@@ -3031,6 +3060,15 @@ mod network_options_tests {
             value["dns"]["servers"][0]["detour"].as_str(),
             Some("direct")
         );
+        assert_eq!(value["dns"]["final"].as_str(), Some("remote"));
+        assert_eq!(
+            value["dns"]["rules"][0]["domain_regex"][0].as_str(),
+            Some(".*")
+        );
+        assert_eq!(
+            value["dns"]["rules"][0]["server"].as_str(),
+            Some("reality-client-fakeip")
+        );
     }
 
     #[test]
@@ -3045,6 +3083,7 @@ mod network_options_tests {
                 .all(|server| !super::is_sing_box_fakeip_server(server))
         );
         assert_eq!(value["dns"]["final"].as_str(), Some("remote"));
+        assert_eq!(value["dns"]["rules"].as_array().unwrap().len(), 0);
         assert!(!value_has_fakeip(&value));
     }
 
