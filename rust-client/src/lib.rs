@@ -28,6 +28,7 @@ use security::redact_sensitive_text;
 #[cfg(any(windows, target_os = "linux"))]
 use slint::CloseRequestResponse;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
+use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use zeroize::Zeroizing;
@@ -104,6 +105,7 @@ fn apply_saved_profile(
     window.set_profile_name(profile.name.as_str().into());
     window.set_vless_link(profile.link.as_str().into());
     window.set_server_endpoint_text(server_endpoint(profile.link.as_str()).into());
+    window.set_server_ip_text(server_ip_initial(profile.link.as_str()).into());
     if let Ok(mut cache) = selected_profile_link.lock() {
         *cache = Some((profile.index, Zeroizing::new(profile.link.to_string())));
     }
@@ -120,6 +122,58 @@ fn server_endpoint(link: &str) -> String {
         Some(port) => format!("{host}:{port}"),
         None => host.to_owned(),
     }
+}
+
+fn server_ip_initial(link: &str) -> String {
+    let Ok(url) = url::Url::parse(link) else {
+        return "Определите IP узла".to_owned();
+    };
+    url.host_str()
+        .and_then(|host| {
+            host.trim_start_matches('[')
+                .trim_end_matches(']')
+                .parse::<std::net::IpAddr>()
+                .ok()
+        })
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "Определите IP узла".to_owned())
+}
+
+fn server_socket_target(link: &str) -> Result<(String, u16), String> {
+    let url = url::Url::parse(link)
+        .map_err(|_| "В ссылке VLESS не удалось прочитать адрес узла.".to_owned())?;
+    let host = url
+        .host_str()
+        .ok_or_else(|| "В ссылке VLESS не указан адрес узла.".to_owned())?;
+    let port = url
+        .port()
+        .ok_or_else(|| "В ссылке VLESS не указан порт узла.".to_owned())?;
+    Ok((
+        host.trim_start_matches('[')
+            .trim_end_matches(']')
+            .to_owned(),
+        port,
+    ))
+}
+
+fn resolve_server_ips(host: &str, port: u16) -> Result<String, String> {
+    let addresses = (host, port)
+        .to_socket_addrs()
+        .map_err(|problem| format!("Системный DNS не смог разрешить адрес узла: {problem}"))?;
+    let mut ips = Vec::new();
+    for address in addresses {
+        let ip = address.ip().to_string();
+        if !ips.contains(&ip) {
+            ips.push(ip);
+        }
+        if ips.len() == 4 {
+            break;
+        }
+    }
+    if ips.is_empty() {
+        return Err("Системный DNS не вернул IP-адрес для узла.".to_owned());
+    }
+    Ok(ips.join(" · "))
 }
 
 const STARTER_CONFIG: &str = r#"{
@@ -395,6 +449,46 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         }
     });
 
+    window.on_server_ip_check_requested({
+        let window = window.as_weak();
+        let public_ip_check_busy = public_ip_check_busy.clone();
+        move || {
+            let Some(window) = window.upgrade() else { return; };
+            let (host, port) = match server_socket_target(window.get_vless_link().as_str()) {
+                Ok(target) => target,
+                Err(problem) => {
+                    window.set_server_ip_text("Узел не выбран".into());
+                    window.set_detail_text(problem.into());
+                    return;
+                }
+            };
+            if public_ip_check_busy.swap(true, Ordering::AcqRel) {
+                return;
+            }
+            window.set_server_ip_text("Определяю…".into());
+            window.set_detail_text("Запрашиваю адрес узла через системный DNS. DNS-провайдер может увидеть домен сервера; это не геолокационная проверка.".into());
+            let weak_window = window.as_weak();
+            let public_ip_check_busy = public_ip_check_busy.clone();
+            std::thread::spawn(move || {
+                let result = resolve_server_ips(&host, port);
+                let _ = slint::invoke_from_event_loop(move || {
+                    public_ip_check_busy.store(false, Ordering::Release);
+                    let Some(window) = weak_window.upgrade() else { return; };
+                    match result {
+                        Ok(addresses) => {
+                            window.set_server_ip_text(addresses.into());
+                            window.set_detail_text("Показаны адреса, возвращённые системным DNS для домена сервера. Фактический адрес соединения может отличаться при балансировке или изменении DNS-записей.".into());
+                        }
+                        Err(problem) => {
+                            window.set_server_ip_text("IP не определён".into());
+                            window.set_detail_text(problem.into());
+                        }
+                    }
+                });
+            });
+        }
+    });
+
     window.on_config_options_sync_requested({
         let window = window.as_weak();
         move || {
@@ -567,6 +661,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             window.set_selected_profile_index(index as i32);
                             window.set_profile_count(format!("Профили: {count}").into());
                             window.set_server_endpoint_text(server_endpoint(&link).into());
+                            window.set_server_ip_text(server_ip_initial(&link).into());
                             if let Ok(mut cache) = worker_link_cache.lock() {
                                 *cache = Some((index, Zeroizing::new(link.to_string())));
                             }
@@ -662,6 +757,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             window.set_profile_name(name.as_str().into());
                             window.set_vless_link(link.as_str().into());
                             window.set_server_endpoint_text(server_endpoint(&link).into());
+                            window.set_server_ip_text(server_ip_initial(&link).into());
                             window.set_detail_text(
                                 format!("Профиль получен из {}.", storage_backend_description())
                                     .into(),
@@ -670,6 +766,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                         Err(problem) => {
                             window.set_vless_link("".into());
                             window.set_server_endpoint_text("Адрес не определён".into());
+                            window.set_server_ip_text("Определите IP узла".into());
                             window.set_detail_text(problem.into());
                         }
                     }
@@ -1201,6 +1298,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                                 window.set_profile_name(names[next as usize].as_str().into());
                                 window.set_vless_link(link.as_str().into());
                                 window.set_server_endpoint_text(server_endpoint(&link).into());
+                                window.set_server_ip_text(server_ip_initial(&link).into());
                                 window.set_detail_text(
                                     "Профиль удалён; следующий профиль выбран.".into(),
                                 );
@@ -1208,10 +1306,12 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                                 window.set_profile_name("".into());
                                 window.set_vless_link("".into());
                                 window.set_server_endpoint_text("Выберите сервер".into());
+                                window.set_server_ip_text("Определите IP узла".into());
                                 window.set_detail_text("Профиль удалён.".into());
                             } else {
                                 window.set_vless_link("".into());
                                 window.set_server_endpoint_text("Адрес не определён".into());
+                                window.set_server_ip_text("Определите IP узла".into());
                                 window.set_detail_text(
                                     "Профиль удалён, но следующий профиль не удалось прочитать."
                                         .into(),
@@ -2865,6 +2965,31 @@ mod public_ip_proxy_tests {
     #[test]
     fn reports_invalid_full_config() {
         assert!(local_socks_proxy_uri("not JSON").is_err());
+    }
+}
+
+#[cfg(test)]
+mod server_address_tests {
+    use super::{server_ip_initial, server_socket_target};
+
+    #[test]
+    fn extracts_domain_and_port_without_retaining_link_credentials() {
+        let link = "vless://user-secret@example.com:443?security=reality";
+        assert_eq!(
+            server_socket_target(link).unwrap(),
+            ("example.com".to_owned(), 443)
+        );
+        assert_eq!(server_ip_initial(link), "Определите IP узла");
+    }
+
+    #[test]
+    fn uses_literal_ipv6_address_without_dns_lookup() {
+        let link = "vless://user-secret@[2001:db8::1]:8443?security=reality";
+        assert_eq!(
+            server_socket_target(link).unwrap(),
+            ("2001:db8::1".to_owned(), 8443)
+        );
+        assert_eq!(server_ip_initial(link), "2001:db8::1");
     }
 }
 
