@@ -575,6 +575,22 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         }
     });
 
+    window.on_outbound_selected({
+        let window = window.as_weak();
+        move |index| {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            let Some(tag) = usize::try_from(index)
+                .ok()
+                .and_then(|index| window.get_outbound_model().row_data(index))
+            else {
+                return;
+            };
+            window.set_route_outbound_input(tag);
+        }
+    });
+
     window.on_android_app_filter_save_requested({
         let window = window.as_weak();
         move || {
@@ -2324,6 +2340,36 @@ fn sync_config_options(window: &MainWindow) -> Result<(), String> {
     window.set_fakeip_enabled(value_has_fakeip(&value));
     window.set_android_apps_input(android_app_filter_values(&value).join(", ").into());
     let xray = is_xray_config(&value);
+    let outbound_tags = value
+        .get("outbounds")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|outbound| outbound.get("tag").and_then(serde_json::Value::as_str))
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let selected_tag = outbound_tags
+        .iter()
+        .position(|tag| tag == window.get_route_outbound_input().as_str())
+        .unwrap_or(0);
+    window.set_outbound_model(ModelRc::from(Rc::new(VecModel::from(
+        outbound_tags
+            .iter()
+            .map(|tag| SharedString::from(tag.as_str()))
+            .collect::<Vec<_>>(),
+    ))));
+    window.set_selected_outbound_index(if outbound_tags.is_empty() {
+        -1
+    } else {
+        selected_tag as i32
+    });
+    window.set_route_outbound_input(
+        outbound_tags
+            .get(selected_tag)
+            .map(String::as_str)
+            .unwrap_or("")
+            .into(),
+    );
     let rules = value
         .get(if xray { "routing" } else { "route" })
         .and_then(|section| section.get("rules"))

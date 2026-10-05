@@ -2,21 +2,24 @@ import { Button, CheckBox, ComboBox, LineEdit, ScrollView, TextEdit } from "std-
 
 component NavTab inherits Rectangle {
     in property <string> label;
+    in property <string> icon: "";
     in property <bool> selected: false;
     in property <bool> dark-theme: true;
     callback activated();
 
-    height: 42px;
-    border-radius: 8px;
+    height: 44px;
+    border-radius: 9px;
     background: selected ? (dark-theme ? #173a42 : #d8f2ed) : transparent;
     animate background { duration: 120ms; }
 
     Text {
-        text: root.label;
-        color: root.selected ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #aabac7 : #52616d);
-        font-size: 14px;
+        x: 14px;
+        width: parent.width - 28px;
+        text: root.icon + "   " + root.label;
+        color: root.selected ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #b2bfd0 : #52616d);
+        font-size: 13px;
         font-weight: root.selected ? 700 : 500;
-        horizontal-alignment: center;
+        horizontal-alignment: left;
         vertical-alignment: center;
     }
 
@@ -31,10 +34,10 @@ component InfoCard inherits Rectangle {
     in property <string> action-label;
     callback action-requested();
 
-    background: root.dark-theme ? #121f28 : #ffffff;
+    background: root.dark-theme ? #111b2c : #ffffff;
     border-width: 1px;
-    border-color: root.dark-theme ? #263b47 : #d9e2e8;
-    border-radius: 10px;
+    border-color: root.dark-theme ? #24324a : #e1e6ee;
+    border-radius: 12px;
     VerticalLayout {
         padding: 14px;
         spacing: 5px;
@@ -51,7 +54,7 @@ export component MainWindow inherits Window {
     in property <string> app-version;
     width: mobile-layout ? 430px : 1080px;
     height: mobile-layout ? 820px : 760px;
-    background: dark-theme ? #0a1117 : #f3f6f8;
+    background: dark-theme ? #0a0f19 : #f3f5f9;
 
     in-out property <bool> dark-theme: true;
     in-out property <int> active-tab: 0;
@@ -79,6 +82,8 @@ export component MainWindow inherits Window {
     in-out property <string> route-domain-input;
     in-out property <string> route-ip-input;
     in-out property <string> route-outbound-input: "direct";
+    in property <[string]> outbound-model;
+    in-out property <int> selected-outbound-index: 0;
     in-out property <string> route-rules-summary: "Правила ещё не добавлены через интерфейс.";
     in-out property <string> android-apps-input;
     in property <bool> android-app-filter-supported: false;
@@ -132,6 +137,7 @@ export component MainWindow inherits Window {
     callback config-options-sync-requested();
     callback routing-rule-add-requested();
     callback routing-rules-clear-requested();
+    callback outbound-selected(index: int);
     callback android-app-filter-save-requested();
     callback android-app-add-requested(index: int);
 
@@ -180,27 +186,46 @@ export component MainWindow inherits Window {
         HorizontalLayout {
             vertical-stretch: 1;
             spacing: root.mobile-layout ? 0px : 12px;
-            if !root.mobile-layout: VerticalLayout {
-                width: 188px;
-                spacing: 7px;
-                padding-top: 8px;
-                padding-bottom: 8px;
-                NavTab { label: "Главная"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
-                NavTab { label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
-                NavTab { label: "Соединения"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
-                NavTab { label: "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
-                NavTab { label: "О приложении"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
+            if !root.mobile-layout: Rectangle {
+                width: 212px;
+                background: root.dark-theme ? #0e1725 : #ffffff;
+                border-width: 1px;
+                border-color: root.dark-theme ? #202c40 : #e1e6ee;
+                border-radius: 14px;
+                VerticalLayout {
+                spacing: 8px;
+                padding: 12px;
+                Text { text: "РАЗДЕЛЫ"; color: root.dark-theme ? #72829b : #8390a1; font-size: 10px; letter-spacing: 1.3px; }
+                NavTab { icon: "⌂"; label: "Главная"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
+                NavTab { icon: "◈"; label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
+                NavTab { icon: "⇄"; label: "Соединения"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
+                NavTab { icon: "⚙"; label: "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
+                NavTab { icon: "ⓘ"; label: "О приложении"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
                 Rectangle { vertical-stretch: 1; background: transparent; }
-                Text { text: "Профили: " + root.profile-count; color: root.dark-theme ? #8fa4b2 : #6c7d87; horizontal-alignment: center; font-size: 12px; }
+                Rectangle {
+                    height: 82px;
+                    background: root.dark-theme ? #111b2c : #f6f8fb;
+                    border-width: 1px;
+                    border-color: root.dark-theme ? #24324a : #e1e6ee;
+                    border-radius: 10px;
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 5px;
+                        Text { text: "ТЕКУЩИЙ ПРОФИЛЬ"; color: root.dark-theme ? #72829b : #8390a1; font-size: 9px; letter-spacing: 0.8px; }
+                        Text { text: root.profile-name == "" ? "Сервер не выбран" : root.profile-name; color: root.dark-theme ? #edf2fb : #17232b; font-size: 13px; font-weight: 700; overflow: elide; }
+                        Text { text: root.profile-count; color: root.dark-theme ? #9aa9bd : #687789; font-size: 11px; }
+                    }
+                }
+                }
             }
 
         Rectangle {
             horizontal-stretch: 1;
             vertical-stretch: 1;
-            background: root.dark-theme ? #0e171e : #ffffff;
+            background: root.dark-theme ? #0e1725 : #ffffff;
             border-width: 1px;
-            border-color: root.dark-theme ? #243743 : #dce4e8;
-            border-radius: 12px;
+            border-color: root.dark-theme ? #202c40 : #e1e6ee;
+            border-radius: 14px;
 
             ScrollView {
             if root.active-tab == 0: VerticalLayout {
@@ -467,7 +492,7 @@ export component MainWindow inherits Window {
                                 }
                                 HorizontalLayout {
                                     spacing: 8px;
-                                    LineEdit { horizontal-stretch: 1; placeholder-text: "Тег выхода: direct / proxy"; text <=> root.route-outbound-input; }
+                                    ComboBox { width: 220px; model: root.outbound-model; current-index <=> root.selected-outbound-index; selected => { root.outbound-selected(root.selected-outbound-index); } }
                                     Button { text: "Добавить правило"; clicked => { root.routing-rule-add-requested(); } }
                                     Button { text: "Очистить мои правила"; clicked => { root.routing-rules-clear-requested(); } }
                                 }
