@@ -170,6 +170,7 @@ export component MainWindow inherits Window {
             NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Серверы" : "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
             NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Трафик" : "Соединения"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
             NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Ещё" : "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
+            NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "О нас" : "О приложении"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
             if !root.mobile-layout: Rectangle { horizontal-stretch: 1; background: transparent; }
             if !root.mobile-layout: Text { text: "Профили: " + root.profile-count; color: root.dark-theme ? #8fa4b2 : #6c7d87; vertical-alignment: center; font-size: 12px; }
         }
@@ -380,10 +381,10 @@ export component MainWindow inherits Window {
                                     Button { text: "Применить переключатели"; clicked => { root.network-options-save-requested(); } }
                                     Button { text: "Считать из JSON"; clicked => { root.config-options-sync-requested(); } }
                                 }
-                                Text { text: "Правила по домену или IP/CIDR · URL-пути (например, /video) нельзя отделить на сетевом уровне HTTPS."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
+                                Text { text: "Можно вставить домен или ссылку сайта (например, https://vk.com/video); правило применяется ко всему домену. IP-диапазоны задаются в CIDR, например 203.0.113.0/24."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
                                 HorizontalLayout {
                                     spacing: 8px;
-                                    LineEdit { horizontal-stretch: 1; placeholder-text: "Домен: vk.com"; text <=> root.route-domain-input; }
+                                    LineEdit { horizontal-stretch: 1; placeholder-text: "Домен или URL: vk.com/video"; text <=> root.route-domain-input; }
                                     LineEdit { horizontal-stretch: 1; placeholder-text: "IP/CIDR: 203.0.113.0/24"; text <=> root.route-ip-input; }
                                 }
                                 HorizontalLayout {
@@ -444,26 +445,32 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
+                Rectangle { vertical-stretch: 1; background: transparent; }
+                Text { text: root.detail-text; color: root.dark-theme ? #d7b45e : #906315; font-size: 12px; wrap: word-wrap; }
+            }
+
+            if root.active-tab == 4: VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+                Text { text: "О приложении"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
+                Text { text: "Reality Client"; color: root.dark-theme ? #55ddc2 : #087f70; font-size: 28px; font-weight: 800; }
+                Text { text: "Версия " + root.app-version + " · Rust / Slint"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 14px; }
                 Rectangle {
                     background: root.dark-theme ? #121f28 : #f7fafb;
                     border-width: 1px;
                     border-color: root.dark-theme ? #263b47 : #d9e2e8;
                     border-radius: 10px;
-                    HorizontalLayout {
-                        padding: 14px;
-                        spacing: 12px;
-                        VerticalLayout {
-                            spacing: 3px;
-                            Text { text: "О приложении"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 14px; font-weight: 700; }
-                            Text { text: "Reality Client · версия " + root.app-version + " · Rust / Slint"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; }
-                            Text { text: "Репозиторий: github.com/ERGFT/reality-client · Windows / Linux / Android"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
-                        }
-                        Rectangle { horizontal-stretch: 1; background: transparent; }
-                        Text { text: "GitHub ↗"; color: root.dark-theme ? #55ddc2 : #087f70; vertical-alignment: center; }
+                    VerticalLayout {
+                        padding: 18px;
+                        spacing: 10px;
+                        Text { text: "Клиент для Reality Core"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
+                        Text { text: "Проект объединяет графический клиент и закреплённое сетевое ядро. Набор функций зависит от операционной системы и доступных возможностей ядра."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                        Text { text: "Исходный код: github.com/ERGFT/reality-client"; color: root.dark-theme ? #55ddc2 : #087f70; font-size: 13px; }
+                        Text { text: "Поддерживаемые сборки: Windows, Linux и Android. Статус каждой платформы и ограничения указаны в README репозитория."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
+                        Text { text: "Лицензия: GPL-3.0-or-later"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; }
                     }
                 }
                 Rectangle { vertical-stretch: 1; background: transparent; }
-                Text { text: root.detail-text; color: root.dark-theme ? #d7b45e : #906315; font-size: 12px; wrap: word-wrap; }
             }
             }
         }

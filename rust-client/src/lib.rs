@@ -2618,21 +2618,47 @@ fn valid_domain_suffix(value: &str) -> bool {
         })
 }
 
+fn normalize_routing_domain(value: &str) -> Result<String, String> {
+    let input = value.trim();
+    let candidate = if input.contains("://") {
+        input.to_owned()
+    } else {
+        format!("https://{input}")
+    };
+    let parsed = url::Url::parse(&candidate)
+        .map_err(|_| format!("«{input}» не похоже на домен или URL сайта."))?;
+    if !matches!(parsed.scheme(), "http" | "https")
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+    {
+        return Err(format!(
+            "«{input}»: укажите обычный HTTP/HTTPS сайт без логина и пароля."
+        ));
+    }
+    let domain = parsed
+        .host_str()
+        .ok_or_else(|| format!("«{input}» не содержит имени сайта."))?
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    if !valid_domain_suffix(&domain) {
+        return Err(format!("«{input}» не похоже на доменное имя."));
+    }
+    Ok(domain)
+}
+
 fn add_routing_rule(
     text: &str,
     domains_text: &str,
     ips_text: &str,
     outbound: &str,
 ) -> Result<String, String> {
-    let domains = split_rule_values(domains_text);
+    let domains = split_rule_values(domains_text)
+        .iter()
+        .map(|domain| normalize_routing_domain(domain))
+        .collect::<Result<Vec<_>, _>>()?;
     let ips = split_rule_values(ips_text);
     if domains.is_empty() && ips.is_empty() {
         return Err("Укажите хотя бы один домен или IP/CIDR.".into());
-    }
-    if let Some(domain) = domains.iter().find(|domain| !valid_domain_suffix(domain)) {
-        return Err(format!(
-            "«{domain}» не похоже на домен. Вводите vk.com без схемы, пути и wildcard."
-        ));
     }
     if let Some(ip) = ips.iter().find(|ip| !valid_ip_cidr(ip)) {
         return Err(format!("«{ip}» — некорректный IP/CIDR."));
@@ -2793,6 +2819,31 @@ fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<String>, St
         return Err("В буфере нет текста со ссылкой VLESS.".into());
     }
     Ok(Zeroizing::new(trimmed.to_owned()))
+}
+
+#[cfg(test)]
+mod routing_domain_tests {
+    use super::normalize_routing_domain;
+
+    #[test]
+    fn routing_domain_accepts_hostnames_and_website_urls() {
+        assert_eq!(normalize_routing_domain("vk.com").unwrap(), "vk.com");
+        assert_eq!(
+            normalize_routing_domain("https://VK.com/video?clip=1").unwrap(),
+            "vk.com"
+        );
+        assert_eq!(
+            normalize_routing_domain("http://news.example.org/").unwrap(),
+            "news.example.org"
+        );
+    }
+
+    #[test]
+    fn routing_domain_rejects_credentials_and_non_web_schemes() {
+        assert!(normalize_routing_domain("https://user:password@vk.com/").is_err());
+        assert!(normalize_routing_domain("ftp://vk.com/").is_err());
+        assert!(normalize_routing_domain("*.vk.com").is_err());
+    }
 }
 
 #[cfg(test)]
