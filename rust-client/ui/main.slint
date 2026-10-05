@@ -1,4 +1,4 @@
-import { Button, CheckBox, ComboBox, LineEdit, ScrollView, TextEdit } from "std-widgets.slint";
+import { Button, ComboBox, LineEdit, ScrollView, TextEdit } from "std-widgets.slint";
 
 component NavTab inherits Rectangle {
     in property <string> label;
@@ -45,6 +45,55 @@ component InfoCard inherits Rectangle {
         Text { text: root.value; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 19px; font-weight: 700; }
         Text { text: root.caption; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
         if root.action-label != "": Button { text: root.action-label; clicked => { root.action-requested(); } }
+    }
+}
+
+component ThemeCheckBox inherits Rectangle {
+    in property <string> text;
+    in property <bool> dark-theme: true;
+    in property <bool> enabled: true;
+    in-out property <bool> checked;
+
+    height: max(38px, label.preferred-height + 10px);
+    background: transparent;
+    accessible-enabled: root.enabled;
+    accessible-label: root.text;
+    accessible-checkable: true;
+    accessible-checked <=> root.checked;
+    accessible-role: checkbox;
+    accessible-action-default => {
+        if (root.enabled) { root.checked = !root.checked; }
+    }
+
+    HorizontalLayout {
+        spacing: 10px;
+        Rectangle {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border-width: root.checked ? 0px : 1px;
+            border-color: root.dark-theme ? #718796 : #788791;
+            background: root.checked ? (root.dark-theme ? #187f73 : #087f70) : transparent;
+            Text {
+                text: root.checked ? "✓" : "";
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        label := Text {
+            text: root.text;
+            color: !root.enabled ? (root.dark-theme ? #637582 : #9aa3a8) : (root.dark-theme ? #dce8ed : #263640);
+            font-size: 13px;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+    }
+    TouchArea {
+        clicked => { if (root.enabled) { root.checked = !root.checked; } }
     }
 }
 
@@ -289,9 +338,15 @@ export component MainWindow inherits Window {
             }
 
             if root.active-tab == 1: VerticalLayout {
-                padding: 20px;
-                spacing: 12px;
-                HorizontalLayout {
+                padding: root.mobile-layout ? 12px : 20px;
+                spacing: root.mobile-layout ? 8px : 12px;
+                if root.mobile-layout: VerticalLayout {
+                    spacing: 4px;
+                    Text { text: "Серверы"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
+                    Text { text: "Импортируйте ссылку или выберите сохранённый профиль."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                    Text { text: root.profile-count; color: root.dark-theme ? #91a8b7 : #687985; }
+                }
+                if !root.mobile-layout: HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
                         Text { text: "Серверы"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
@@ -318,7 +373,7 @@ export component MainWindow inherits Window {
                                 HorizontalLayout {
                                     padding-left: 12px;
                                     padding-right: 12px;
-                                    Text { text: profile; color: index == root.selected-profile-index ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #edf5f7 : #17232b); font-size: 13px; font-weight: index == root.selected-profile-index ? 700 : 500; vertical-alignment: center; }
+                                    Text { text: profile; color: index == root.selected-profile-index ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #edf5f7 : #17232b); font-size: 13px; font-weight: index == root.selected-profile-index ? 700 : 500; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                                     Rectangle { horizontal-stretch: 1; background: transparent; }
                                     Text { text: index == root.selected-profile-index ? "Выбран" : "Выбрать"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; vertical-alignment: center; }
                                 }
@@ -327,13 +382,23 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
-                HorizontalLayout {
+                if root.mobile-layout: VerticalLayout {
+                    spacing: 6px;
+                    Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #91a8b7 : #687985; }
+                    Button { text: root.delete-confirmation-visible ? "Отмена" : "Удалить выбранный"; enabled: root.selected-profile-index >= 0; horizontal-stretch: 1; clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; } }
+                }
+                if !root.mobile-layout: HorizontalLayout {
                     spacing: 10px;
                     Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #91a8b7 : #687985; vertical-alignment: center; }
                     Rectangle { horizontal-stretch: 1; background: transparent; }
                     Button { text: root.delete-confirmation-visible ? "Отмена" : "Удалить выбранный"; enabled: root.selected-profile-index >= 0; clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; } }
                 }
-                if root.delete-confirmation-visible: HorizontalLayout {
+                if root.delete-confirmation-visible && root.mobile-layout: VerticalLayout {
+                    spacing: 6px;
+                    Text { text: "Удалить выбранный профиль?"; color: #d49a41; }
+                    Button { text: "Да, удалить"; horizontal-stretch: 1; clicked => { root.confirm-delete-profile(); root.delete-confirmation-visible = false; } }
+                }
+                if root.delete-confirmation-visible && !root.mobile-layout: HorizontalLayout {
                     spacing: 8px;
                     Text { text: "Удалить выбранный профиль?"; color: #d49a41; vertical-alignment: center; }
                     Button { text: "Да, удалить"; clicked => { root.confirm-delete-profile(); root.delete-confirmation-visible = false; } }
@@ -345,14 +410,20 @@ export component MainWindow inherits Window {
                     border-color: root.dark-theme ? #263b47 : #d9e2e8;
                     border-radius: 10px;
                     VerticalLayout {
-                        padding: 18px;
+                        padding: root.mobile-layout ? 12px : 18px;
                         spacing: 10px;
                         Text { text: "Параметры профиля"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
                         Text { text: "Название"; color: root.dark-theme ? #9cb0bd : #64747e; font-size: 12px; }
                         LineEdit { placeholder-text: "Например, Домашний сервер"; text <=> root.profile-name; }
                         Text { text: "Ссылка VLESS"; color: root.dark-theme ? #9cb0bd : #64747e; font-size: 12px; }
                         LineEdit { placeholder-text: "Вставьте ссылку vless://…"; input-type: root.show-vless-link ? text : password; text <=> root.vless-link; }
-                        HorizontalLayout {
+                        if root.mobile-layout: VerticalLayout {
+                            spacing: 6px;
+                            Button { text: root.show-vless-link ? "Скрыть ссылку" : "Показать ссылку"; horizontal-stretch: 1; clicked => { root.show-vless-link = !root.show-vless-link; } }
+                            Button { text: "Вставить из буфера"; visible: root.clipboard-paste-supported; horizontal-stretch: 1; clicked => { root.paste-profile-link(); } }
+                            Button { text: "Сохранить сервер"; horizontal-stretch: 1; clicked => { root.save-profile(); } }
+                        }
+                        if !root.mobile-layout: HorizontalLayout {
                             spacing: 8px;
                             Button { text: root.show-vless-link ? "Скрыть ссылку" : "Показать ссылку"; clicked => { root.show-vless-link = !root.show-vless-link; } }
                             Button { text: "Вставить из буфера"; visible: root.clipboard-paste-supported; clicked => { root.paste-profile-link(); } }
@@ -366,9 +437,15 @@ export component MainWindow inherits Window {
             }
 
             if root.active-tab == 2: VerticalLayout {
-                padding: 20px;
-                spacing: 12px;
-                HorizontalLayout {
+                padding: root.mobile-layout ? 12px : 20px;
+                spacing: root.mobile-layout ? 8px : 12px;
+                if root.mobile-layout: VerticalLayout {
+                    spacing: 8px;
+                    Text { text: "Соединения"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
+                    Text { text: "Текущая статистика и журнал ядра."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                    Button { text: "Копировать журнал"; clicked => { log-view.select-all(); log-view.copy(); } }
+                }
+                if !root.mobile-layout: HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
                         Text { text: "Соединения"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
@@ -424,9 +501,15 @@ export component MainWindow inherits Window {
             }
 
             if root.active-tab == 3: VerticalLayout {
-                padding: 20px;
-                spacing: 12px;
-                HorizontalLayout {
+                padding: root.mobile-layout ? 12px : 20px;
+                spacing: root.mobile-layout ? 8px : 12px;
+                if root.mobile-layout: VerticalLayout {
+                    spacing: 4px;
+                    Text { text: "Настройки"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
+                    Text { text: "Интерфейс, системная интеграция и расширенная конфигурация."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                    ComboBox { horizontal-stretch: 1; model: ["Тёмная тема", "Светлая тема"]; current-index <=> root.theme-index; selected => { root.theme-selected(root.theme-index); } }
+                }
+                if !root.mobile-layout: HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
                         Text { text: "Настройки"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
@@ -441,12 +524,12 @@ export component MainWindow inherits Window {
                     border-color: root.dark-theme ? #263b47 : #d9e2e8;
                     border-radius: 10px;
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 10px;
+                        padding: root.mobile-layout ? 12px : 16px;
+                        spacing: root.mobile-layout ? 8px : 10px;
                         Text { text: "Подключение и маршрутизация"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
                         Text { text: "Режим полного JSON открывает все возможности закреплённого ядра: TUN, DNS fake-IP и правила маршрутизации. Совместимость зависит от ОС."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
-                        CheckBox { text: "Использовать полный конфиг ядра"; checked <=> root.use-full-config; }
-                        CheckBox { text: "Включить системный прокси Windows"; checked <=> root.enable-system-proxy; visible: root.system-proxy-supported; enabled: !root.use-full-config; }
+                        ThemeCheckBox { text: "Использовать полный конфиг ядра"; dark-theme: root.dark-theme; checked <=> root.use-full-config; }
+                        ThemeCheckBox { text: "Включить системный прокси Windows"; dark-theme: root.dark-theme; checked <=> root.enable-system-proxy; visible: root.system-proxy-supported; enabled: !root.use-full-config; }
                         if root.use-full-config: Rectangle {
                             background: root.dark-theme ? #0e171e : #ffffff;
                             border-width: 1px;
@@ -457,8 +540,8 @@ export component MainWindow inherits Window {
                                 spacing: 7px;
                                 Text { text: "DNS и маршрутизация"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 14px; font-weight: 700; }
                                 Text { text: "Переключатели записывают параметры в JSON. На Windows для TUN нужен официальный wintun.dll рядом с приложением и запуск от имени администратора."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
-                                CheckBox { text: "TUN: направлять системный трафик через VPN"; checked <=> root.config-tun-enabled; enabled: root.tun-settings-supported; }
-                                CheckBox { text: "Fake-IP DNS"; checked <=> root.fakeip-enabled; }
+                                ThemeCheckBox { text: "TUN: направлять системный трафик через VPN"; dark-theme: root.dark-theme; checked <=> root.config-tun-enabled; enabled: root.tun-settings-supported; }
+                                ThemeCheckBox { text: "Fake-IP DNS"; dark-theme: root.dark-theme; checked <=> root.fakeip-enabled; }
                                 if root.fakeip-enabled: Text { text: "В Xray FakeDNS может оставить поддельные адреса в системном DNS-кэше после отключения. Если сайты перестанут открываться, очистите DNS-кэш системы."; color: root.dark-theme ? #d7b45e : #906315; font-size: 11px; wrap: word-wrap; }
                                 if root.android-app-filter-supported: Rectangle {
                                     background: root.dark-theme ? #0a1117 : #ffffff;
@@ -470,30 +553,56 @@ export component MainWindow inherits Window {
                                         spacing: 6px;
                                         Text { text: "Приложения Android"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 13px; font-weight: 700; }
                                         Text { text: "Оставьте поле пустым для всех приложений. Иначе VPN будет работать только для перечисленных package ID через запятую."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
-                                        HorizontalLayout {
+                                        if root.mobile-layout: VerticalLayout {
+                                            spacing: 6px;
+                                            ComboBox { horizontal-stretch: 1; model: root.android-app-model; current-index <=> root.selected-android-app-index; }
+                                            Button { text: "Добавить"; horizontal-stretch: 1; clicked => { root.android-app-add-requested(root.selected-android-app-index); } }
+                                        }
+                                        if !root.mobile-layout: HorizontalLayout {
                                             spacing: 8px;
                                             ComboBox { horizontal-stretch: 1; model: root.android-app-model; current-index <=> root.selected-android-app-index; }
                                             Button { text: "Добавить"; clicked => { root.android-app-add-requested(root.selected-android-app-index); } }
                                         }
-                                        HorizontalLayout {
+                                        if root.mobile-layout: VerticalLayout {
+                                            spacing: 6px;
+                                            LineEdit { horizontal-stretch: 1; placeholder-text: "Или package ID: com.example.app"; text <=> root.android-apps-input; }
+                                            Button { text: "Сохранить список"; horizontal-stretch: 1; clicked => { root.android-app-filter-save-requested(); } }
+                                        }
+                                        if !root.mobile-layout: HorizontalLayout {
                                             spacing: 8px;
                                             LineEdit { horizontal-stretch: 1; placeholder-text: "Или package ID: com.example.app"; text <=> root.android-apps-input; }
                                             Button { text: "Сохранить список"; clicked => { root.android-app-filter-save-requested(); } }
                                         }
                                     }
                                 }
-                                HorizontalLayout {
+                                if root.mobile-layout: VerticalLayout {
+                                    spacing: 6px;
+                                    Button { text: "Применить переключатели"; horizontal-stretch: 1; clicked => { root.network-options-save-requested(); } }
+                                    Button { text: "Считать из JSON"; horizontal-stretch: 1; clicked => { root.config-options-sync-requested(); } }
+                                }
+                                if !root.mobile-layout: HorizontalLayout {
                                     spacing: 8px;
                                     Button { text: "Применить переключатели"; clicked => { root.network-options-save-requested(); } }
                                     Button { text: "Считать из JSON"; clicked => { root.config-options-sync-requested(); } }
                                 }
                                 Text { text: "Можно вставить домен или ссылку сайта (например, https://vk.com/video); правило применяется ко всему домену. IP-диапазоны задаются в CIDR, например 203.0.113.0/24."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
-                                HorizontalLayout {
+                                if root.mobile-layout: VerticalLayout {
+                                    spacing: 6px;
+                                    LineEdit { horizontal-stretch: 1; placeholder-text: "Домен или URL: vk.com/video"; text <=> root.route-domain-input; }
+                                    LineEdit { horizontal-stretch: 1; placeholder-text: "IP/CIDR: 203.0.113.0/24"; text <=> root.route-ip-input; }
+                                }
+                                if !root.mobile-layout: HorizontalLayout {
                                     spacing: 8px;
                                     LineEdit { horizontal-stretch: 1; placeholder-text: "Домен или URL: vk.com/video"; text <=> root.route-domain-input; }
                                     LineEdit { horizontal-stretch: 1; placeholder-text: "IP/CIDR: 203.0.113.0/24"; text <=> root.route-ip-input; }
                                 }
-                                HorizontalLayout {
+                                if root.mobile-layout: VerticalLayout {
+                                    spacing: 6px;
+                                    ComboBox { horizontal-stretch: 1; model: root.outbound-model; current-index <=> root.selected-outbound-index; selected => { root.outbound-selected(root.selected-outbound-index); } }
+                                    Button { text: "Добавить правило"; horizontal-stretch: 1; clicked => { root.routing-rule-add-requested(); } }
+                                    Button { text: "Очистить мои правила"; horizontal-stretch: 1; clicked => { root.routing-rules-clear-requested(); } }
+                                }
+                                if !root.mobile-layout: HorizontalLayout {
                                     spacing: 8px;
                                     ComboBox { width: 220px; model: root.outbound-model; current-index <=> root.selected-outbound-index; selected => { root.outbound-selected(root.selected-outbound-index); } }
                                     Button { text: "Добавить правило"; clicked => { root.routing-rule-add-requested(); } }
@@ -502,7 +611,12 @@ export component MainWindow inherits Window {
                                 Text { text: root.route-rules-summary; color: root.dark-theme ? #8fa4b2 : #687985; font-size: 11px; wrap: word-wrap; }
                             }
                         }
-                        HorizontalLayout {
+                        if root.mobile-layout: VerticalLayout {
+                            spacing: 6px;
+                            Button { text: root.config-editor-visible ? "Закрыть JSON-редактор" : "Открыть JSON-редактор"; horizontal-stretch: 1; clicked => { root.config-editor-visible = !root.config-editor-visible; } }
+                            Button { text: "Проверить конфигурацию"; visible: root.config-editor-visible; horizontal-stretch: 1; clicked => { root.config-check-requested(); } }
+                        }
+                        if !root.mobile-layout: HorizontalLayout {
                             spacing: 8px;
                             Button { text: root.config-editor-visible ? "Закрыть JSON-редактор" : "Открыть JSON-редактор"; clicked => { root.config-editor-visible = !root.config-editor-visible; } }
                             Button { text: "Проверить конфигурацию"; visible: root.config-editor-visible; clicked => { root.config-check-requested(); } }

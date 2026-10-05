@@ -89,7 +89,7 @@ unzip -q "$archive" -d "$source_dir"
 }
 python3 "$script_dir/patches/apply_core_tun_fd_ownership.py" "$source_dir"
 
-export CARGO_TARGET_DIR="$build_root/target"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$build_root/target}"
 if [[ "$(uname -s)" == Linux* ]]; then
     (
         cd "$source_dir"
