@@ -164,18 +164,34 @@ export component MainWindow inherits Window {
             }
         }
 
-        HorizontalLayout {
-            spacing: root.mobile-layout ? 2px : 5px;
-            NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Домой" : "Главная"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
-            NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Серверы" : "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
-            NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Трафик" : "Соединения"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
-            NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "Ещё" : "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
-            NavTab { horizontal-stretch: 1; label: root.mobile-layout ? "О нас" : "О приложении"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
-            if !root.mobile-layout: Rectangle { horizontal-stretch: 1; background: transparent; }
-            if !root.mobile-layout: Text { text: "Профили: " + root.profile-count; color: root.dark-theme ? #8fa4b2 : #6c7d87; vertical-alignment: center; font-size: 12px; }
+        if root.mobile-layout: HorizontalLayout {
+            spacing: 2px;
+            NavTab { horizontal-stretch: 1; label: "Домой"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
+            NavTab { horizontal-stretch: 1; label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
+            NavTab { horizontal-stretch: 1; label: "Трафик"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
+            NavTab { horizontal-stretch: 1; label: "Ещё"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
+            NavTab { horizontal-stretch: 1; label: "О нас"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
         }
 
+        HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: root.mobile-layout ? 0px : 12px;
+            if !root.mobile-layout: VerticalLayout {
+                width: 188px;
+                spacing: 7px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                NavTab { label: "Главная"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
+                NavTab { label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
+                NavTab { label: "Соединения"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
+                NavTab { label: "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
+                NavTab { label: "О приложении"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
+                Rectangle { vertical-stretch: 1; background: transparent; }
+                Text { text: "Профили: " + root.profile-count; color: root.dark-theme ? #8fa4b2 : #6c7d87; horizontal-alignment: center; font-size: 12px; }
+            }
+
         Rectangle {
+            horizontal-stretch: 1;
             vertical-stretch: 1;
             background: root.dark-theme ? #0e171e : #ffffff;
             border-width: 1px;
@@ -473,6 +489,7 @@ export component MainWindow inherits Window {
                 Rectangle { vertical-stretch: 1; background: transparent; }
             }
             }
+        }
         }
     }
 }
