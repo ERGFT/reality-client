@@ -286,6 +286,8 @@ export component MainWindow inherits Window {
             border-radius: 14px;
 
             ScrollView {
+                mouse-drag-pan-enabled: root.mobile-layout;
+                content-height: root.mobile-layout && root.active-tab == 3 && root.use-full-config ? 1200px : 0px;
             if root.active-tab == 0: VerticalLayout {
                 padding: 20px;
                 spacing: 14px;
@@ -369,6 +371,7 @@ export component MainWindow inherits Window {
                     border-color: root.dark-theme ? #263b47 : #d9e2e8;
                     border-radius: 10px;
                     ScrollView {
+                        mouse-drag-pan-enabled: root.mobile-layout;
                         VerticalLayout {
                             padding: 7px;
                             spacing: 5px;
@@ -474,6 +477,7 @@ export component MainWindow inherits Window {
                     border-color: root.dark-theme ? #263b47 : #d9e2e8;
                     border-radius: 10px;
                     ScrollView {
+                        mouse-drag-pan-enabled: root.mobile-layout;
                         VerticalLayout {
                             padding: 8px;
                             spacing: 6px;
