@@ -275,6 +275,12 @@ export component MainWindow inherits Window {
                         clicked => { root.config-reload-requested(); }
                     }
                 }
+                Text {
+                    text: root.detail-text;
+                    color: #e1b85b;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
             }
         }
 
