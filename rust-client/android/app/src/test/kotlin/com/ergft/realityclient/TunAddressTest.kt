@@ -86,6 +86,20 @@ class TunAddressTest {
     }
 
     @Test
+    fun staleConfigCleanupLeavesUnrelatedAppFilesUntouched() {
+        withTempDirectory { directory ->
+            val unrelated = File(directory, "settings.json").apply { writeText("keep") }
+            val stale = PendingVpnConfig.stage(directory, "erase")
+
+            PendingVpnConfig.eraseStale(directory)
+
+            assertFalse(stale.exists())
+            assertTrue(unrelated.exists())
+            assertEquals("keep", unrelated.readText())
+        }
+    }
+
+    @Test
     fun derivesIpv4DnsAddressInsideTunnelSubnet() {
         val cidr = TunAddress.parseCidr("172.19.0.1/30")
         assertArrayEquals(
