@@ -13,6 +13,14 @@ on:
       - "third_party/vpn-core-source.zip"
       - "third_party/vpn-core-source.commit"
       - ".github/workflows/rust-linux.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional published release tag to build and attach this Linux package to"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,6 +30,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '' && inputs.release_tag) || github.sha }}
       - name: Install native build dependencies
         run: |
           sudo apt-get update
@@ -49,10 +59,40 @@ jobs:
         run: bash rust-client/tests/android-exports-smoke.sh
       - name: Build and package Linux client
         run: bash rust-client/build-linux.sh
+      - name: Prepare Linux release archive and checksum
+        run: |
+          tar -C rust-client/dist -czf rust-client/dist/RealityClient-Rust-linux-x86_64.tar.gz linux-x86_64
+          cd rust-client/dist
+          sha256sum RealityClient-Rust-linux-x86_64.tar.gz > SHA256SUMS-linux-x86_64.txt
       - name: Upload Linux package for device testing
         uses: actions/upload-artifact@v7
         with:
           name: reality-client-linux-x86_64
-          path: rust-client/dist/linux-x86_64/
+          path: |
+            rust-client/dist/linux-x86_64/
+            rust-client/dist/RealityClient-Rust-linux-x86_64.tar.gz
+            rust-client/dist/SHA256SUMS-linux-x86_64.txt
           if-no-files-found: error
           retention-days: 14
+
+  publish-linux-release:
+    if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    needs: build-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: reality-client-linux-x86_64
+          path: dist
+      - name: Attach Linux archive and checksum to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            dist/RealityClient-Rust-linux-x86_64.tar.gz \
+            dist/SHA256SUMS-linux-x86_64.txt \
+            --repo "$GITHUB_REPOSITORY"
