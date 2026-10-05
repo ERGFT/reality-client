@@ -47,6 +47,7 @@ struct RuntimeSnapshot {
     uploaded: u64,
     downloaded: u64,
     connections: u64,
+    connection_rows: Vec<String>,
 }
 
 struct SavedProfile {
@@ -1800,6 +1801,9 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             window.set_uploaded_total_text("—".into());
                             window.set_downloaded_total_text("—".into());
                             window.set_active_connection_count_text("—".into());
+                            window.set_connection_model(ModelRc::from(Rc::new(VecModel::from(
+                                Vec::<SharedString>::new(),
+                            ))));
                             window.set_connection_speed_text("↑ —  ↓ —".into());
                             if let Ok(mut previous) = previous_traffic.lock() {
                                 *previous = None;
@@ -1888,6 +1892,13 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     window.set_downloaded_total_text(format_bytes(snapshot.downloaded).into());
                     window
                         .set_active_connection_count_text(snapshot.connections.to_string().into());
+                    window.set_connection_model(ModelRc::from(Rc::new(VecModel::from(
+                        snapshot
+                            .connection_rows
+                            .iter()
+                            .map(|row| SharedString::from(row.as_str()))
+                            .collect::<Vec<_>>(),
+                    ))));
                     window.set_connection_speed_text(
                         format!(
                             "↑ {}/с  ↓ {}/с",
@@ -3006,6 +3017,14 @@ fn fetch_runtime_snapshot(session: &CoreSession) -> Result<RuntimeSnapshot, Stri
         })
         .collect();
     let stats = session.runtime_api("/stats")?;
+    let connection_list = session.runtime_api("/connections")?;
+    let connection_rows = connection_list
+        .get("connections")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(format_connection_row)
+        .collect();
     Ok(RuntimeSnapshot {
         groups,
         uploaded: stats
@@ -3020,7 +3039,65 @@ fn fetch_runtime_snapshot(session: &CoreSession) -> Result<RuntimeSnapshot, Stri
             .get("connections")
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(0),
+        connection_rows,
     })
+}
+
+fn format_connection_row(connection: &serde_json::Value) -> String {
+    let metadata = connection.get("metadata");
+    let host = metadata
+        .and_then(|metadata| metadata.get("host"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|host| !host.is_empty())
+        .or_else(|| {
+            metadata
+                .and_then(|metadata| metadata.get("destinationIP"))
+                .and_then(serde_json::Value::as_str)
+                .filter(|host| !host.is_empty())
+        })
+        .unwrap_or("Неизвестное назначение");
+    let port = metadata
+        .and_then(|metadata| metadata.get("destinationPort"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    let network = metadata
+        .and_then(|metadata| metadata.get("network"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("?");
+    let inbound = metadata
+        .and_then(|metadata| metadata.get("type"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("вход неизвестен");
+    let chain = connection
+        .get("chains")
+        .and_then(serde_json::Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .collect::<Vec<_>>()
+                .join(" → ")
+        })
+        .filter(|chain| !chain.is_empty())
+        .unwrap_or_else(|| "выход неизвестен".to_owned());
+    let upload = connection
+        .get("upload")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let download = connection
+        .get("download")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    format!(
+        "{host}{port_suffix}  ·  {network}  ·  {inbound}  ·  {chain}  ·  ↑ {}  ↓ {}",
+        format_bytes(upload),
+        format_bytes(download),
+        port_suffix = if port.is_empty() {
+            String::new()
+        } else {
+            format!(":{port}")
+        },
+    )
 }
 
 #[cfg(test)]

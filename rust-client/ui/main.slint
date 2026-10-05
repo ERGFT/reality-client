@@ -96,6 +96,7 @@ export component MainWindow inherits Window {
     in-out property <string> uploaded-total-text: "—";
     in-out property <string> downloaded-total-text: "—";
     in-out property <string> active-connection-count-text: "—";
+    in property <[string]> connection-model;
     in-out property <string> public-ip-text: "Не проверялся";
     in-out property <string> direct-ip-text: "Не проверялся";
     in-out property <string> server-ip-text: "Определите IP узла";
@@ -171,8 +172,8 @@ export component MainWindow inherits Window {
             spacing: 2px;
             NavTab { horizontal-stretch: 1; label: "Домой"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
             NavTab { horizontal-stretch: 1; label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
-            NavTab { horizontal-stretch: 1; label: "Трафик"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
-            NavTab { horizontal-stretch: 1; label: "Ещё"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
+            NavTab { horizontal-stretch: 1; label: "Потоки"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
+            NavTab { horizontal-stretch: 1; label: "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
             NavTab { horizontal-stretch: 1; label: "О нас"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
         }
 
@@ -272,10 +273,38 @@ export component MainWindow inherits Window {
                     Rectangle { horizontal-stretch: 1; background: transparent; }
                     Text { text: root.profile-count; color: root.dark-theme ? #91a8b7 : #687985; vertical-alignment: center; }
                 }
+                Rectangle {
+                    height: 178px;
+                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    border-width: 1px;
+                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-radius: 10px;
+                    ScrollView {
+                        VerticalLayout {
+                            padding: 7px;
+                            spacing: 5px;
+                            if root.profile-count == "Профили: 0": Text { text: "Сохранённых серверов пока нет"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; vertical-alignment: center; }
+                            for profile[index] in root.profile-model: Rectangle {
+                                height: 42px;
+                                background: index == root.selected-profile-index ? (root.dark-theme ? #173a42 : #d8f2ed) : (root.dark-theme ? #0e171e : #ffffff);
+                                border-radius: 7px;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    Text { text: profile; color: index == root.selected-profile-index ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #edf5f7 : #17232b); font-size: 13px; font-weight: index == root.selected-profile-index ? 700 : 500; vertical-alignment: center; }
+                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                    Text { text: index == root.selected-profile-index ? "Выбран" : "Выбрать"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; vertical-alignment: center; }
+                                }
+                                TouchArea { clicked => { root.selected-profile-index = index; root.profile-selected(index); } }
+                            }
+                        }
+                    }
+                }
                 HorizontalLayout {
                     spacing: 10px;
-                    ComboBox { horizontal-stretch: 1; model: root.profile-model; current-index <=> root.selected-profile-index; selected => { root.profile-selected(root.selected-profile-index); } }
-                    Button { text: root.delete-confirmation-visible ? "Отмена" : "Удалить"; clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; } }
+                    Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #91a8b7 : #687985; vertical-alignment: center; }
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                    Button { text: root.delete-confirmation-visible ? "Отмена" : "Удалить выбранный"; enabled: root.selected-profile-index >= 0; clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; } }
                 }
                 if root.delete-confirmation-visible: HorizontalLayout {
                     spacing: 8px;
@@ -326,15 +355,45 @@ export component MainWindow inherits Window {
                     InfoCard { horizontal-stretch: 1; title: "АКТИВНЫЕ СОЕДИНЕНИЯ"; value: root.active-connection-count-text; caption: "Счётчик предоставлен API ядра"; dark-theme: root.dark-theme; }
                     InfoCard { horizontal-stretch: 1; title: "ТЕКУЩАЯ СКОРОСТЬ"; value: root.connection-speed-text; caption: "Входящий и исходящий трафик"; dark-theme: root.dark-theme; }
                 }
-                Text { text: "События клиента"; color: root.dark-theme ? #c8d6de : #45555f; font-size: 14px; font-weight: 700; }
-                log-view := TextEdit {
+                Text { text: "Активные потоки"; color: root.dark-theme ? #c8d6de : #45555f; font-size: 14px; font-weight: 700; }
+                Rectangle {
                     vertical-stretch: 1;
+                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    border-width: 1px;
+                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-radius: 10px;
+                    ScrollView {
+                        VerticalLayout {
+                            padding: 8px;
+                            spacing: 6px;
+                            if root.connection-model.length == 0: Text {
+                                text: root.status-text == "Отключено" ? "Подключитесь, чтобы увидеть активные соединения." : "Сейчас активных соединений нет.";
+                                color: root.dark-theme ? #91a8b7 : #687985;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+                            for row in root.connection-model: Rectangle {
+                                height: 58px;
+                                background: root.dark-theme ? #0e171e : #ffffff;
+                                border-radius: 7px;
+                                HorizontalLayout {
+                                    padding: 11px;
+                                    Text { text: "●"; color: #37c8a5; vertical-alignment: center; }
+                                    Text { text: row; color: root.dark-theme ? #dce8ed : #263640; font-size: 12px; vertical-alignment: center; wrap: word-wrap; }
+                                }
+                            }
+                        }
+                    }
+                }
+                Text { text: "Журнал приложения"; color: root.dark-theme ? #c8d6de : #45555f; font-size: 13px; font-weight: 700; }
+                log-view := TextEdit {
+                    height: 92px;
                     text <=> root.log-text;
                     read-only: true;
                     wrap: word-wrap;
-                    font-size: 13px;
+                    font-size: 12px;
                 }
-                Text { text: "Детальный список потоков пока не предоставляется API ядра; счётчик выше не является перечнем соединений."; color: root.dark-theme ? #d7b45e : #906315; font-size: 12px; wrap: word-wrap; }
+                Text { text: "Список обновляется по данным локального API ядра. Адреса и домены назначения видны только в приложении."; color: root.dark-theme ? #718796 : #7b8992; font-size: 11px; wrap: word-wrap; }
             }
 
             if root.active-tab == 3: VerticalLayout {
