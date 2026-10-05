@@ -125,22 +125,27 @@ class RealityVpnService : VpnService() {
             .setSession("Reality Client")
             .setMtu(tun.optInt("mtu", 1500))
 
-        val includedPackages = tun.optJSONArray("include_package")
-        if (includedPackages != null) {
-            require(includedPackages.length() > 0) { "include_package должен содержать хотя бы одно приложение" }
-            for (index in 0 until includedPackages.length()) {
-                val packageName = includedPackages.getString(index).trim()
-                require(packageName.isNotEmpty()) { "Пустой Android package ID в include_package" }
-                try {
-                    builder.addAllowedApplication(packageName)
-                } catch (problem: Exception) {
-                    throw IllegalArgumentException("Не удалось добавить приложение $packageName: ${problem.localizedMessage}", problem)
-                }
+        val packageFilterConfigured = tun.has("include_package")
+        val packageFilterValue = tun.opt("include_package")
+        val packageFilter = if (packageFilterValue is org.json.JSONArray) {
+            (0 until packageFilterValue.length()).map(packageFilterValue::opt)
+        } else {
+            packageFilterValue
+        }
+        val includedPackages = validateIncludedAndroidPackages(
+            packageFilterConfigured,
+            packageFilter,
+        )
+        // This UI-only property is not accepted by the pinned core. Strip it only
+        // after validating the full filter; malformed filters must fail closed.
+        if (packageFilterConfigured) tun.remove("include_package")
+        includedPackages?.forEach { packageName ->
+            try {
+                builder.addAllowedApplication(packageName)
+            } catch (problem: Exception) {
+                throw IllegalArgumentException("Не удалось добавить приложение $packageName: ${problem.localizedMessage}", problem)
             }
         }
-        // Application selection belongs to Android's VpnService, not the core schema.
-        // The pinned core rejects include_package, so strip this UI-only field before FFI.
-        tun.remove("include_package")
 
         val addressValues = mutableListOf<String>()
         for (field in listOf("address", "inet4_address", "inet6_address")) {
