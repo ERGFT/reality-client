@@ -525,6 +525,62 @@ fn unprotect(_: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
+    struct TempDirectory(PathBuf);
+
+    #[cfg(windows)]
+    impl Drop for TempDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[cfg(windows)]
+    fn dotnet_dpapi_transform(input: &Path, output: &Path, operation: &str) {
+        use std::process::Command;
+
+        const HELPER: &str = r#"
+using System.IO;
+using System.Security.Cryptography;
+public static class RealityClientDpapiInterop {
+    public static void Protect(string input, string output) {
+        byte[] clear = File.ReadAllBytes(input);
+        File.WriteAllBytes(output, ProtectedData.Protect(clear, null, DataProtectionScope.CurrentUser));
+    }
+    public static void Unprotect(string input, string output) {
+        byte[] protectedBytes = File.ReadAllBytes(input);
+        File.WriteAllBytes(output, ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser));
+    }
+}
+"#;
+        let method = match operation {
+            "protect" => "Protect",
+            "unprotect" => "Unprotect",
+            _ => panic!("unsupported test operation"),
+        };
+        let script = format!(
+            "$ErrorActionPreference = 'Stop'; Add-Type -TypeDefinition $env:REALITY_DPAPI_CSHARP -Language CSharp -ReferencedAssemblies ([System.Security.Cryptography.ProtectedData].Assembly.Location); [RealityClientDpapiInterop]::{method}($env:REALITY_DPAPI_INPUT, $env:REALITY_DPAPI_OUTPUT)"
+        );
+        let result = Command::new("pwsh.exe")
+            .args([
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                &script,
+            ])
+            .env("REALITY_DPAPI_CSHARP", HELPER)
+            .env("REALITY_DPAPI_INPUT", input)
+            .env("REALITY_DPAPI_OUTPUT", output)
+            .output()
+            .expect("PowerShell 7 must be installed on the Windows test host");
+        assert!(
+            result.status.success(),
+            "C# DPAPI {operation} failed: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+
     #[test]
     fn accepts_vless_link_with_host_port_and_userinfo() {
         assert!(validate_vless_link("vless://00000000-0000-4000-8000-000000000000@edge.example.org:443?encryption=none&security=reality").is_ok());
@@ -589,6 +645,36 @@ mod tests {
         let protected = protect(link).unwrap();
         assert_ne!(protected, link);
         assert_eq!(&*unprotect(&protected).unwrap(), link);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dotnet_and_rust_dpapi_blobs_are_interoperable() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = TempDirectory(std::env::temp_dir().join(format!(
+            "reality-client-dotnet-dpapi-{}-{nonce}",
+            std::process::id()
+        )));
+        fs::create_dir(&directory.0).unwrap();
+
+        let clear = b"non-secret C# and Rust DPAPI interoperability fixture";
+        let plaintext_path = directory.0.join("plaintext.bin");
+        let csharp_cipher_path = directory.0.join("csharp-protected.bin");
+        let rust_cipher_path = directory.0.join("rust-protected.bin");
+        let recovered_path = directory.0.join("csharp-recovered.bin");
+        fs::write(&plaintext_path, clear).unwrap();
+
+        dotnet_dpapi_transform(&plaintext_path, &csharp_cipher_path, "protect");
+        let csharp_cipher = fs::read(&csharp_cipher_path).unwrap();
+        assert_eq!(&*unprotect(&csharp_cipher).unwrap(), clear);
+
+        let rust_cipher = protect(clear).unwrap();
+        fs::write(&rust_cipher_path, &rust_cipher).unwrap();
+        dotnet_dpapi_transform(&rust_cipher_path, &recovered_path, "unprotect");
+        assert_eq!(fs::read(&recovered_path).unwrap(), clear);
     }
 
     #[cfg(windows)]
