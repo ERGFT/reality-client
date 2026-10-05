@@ -1,9 +1,12 @@
 use std::{
+    io::Read,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
+
+const MAX_CONFIG_DIAGNOSTIC_BYTES: usize = 16 * 1024;
 
 pub fn default_config_path() -> Result<PathBuf, String> {
     let root = crate::platform::app_data_dir()?;
@@ -106,32 +109,91 @@ pub fn check_config_file(path: &std::path::Path) -> Result<(), String> {
         ])
         .current_dir(base)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Не удалось запустить проверку ядра: {e}"))?;
+    let stdout = process
+        .stdout
+        .take()
+        .ok_or("Не удалось прочитать вывод проверки конфигурации.")?;
+    let stderr = process
+        .stderr
+        .take()
+        .ok_or("Не удалось прочитать ошибки проверки конфигурации.")?;
+    let stdout_reader = thread::spawn(move || read_capped_output(stdout));
+    let stderr_reader = thread::spawn(move || read_capped_output(stderr));
     let deadline = Instant::now() + Duration::from_secs(20);
     let status = loop {
-        if let Some(status) = process
-            .try_wait()
-            .map_err(|e| format!("Не удалось получить результат проверки: {e}"))?
-        {
-            break status;
+        match process.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {}
+            Err(error) => {
+                let _ = process.kill();
+                let _ = process.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(format!("Не удалось получить результат проверки: {error}"));
+            }
         }
         if Instant::now() >= deadline {
             let _ = process.kill();
             let _ = process.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
             return Err(
                 "Проверка конфигурации превысила 20 секунд; процесс проверки остановлен.".into(),
             );
         }
         thread::sleep(Duration::from_millis(50));
     };
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| "Поток чтения вывода проверки конфигурации завершился аварийно.".to_owned())?
+        .map_err(|error| format!("Не удалось прочитать вывод проверки конфигурации: {error}"))?;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| "Поток чтения ошибок проверки конфигурации завершился аварийно.".to_owned())?
+        .map_err(|error| format!("Не удалось прочитать ошибки проверки конфигурации: {error}"))?;
     if status.success() {
         Ok(())
     } else {
-        Err("Ядро отклонило JSON-конфигурацию. Проверьте обязательные поля и пути связанных файлов.".into())
+        Err(config_check_failure_message(&stdout, &stderr))
     }
+}
+
+fn read_capped_output(mut reader: impl Read) -> std::io::Result<Vec<u8>> {
+    let mut captured = Vec::new();
+    let mut buffer = [0_u8; 4096];
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            return Ok(captured);
+        }
+        let remaining = MAX_CONFIG_DIAGNOSTIC_BYTES.saturating_sub(captured.len());
+        captured.extend_from_slice(&buffer[..read.min(remaining)]);
+    }
+}
+
+fn config_check_failure_message(stdout: &[u8], stderr: &[u8]) -> String {
+    const SUMMARY: &str =
+        "Ядро отклонило JSON-конфигурацию. Проверьте обязательные поля и пути связанных файлов.";
+    let output = [stdout, stderr]
+        .into_iter()
+        .filter(|stream| !stream.is_empty())
+        .map(String::from_utf8_lossy)
+        .collect::<Vec<_>>()
+        .join("\n");
+    if output.trim().is_empty() {
+        return SUMMARY.to_owned();
+    }
+    let safe = crate::security::redact_sensitive_text(output.trim());
+    const MAX_DISPLAY_CHARS: usize = 4000;
+    let mut diagnostic = safe.chars().take(MAX_DISPLAY_CHARS).collect::<String>();
+    if safe.chars().count() > MAX_DISPLAY_CHARS {
+        diagnostic.push_str("… (вывод обрезан)");
+    }
+    format!("{SUMMARY}\n\n{diagnostic}")
 }
 
 fn find_core() -> Result<PathBuf, String> {
@@ -164,6 +226,30 @@ fn find_core() -> Result<PathBuf, String> {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn config_check_diagnostics_are_redacted_and_bounded_for_display() {
+        let message = config_check_failure_message(
+            b"invalid vless://uuid-secret@example.org:443?pbk=key-secret",
+            b"missing field token=token-secret",
+        );
+        assert!(message.contains("missing field"));
+        assert!(message.contains("vless://[скрыто]"));
+        for secret in ["uuid-secret", "key-secret", "token-secret"] {
+            assert!(!message.contains(secret), "diagnostic leaked {secret}");
+        }
+        let oversized =
+            config_check_failure_message(&vec![b'x'; MAX_CONFIG_DIAGNOSTIC_BYTES + 1000], b"");
+        assert!(oversized.ends_with("… (вывод обрезан)"));
+        assert!(oversized.chars().count() < 5000);
+    }
+
+    #[test]
+    fn config_check_output_is_capped_while_remaining_bytes_are_drained() {
+        let input = vec![b'x'; MAX_CONFIG_DIAGNOSTIC_BYTES + 8192];
+        let output = read_capped_output(std::io::Cursor::new(input)).unwrap();
+        assert_eq!(output.len(), MAX_CONFIG_DIAGNOSTIC_BYTES);
+    }
 
     #[test]
     fn advanced_config_path_settings_roundtrip_and_missing_file() {
