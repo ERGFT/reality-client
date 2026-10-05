@@ -9,8 +9,15 @@ archive="$repo_root/third_party/vpn-core-source.zip"
 revision_file="$repo_root/third_party/vpn-core-source.commit"
 expected_commit='ee68039943ebb2aaf3287bf622ae34c18bfa0cae'
 expected_sha256='DF789EABC39029A403D72BA78367637E4347D372626A5FC79F35EC901AF1317D'
-abi='arm64-v8a'
-target='aarch64-linux-android'
+abi="${ANDROID_ABI:-arm64-v8a}"
+case "$abi" in
+    arm64-v8a) target='aarch64-linux-android' ;;
+    x86_64) target='x86_64-linux-android' ;;
+    *)
+        echo "Unsupported Android ABI: $abi (supported: arm64-v8a, x86_64)." >&2
+        exit 2
+        ;;
+esac
 platform=26
 
 for tool in cargo rustup cargo-ndk gradle unzip sha256sum python3; do
@@ -93,6 +100,7 @@ else
     echo 'LINUX_TUN_FD_REGRESSION=SKIP (requires a native Linux host; run the Linux CI workflow)'
 fi
 jni_dir="$app_dir/build/generated/jniLibs"
+rm -rf -- "$jni_dir"
 mkdir -p "$jni_dir"
 
 (cd "$source_dir" && cargo ndk -t "$abi" --platform "$platform" -o "$jni_dir" build --locked --release -p reality-ffi)
@@ -109,14 +117,15 @@ gradle --no-daemon -p "$android_dir" :app:assembleDebug
 apk="$app_dir/build/outputs/apk/debug/app-debug.apk"
 [[ -f "$apk" ]] || { echo "Gradle did not create the expected APK: $apk" >&2; exit 1; }
 unzip -l "$apk" | grep -Fq "lib/$abi/libreality.so" || {
-    echo 'APK is missing lib/arm64-v8a/libreality.so.' >&2
+    echo "APK is missing lib/$abi/libreality.so." >&2
     exit 1
 }
 unzip -l "$apk" | grep -Fq "lib/$abi/libreality_client_rs.so" || {
-    echo 'APK is missing lib/arm64-v8a/libreality_client_rs.so.' >&2
+    echo "APK is missing lib/$abi/libreality_client_rs.so." >&2
     exit 1
 }
 
-echo 'ANDROID_ARM64_APK_BUILD=PASS'
+echo 'ANDROID_APK_BUILD=PASS'
+echo "ABI=$abi"
 echo "APK=$apk"
 echo "CORE_SOURCE_COMMIT=$expected_commit"
