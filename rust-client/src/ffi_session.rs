@@ -12,8 +12,10 @@ use std::{
 
 use zeroize::Zeroizing;
 
+#[cfg(windows)]
+use crate::core::recover_proxy;
 use crate::{
-    core::{check_config_file, default_config_path, has_proxy_recovery, recover_proxy},
+    core::{check_config_file, default_config_path, has_proxy_recovery},
     ffi_core::FfiCore,
     security::redact_sensitive_text,
 };
@@ -22,6 +24,7 @@ pub struct CoreSession {
     core: Option<FfiCore>,
     _log_queue: Arc<Mutex<VecDeque<String>>>,
     secret_file: Option<PathBuf>,
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     proxy_backup: Option<PathBuf>,
     verify_socks: bool,
     reload_supported: bool,

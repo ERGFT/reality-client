@@ -25,9 +25,9 @@ use core::{check_config_file, default_config_path, load_advanced_config_path};
 use ffi_session::CoreSession;
 use profiles::{ProfileStore, storage_backend_description};
 use security::redact_sensitive_text;
-use slint::{
-    CloseRequestResponse, ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel,
-};
+#[cfg(any(windows, target_os = "linux"))]
+use slint::CloseRequestResponse;
+use slint::{ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use zeroize::Zeroizing;
@@ -144,6 +144,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     };
 
     let window = MainWindow::new()?;
+    window.set_app_version(env!("CARGO_PKG_VERSION").into());
     #[cfg(target_os = "android")]
     window.set_mobile_layout(true);
     let theme_path = platform::app_data_dir()
@@ -158,6 +159,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     let profile_store = Arc::new(Mutex::new(ProfileStore::open_default().ok()));
     let selected_profile_link = Arc::new(Mutex::new(None::<(usize, Zeroizing<String>)>));
     let core_session: Arc<Mutex<Option<CoreSession>>> = Arc::new(Mutex::new(None));
+    let public_ip_check_busy = Arc::new(AtomicBool::new(false));
     let core_logs = Arc::new(Mutex::new(VecDeque::<String>::new()));
     let is_starting = Arc::new(AtomicBool::new(false));
     #[cfg(any(windows, target_os = "linux"))]
@@ -297,6 +299,99 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                 window
                     .set_detail_text(format!("Тема применена, но не сохранена: {problem}").into());
             }
+        }
+    });
+
+    window.on_public_ip_check_requested({
+        let window = window.as_weak();
+        #[cfg(not(target_os = "android"))]
+        let core_session = core_session.clone();
+        let public_ip_check_busy = public_ip_check_busy.clone();
+        move || {
+            let Some(window) = window.upgrade() else { return; };
+            #[cfg(target_os = "android")]
+            let connected = platform::android_vpn_state() == 2;
+            #[cfg(not(target_os = "android"))]
+            let connected = core_session
+                .lock()
+                .map(|session| session.is_some())
+                .unwrap_or(false);
+            if !connected {
+                window.set_public_ip_text("Не подключено".into());
+                window.set_detail_text("Сначала подключитесь: проверка отправляет запрос к api.ipify.org через локальный прокси ядра.".into());
+                return;
+            }
+            let proxy_uri = if window.get_use_full_config() {
+                match local_socks_proxy_uri(window.get_config_editor_text().as_str()) {
+                    Ok(Some(proxy)) => proxy,
+                    Ok(None) => {
+                        window.set_detail_text("В полном конфиге нет локального SOCKS/mixed-inbound. Для проверки IP добавьте такой входящий узел.".into());
+                        return;
+                    }
+                    Err(problem) => {
+                        window.set_detail_text(problem.into());
+                        return;
+                    }
+                }
+            } else {
+                "socks5h://127.0.0.1:1080".to_owned()
+            };
+            if public_ip_check_busy.swap(true, Ordering::AcqRel) {
+                return;
+            }
+            window.set_public_ip_text("Проверяю…".into());
+            window.set_detail_text("Отправляю HTTPS-запрос к api.ipify.org через прокси ядра. Сервис увидит адрес, с которого пришёл запрос.".into());
+            let weak_window = window.as_weak();
+            let public_ip_check_busy = public_ip_check_busy.clone();
+            std::thread::spawn(move || {
+                let result = fetch_public_ip_via_proxy(&proxy_uri);
+                let _ = slint::invoke_from_event_loop(move || {
+                    public_ip_check_busy.store(false, Ordering::Release);
+                    let Some(window) = weak_window.upgrade() else { return; };
+                    match result {
+                        Ok(address) => {
+                            window.set_public_ip_text(address.into());
+                            window.set_detail_text("Получен внешний IP для HTTPS-запроса, отправленного через локальный SOCKS/mixed-inbound ядра. Маршрутизация полного конфига может направлять этот домен напрямую.".into());
+                        }
+                        Err(problem) => {
+                            window.set_public_ip_text("Не удалось проверить".into());
+                            window.set_detail_text(problem.into());
+                        }
+                    }
+                });
+            });
+        }
+    });
+
+    window.on_direct_ip_check_requested({
+        let window = window.as_weak();
+        let public_ip_check_busy = public_ip_check_busy.clone();
+        move || {
+            let Some(window) = window.upgrade() else { return; };
+            if public_ip_check_busy.swap(true, Ordering::AcqRel) {
+                return;
+            }
+            window.set_direct_ip_text("Проверяю…".into());
+            window.set_detail_text("Отправляю HTTPS-запрос к api.ipify.org по обычному сетевому маршруту устройства. Если VPN уже подключён, ОС может направить запрос через него; api.ipify.org увидит адрес запроса.".into());
+            let weak_window = window.as_weak();
+            let public_ip_check_busy = public_ip_check_busy.clone();
+            std::thread::spawn(move || {
+                let result = fetch_public_ip_direct();
+                let _ = slint::invoke_from_event_loop(move || {
+                    public_ip_check_busy.store(false, Ordering::Release);
+                    let Some(window) = weak_window.upgrade() else { return; };
+                    match result {
+                        Ok(address) => {
+                            window.set_direct_ip_text(address.into());
+                            window.set_detail_text("Получен внешний IP для запроса по обычному маршруту устройства. При активном VPN фактический маршрут зависит от настроек ОС.".into());
+                        }
+                        Err(problem) => {
+                            window.set_direct_ip_text("Не удалось проверить".into());
+                            window.set_detail_text(problem.into());
+                        }
+                    }
+                });
+            });
         }
     });
 
@@ -814,6 +909,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
 
     window.on_config_check_requested({
         let window = window.as_weak();
+        #[cfg(not(target_os = "android"))]
         let is_starting = is_starting.clone();
         move || {
             #[cfg(target_os = "android")]
@@ -826,6 +922,8 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                 }
                 return;
             }
+            #[cfg(not(target_os = "android"))]
+            {
             if is_starting.swap(true, Ordering::AcqRel) { return; }
             let Some(window) = window.upgrade() else {
                 is_starting.store(false, Ordering::Release);
@@ -862,6 +960,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     }
                 });
             });
+            }
         }
     });
 
@@ -1130,7 +1229,9 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         let window = window.as_weak();
         let selected_profile_link = selected_profile_link.clone();
         let profile_store = profile_store.clone();
+        #[cfg(not(target_os = "android"))]
         let core_session = core_session.clone();
+        #[cfg(not(target_os = "android"))]
         let core_logs = core_logs.clone();
         let is_starting = is_starting.clone();
         move || {
@@ -1149,6 +1250,8 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                 }
                 return;
             }
+            #[cfg(not(target_os = "android"))]
+            {
             let mut active = core_session.lock().expect("core-session mutex poisoned");
             if let Some(mut session) = active.take() {
                 drop(active);
@@ -1181,6 +1284,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     });
                 });
                 return;
+            }
             }
 
             let use_full_config = window.get_use_full_config();
@@ -1216,9 +1320,6 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     return;
                 }
             };
-            let enable_system_proxy = cfg!(windows)
-                && window.get_enable_system_proxy()
-                && !use_full_config;
             let config_path = PathBuf::from(window.get_config_editor_path().as_str());
             #[cfg(target_os = "android")]
             {
@@ -1287,6 +1388,11 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                 });
                 return;
             }
+            #[cfg(not(target_os = "android"))]
+            {
+            let enable_system_proxy = cfg!(windows)
+                && window.get_enable_system_proxy()
+                && !use_full_config;
             core_logs.lock().expect("core-log mutex poisoned").clear();
             window.set_log_text("".into());
             window.set_status_text("Подключение…".into());
@@ -1364,6 +1470,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     }
                 });
             });
+            }
         }
     });
 
@@ -1887,6 +1994,110 @@ fn parse_jsonc_value(text: &str) -> Result<serde_json::Value, String> {
     let cleaned = String::from_utf8(cleaned)
         .map_err(|_| "Конфигурация содержит некорректный UTF-8.".to_owned())?;
     serde_json::from_str(&cleaned).map_err(|problem| format!("Некорректный JSON: {problem}"))
+}
+
+fn local_socks_proxy_uri(text: &str) -> Result<Option<String>, String> {
+    let config = parse_jsonc_value(text)?;
+    let Some(inbounds) = config.get("inbounds").and_then(serde_json::Value::as_array) else {
+        return Ok(None);
+    };
+    for inbound in inbounds {
+        let inbound_type = inbound
+            .get("type")
+            .or_else(|| inbound.get("protocol"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        if !matches!(inbound_type, "mixed" | "socks") {
+            continue;
+        }
+        let listen = inbound
+            .get("listen")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("127.0.0.1");
+        let is_loopback = listen == "localhost"
+            || listen
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|address| address.is_loopback());
+        if !is_loopback {
+            continue;
+        }
+        let port = inbound
+            .get("listen_port")
+            .or_else(|| inbound.get("port"))
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|port| u16::try_from(port).ok())
+            .filter(|port| *port != 0);
+        let Some(port) = port else {
+            continue;
+        };
+        let host = if listen == "localhost" {
+            "127.0.0.1"
+        } else {
+            listen
+        };
+        let host = if host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|address| address.is_ipv6())
+        {
+            format!("[{host}]")
+        } else {
+            host.to_owned()
+        };
+        return Ok(Some(format!("socks5h://{host}:{port}")));
+    }
+    Ok(None)
+}
+
+fn fetch_public_ip_via_proxy(proxy_uri: &str) -> Result<String, String> {
+    let proxy = ureq::Proxy::new(proxy_uri)
+        .map_err(|problem| format!("Не удалось настроить локальный SOCKS-прокси: {problem}"))?;
+    let agent = ureq::Agent::config_builder()
+        .https_only(true)
+        .timeout_global(Some(Duration::from_secs(10)))
+        .proxy(Some(proxy))
+        .build()
+        .new_agent();
+    let response = agent
+        .get("https://api.ipify.org")
+        .call()
+        .map_err(|problem| {
+            format!("Запрос к api.ipify.org через ядро завершился ошибкой: {problem}")
+        })?;
+    let body = response
+        .into_body()
+        .with_config()
+        .limit(128)
+        .read_to_string()
+        .map_err(|problem| format!("Не удалось прочитать ответ сервиса проверки IP: {problem}"))?;
+    body.trim()
+        .parse::<std::net::IpAddr>()
+        .map(|address| address.to_string())
+        .map_err(|_| "Сервис проверки IP вернул ответ, который не является IP-адресом.".to_owned())
+}
+
+fn fetch_public_ip_direct() -> Result<String, String> {
+    let agent = ureq::Agent::config_builder()
+        .https_only(true)
+        .timeout_global(Some(Duration::from_secs(10)))
+        .proxy(None)
+        .build()
+        .new_agent();
+    let response = agent
+        .get("https://api.ipify.org")
+        .call()
+        .map_err(|problem| {
+            format!("Запрос к api.ipify.org по обычному маршруту завершился ошибкой: {problem}")
+        })?;
+    let body = response
+        .into_body()
+        .with_config()
+        .limit(128)
+        .read_to_string()
+        .map_err(|problem| format!("Не удалось прочитать ответ сервиса проверки IP: {problem}"))?;
+    body.trim()
+        .parse::<std::net::IpAddr>()
+        .map(|address| address.to_string())
+        .map_err(|_| "Сервис проверки IP вернул ответ, который не является IP-адресом.".to_owned())
 }
 
 fn is_xray_config(value: &serde_json::Value) -> bool {
@@ -2619,6 +2830,42 @@ fn fetch_runtime_snapshot(session: &CoreSession) -> Result<RuntimeSnapshot, Stri
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(0),
     })
+}
+
+#[cfg(test)]
+mod public_ip_proxy_tests {
+    use super::local_socks_proxy_uri;
+
+    #[test]
+    fn resolves_sing_box_mixed_inbound_to_loopback_socks_uri() {
+        let config = r#"{"inbounds":[{"type":"mixed","listen_port":1080}]}"#;
+        assert_eq!(
+            local_socks_proxy_uri(config).unwrap().as_deref(),
+            Some("socks5h://127.0.0.1:1080")
+        );
+    }
+
+    #[test]
+    fn resolves_xray_socks_inbound_and_ipv6_loopback() {
+        let config = r#"{"inbounds":[{"protocol":"socks","listen":"::1","port":2080}]}"#;
+        assert_eq!(
+            local_socks_proxy_uri(config).unwrap().as_deref(),
+            Some("socks5h://[::1]:2080")
+        );
+    }
+
+    #[test]
+    fn refuses_remote_and_non_socks_inbounds() {
+        let remote = r#"{"inbounds":[{"type":"mixed","listen":"0.0.0.0","listen_port":1080}]}"#;
+        let http = r#"{"inbounds":[{"protocol":"http","listen":"127.0.0.1","port":8080}]}"#;
+        assert_eq!(local_socks_proxy_uri(remote).unwrap(), None);
+        assert_eq!(local_socks_proxy_uri(http).unwrap(), None);
+    }
+
+    #[test]
+    fn reports_invalid_full_config() {
+        assert!(local_socks_proxy_uri("not JSON").is_err());
+    }
 }
 
 #[cfg(target_os = "android")]
