@@ -2309,6 +2309,13 @@ fn value_has_fakeip(value: &serde_json::Value) -> bool {
     {
         return true;
     }
+    let has_sing_box_fakeip_server = dns
+        .and_then(|dns| dns.get("servers"))
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|servers| servers.iter().any(is_sing_box_fakeip_server));
+    if has_sing_box_fakeip_server {
+        return true;
+    }
     value
         .get("fakedns")
         .is_some_and(|pools| pools.as_array().is_none_or(|items| !items.is_empty()))
@@ -2322,6 +2329,11 @@ fn value_has_fakeip(value: &serde_json::Value) -> bool {
                             == Some("fakedns")
                 })
             })
+}
+
+fn is_sing_box_fakeip_server(server: &serde_json::Value) -> bool {
+    server.get("type").and_then(serde_json::Value::as_str) == Some("fakeip")
+        || server.get("address").and_then(serde_json::Value::as_str) == Some("fakeip")
 }
 
 fn route_rules_mut(
@@ -2533,7 +2545,7 @@ fn set_network_options(
             };
             inbounds.push(tun);
         }
-        ensure_dns_for_tun(&mut value, xray);
+        ensure_dns_for_tun(&mut value, xray)?;
     } else {
         inbounds
             .retain(|inbound| inbound.get(key).and_then(serde_json::Value::as_str) != Some("tun"));
@@ -2550,29 +2562,45 @@ fn set_network_options(
         .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
 }
 
-fn ensure_dns_for_tun(value: &mut serde_json::Value, xray: bool) {
-    let detour_tag = value
-        .get("outbounds")
-        .and_then(serde_json::Value::as_array)
-        .and_then(|items| {
-            items.iter().find(|item| {
-                matches!(
-                    item.get("type").and_then(serde_json::Value::as_str),
-                    Some("vless" | "trojan" | "selector" | "urltest")
-                )
-            })
-        })
-        .and_then(|item| item.get("tag"))
+fn default_dns_detour_tag(value: &serde_json::Value) -> Option<String> {
+    let outbounds = value.get("outbounds")?.as_array()?;
+    let has_tag = |tag: &str| {
+        outbounds
+            .iter()
+            .any(|item| item.get("tag").and_then(serde_json::Value::as_str) == Some(tag))
+    };
+    value
+        .get("route")
+        .and_then(|route| route.get("final"))
         .and_then(serde_json::Value::as_str)
-        .unwrap_or("proxy")
-        .to_owned();
+        .filter(|tag| has_tag(tag))
+        .or_else(|| {
+            outbounds
+                .iter()
+                .find(|item| {
+                    matches!(
+                        item.get("type").and_then(serde_json::Value::as_str),
+                        Some("vless" | "trojan" | "selector" | "urltest")
+                    )
+                })
+                .and_then(|item| item.get("tag"))
+                .and_then(serde_json::Value::as_str)
+        })
+        .or_else(|| {
+            outbounds
+                .iter()
+                .find_map(|item| item.get("tag").and_then(serde_json::Value::as_str))
+        })
+        .map(str::to_owned)
+}
+
+fn ensure_dns_for_tun(value: &mut serde_json::Value, xray: bool) -> Result<(), String> {
+    let detour_tag = (!xray).then(|| default_dns_detour_tag(value)).flatten();
     let Some(root) = value.as_object_mut() else {
-        return;
+        return Err("Корень JSON-конфигурации должен быть объектом.".into());
     };
     let dns = root.entry("dns").or_insert_with(|| serde_json::json!({}));
-    let Some(dns) = dns.as_object_mut() else {
-        return;
-    };
+    let dns = dns.as_object_mut().ok_or("dns должен быть объектом.")?;
     if !dns.contains_key("servers")
         || dns
             .get("servers")
@@ -2584,29 +2612,19 @@ fn ensure_dns_for_tun(value: &mut serde_json::Value, xray: bool) {
                 serde_json::json!(["https://1.1.1.1/dns-query"]),
             );
         } else {
+            let detour_tag = detour_tag
+                .as_deref()
+                .ok_or("Для DNS в TUN нужен выход с непустым тегом в outbounds.")?;
             dns.insert("servers".to_owned(), serde_json::json!([{"type":"https","tag":"remote","server":"1.1.1.1","detour":detour_tag}]));
             dns.entry("final")
                 .or_insert_with(|| serde_json::json!("remote"));
         }
     }
+    Ok(())
 }
 
 fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Result<(), String> {
-    let proxy_tag = value
-        .get("outbounds")
-        .and_then(serde_json::Value::as_array)
-        .and_then(|items| {
-            items.iter().find(|item| {
-                matches!(
-                    item.get("type").and_then(serde_json::Value::as_str),
-                    Some("vless" | "trojan" | "selector" | "urltest")
-                )
-            })
-        })
-        .and_then(|item| item.get("tag"))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("proxy")
-        .to_owned();
+    let detour_tag = default_dns_detour_tag(value);
     let root = value
         .as_object_mut()
         .ok_or_else(|| "Корень JSON-конфигурации должен быть объектом.".to_owned())?;
@@ -2655,10 +2673,24 @@ fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Resul
     if enabled {
         let dns = root.entry("dns").or_insert_with(|| serde_json::json!({}));
         let dns = dns.as_object_mut().ok_or("dns должен быть объектом.")?;
-        if !dns.contains_key("servers") {
-            dns.insert("servers".to_owned(), serde_json::json!([{"type":"https","tag":"remote","server":"1.1.1.1","detour":proxy_tag}]));
+        if !dns.contains_key("servers")
+            || dns
+                .get("servers")
+                .is_some_and(|servers| servers.as_array().is_some_and(Vec::is_empty))
+        {
+            let detour_tag = detour_tag
+                .as_deref()
+                .ok_or("Для Fake-IP DNS нужен выход с непустым тегом в outbounds.")?;
+            dns.insert("servers".to_owned(), serde_json::json!([{"type":"https","tag":"remote","server":"1.1.1.1","detour":detour_tag}]));
             dns.entry("final")
                 .or_insert_with(|| serde_json::json!("remote"));
+        }
+        let servers = dns
+            .get_mut("servers")
+            .and_then(serde_json::Value::as_array_mut)
+            .ok_or("dns.servers должен быть массивом.")?;
+        if !servers.iter().any(is_sing_box_fakeip_server) {
+            servers.push(serde_json::json!({"type":"fakeip","tag":"reality-client-fakeip"}));
         }
         let fakeip = dns.entry("fakeip").or_insert_with(|| serde_json::json!({}));
         let fakeip = fakeip
@@ -2671,12 +2703,59 @@ fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Resul
         fakeip
             .entry("inet6_range")
             .or_insert_with(|| serde_json::json!("fc00::/18"));
-    } else if let Some(fakeip) = root
+    } else if let Some(dns) = root
         .get_mut("dns")
-        .and_then(|dns| dns.get_mut("fakeip"))
         .and_then(serde_json::Value::as_object_mut)
     {
-        fakeip.insert("enabled".to_owned(), serde_json::json!(false));
+        let removed_tags = dns
+            .get("servers")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter(|server| is_sing_box_fakeip_server(server))
+            .filter_map(|server| server.get("tag").and_then(serde_json::Value::as_str))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        if let Some(servers) = dns
+            .get_mut("servers")
+            .and_then(serde_json::Value::as_array_mut)
+        {
+            servers.retain(|server| !is_sing_box_fakeip_server(server));
+        }
+        if let Some(rules) = dns
+            .get_mut("rules")
+            .and_then(serde_json::Value::as_array_mut)
+        {
+            rules.retain(|rule| {
+                !rule
+                    .get("server")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|tag| removed_tags.iter().any(|removed| removed == tag))
+            });
+        }
+        let final_uses_removed_server = dns
+            .get("final")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|tag| removed_tags.iter().any(|removed| removed == tag));
+        if final_uses_removed_server {
+            let fallback = dns
+                .get("servers")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .find_map(|server| server.get("tag").and_then(serde_json::Value::as_str));
+            if let Some(fallback) = fallback {
+                dns.insert("final".to_owned(), serde_json::json!(fallback));
+            } else {
+                dns.remove("final");
+            }
+        }
+        if let Some(fakeip) = dns
+            .get_mut("fakeip")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            fakeip.insert("enabled".to_owned(), serde_json::json!(false));
+        }
     }
     Ok(())
 }
@@ -2926,6 +3005,84 @@ fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<String>, St
         return Err("В буфере нет текста со ссылкой VLESS.".into());
     }
     Ok(Zeroizing::new(trimmed.to_owned()))
+}
+
+#[cfg(test)]
+mod network_options_tests {
+    use super::{default_dns_detour_tag, set_network_options, value_has_fakeip};
+
+    const DIRECT_ONLY_CONFIG: &str = r#"{
+        "inbounds": [{"type":"mixed","tag":"local","listen":"127.0.0.1","listen_port":1080}],
+        "outbounds": [{"type":"direct","tag":"direct"}],
+        "route": {"final":"direct"}
+    }"#;
+
+    #[test]
+    fn dns_detour_uses_the_configured_final_outbound() {
+        let value: serde_json::Value = serde_json::from_str(DIRECT_ONLY_CONFIG).unwrap();
+        assert_eq!(default_dns_detour_tag(&value).as_deref(), Some("direct"));
+    }
+
+    #[test]
+    fn fakeip_adds_a_dns_server_with_an_existing_outbound_tag() {
+        let configured = set_network_options(DIRECT_ONLY_CONFIG, false, true).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&configured).unwrap();
+        assert_eq!(
+            value["dns"]["servers"][0]["detour"].as_str(),
+            Some("direct")
+        );
+    }
+
+    #[test]
+    fn disabling_fakeip_removes_its_server_and_returns_dns_final_to_upstream() {
+        let enabled = set_network_options(DIRECT_ONLY_CONFIG, false, true).unwrap();
+        let disabled = set_network_options(&enabled, false, false).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&disabled).unwrap();
+        let servers = value["dns"]["servers"].as_array().unwrap();
+        assert!(
+            servers
+                .iter()
+                .all(|server| !super::is_sing_box_fakeip_server(server))
+        );
+        assert_eq!(value["dns"]["final"].as_str(), Some("remote"));
+        assert!(!value_has_fakeip(&value));
+    }
+
+    #[test]
+    fn tun_dns_uses_a_real_outbound_when_route_final_is_absent() {
+        let config = r#"{
+            "inbounds": [],
+            "outbounds": [{"type":"direct","tag":"internet"}]
+        }"#;
+        let configured = set_network_options(config, true, false).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&configured).unwrap();
+        assert_eq!(
+            value["dns"]["servers"][0]["detour"].as_str(),
+            Some("internet")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn pinned_core_accepts_generated_fakeip_config_without_proxy_named_outbound() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let configured = set_network_options(DIRECT_ONLY_CONFIG, true, true).unwrap();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "reality-fakeip-config-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config_path = dir.join("config.json");
+        std::fs::write(&config_path, configured).unwrap();
+        let result = crate::core::check_config_file(&config_path);
+        let _ = std::fs::remove_dir_all(&dir);
+        result.unwrap();
+    }
 }
 
 #[cfg(test)]
