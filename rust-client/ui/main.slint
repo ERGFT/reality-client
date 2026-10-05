@@ -1,4 +1,4 @@
-import { Button, ComboBox, LineEdit, ScrollView, TextEdit } from "std-widgets.slint";
+import { Button, ComboBox, LineEdit, Palette, ScrollView, TextEdit } from "std-widgets.slint";
 
 component NavTab inherits Rectangle {
     in property <string> label;
@@ -193,6 +193,13 @@ export component MainWindow inherits Window {
 
     changed use-full-config => {
         if root.use-full-config { root.enable-system-proxy = false; }
+    }
+
+    init => {
+        Palette.color-scheme = root.dark-theme ? ColorScheme.dark : ColorScheme.light;
+    }
+    changed dark-theme => {
+        Palette.color-scheme = root.dark-theme ? ColorScheme.dark : ColorScheme.light;
     }
 
     VerticalLayout {
