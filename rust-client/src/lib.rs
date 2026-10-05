@@ -246,7 +246,11 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     window.set_recovery_visible(core::has_proxy_recovery());
     window.set_tun_cleanup_supported(cfg!(windows));
     window.set_system_proxy_supported(cfg!(windows));
-    window.set_clipboard_paste_supported(cfg!(any(windows, target_os = "android")));
+    window.set_clipboard_paste_supported(cfg!(any(
+        windows,
+        target_os = "android",
+        target_os = "linux"
+    )));
     window.set_file_dialog_supported(cfg!(any(windows, target_os = "linux")));
     let platform_guidance = if cfg!(windows) {
         "Windows TUN требует запуска клиента от имени администратора и wintun.dll из официального пакета. При аварийном завершении доступна ручная очистка маршрутов Reality Core."
@@ -714,7 +718,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         }
     });
 
-    #[cfg(any(windows, target_os = "android"))]
+    #[cfg(any(windows, target_os = "android", target_os = "linux"))]
     window.on_paste_profile_link({
         let weak_window = window.as_weak();
         move || {
@@ -3038,6 +3042,16 @@ fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String> {
 #[cfg(target_os = "android")]
 fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String> {
     let text = platform::read_android_clipboard_text()?;
+    sanitize_clipboard_profile_link(text)
+}
+
+#[cfg(target_os = "linux")]
+fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String> {
+    let text = arboard::Clipboard::new()
+        .and_then(|mut clipboard| clipboard.get_text())
+        .map_err(|problem| {
+            format!("Не удалось прочитать текст из буфера обмена Linux: {problem}")
+        })?;
     sanitize_clipboard_profile_link(text)
 }
 

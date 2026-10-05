@@ -3786,6 +3786,7 @@ name = "reality-client-rs"
 version = "0.1.0"
 dependencies = [
  "android-native-keyring-store",
+ "arboard",
  "jni 0.22.4",
  "keyring",
  "keyring-core",
