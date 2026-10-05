@@ -169,11 +169,11 @@ export component MainWindow inherits Window {
         }
 
         if root.mobile-layout: HorizontalLayout {
-            spacing: 2px;
+            spacing: 1px;
             NavTab { horizontal-stretch: 1; label: "Домой"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
-            NavTab { horizontal-stretch: 1; label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
+            NavTab { horizontal-stretch: 1; label: "Узлы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
             NavTab { horizontal-stretch: 1; label: "Потоки"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
-            NavTab { horizontal-stretch: 1; label: "Настройки"; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
+            NavTab { horizontal-stretch: 1; label: "Настр."; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
             NavTab { horizontal-stretch: 1; label: "О нас"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
         }
 
