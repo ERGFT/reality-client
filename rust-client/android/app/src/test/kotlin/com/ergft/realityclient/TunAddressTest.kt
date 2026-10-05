@@ -12,6 +12,12 @@ import java.nio.file.Files
 
 class TunAddressTest {
     @Test
+    fun androidVpnRequiresExactlyOneTunInbound() {
+        assertEquals(1, singleTunInboundIndex(listOf("mixed", "tun", "direct")))
+        assertRejected { singleTunInboundIndex(listOf("mixed", "direct")) }
+        assertRejected { singleTunInboundIndex(listOf("tun", "tun")) }
+    }
+    @Test
     fun pendingVpnRequestSurvivesActivityRecreationAndIsConsumedOnce() {
         val request = PendingVpnStart("/data/user/0/app/files/reality-pending-vpn-id.json", "/data/user/0/app/files", true)
         PendingVpnStartStore.put(request)

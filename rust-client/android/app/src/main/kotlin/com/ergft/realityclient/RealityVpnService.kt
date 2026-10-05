@@ -102,11 +102,9 @@ class RealityVpnService : VpnService() {
         val root = JSONObject(config)
         val inbounds = root.optJSONArray("inbounds")
             ?: throw IllegalArgumentException("В конфигурации отсутствуют inbounds")
-        val tun = (0 until inbounds.length())
-            .asSequence()
-            .map { inbounds.getJSONObject(it) }
-            .firstOrNull { it.optString("type") == "tun" }
-            ?: throw IllegalArgumentException("Для Android требуется входящий тип tun")
+        val inboundObjects = (0 until inbounds.length()).map { inbounds.getJSONObject(it) }
+        val tunIndex = singleTunInboundIndex(inboundObjects.map { it.optString("type") })
+        val tun = inboundObjects[tunIndex]
         if (!tun.optBoolean("dns_hijack", true) || root.optJSONObject("dns") == null) {
             throw IllegalArgumentException("Android требует DNS-модуль и перехват DNS-запросов в TUN")
         }

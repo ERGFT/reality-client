@@ -68,3 +68,7 @@ The Rust JNI bridge can be type-checked on a desktop host without Android SDK fi
 
 
 The Windows GitHub Actions workflow rebuilds the pinned core FFI DLL, runs the Windows feature test suite, packages the x64 app, and checks the expected package files. A hosted run was triggered, but GitHub blocked job startup before a runner began; the workflow's hosted result is still unverified.
+
+### Android TUN config guard (2026-10-05)
+
+The Android VPN service now rejects full JSON configs unless they contain exactly one `tun` inbound. The service establishes one Android TUN descriptor and hands one descriptor to the core; previously, multiple TUN inbounds silently selected the first for Android setup. The selector has JVM regression coverage for zero, one, and multiple TUN inbounds. Verification: all 14 Android JVM tests passed; Gradle assembled the debug APK and `apksigner` verified its v2 signature. APK SHA-256: `F274DD3004A132381EAEFEF0431471CE9896CAA214D3CC2686B1799FB3B8476D`. This is not an Android device or VPN runtime test.
