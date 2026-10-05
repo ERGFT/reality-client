@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the Android TUN-fd ownership fix to the hash-pinned vpn-core source."""
+"""Apply the system-owned Android TUN route and descriptor fixes to pinned vpn-core."""
 
 from __future__ import annotations
 
@@ -96,6 +96,82 @@ def main() -> None:
         "        fd: i.tun_fd,\n"
         "        #[cfg(unix)]\n"
         "        fd_owner: i.tun_fd_owner.clone(),\n",
+    )
+
+    app = root / "core/src/app/mod.rs"
+    replace_once(
+        app,
+        "fn build_tun_inbound(\n",
+        "fn core_manages_tun_routes(auto_route: bool, external_fd: bool) -> bool {\n"
+        "    auto_route && !external_fd\n"
+        "}\n\n"
+        "#[cfg(test)]\n"
+        "mod external_tun_route_tests {\n"
+        "    #[test]\n"
+        "    fn system_tun_descriptor_keeps_routes_under_system_control() {\n"
+        "        assert!(!super::core_manages_tun_routes(true, true));\n"
+        "        assert!(super::core_manages_tun_routes(true, false));\n"
+        "        assert!(!super::core_manages_tun_routes(false, false));\n"
+        "    }\n"
+        "}\n\n"
+        "fn build_tun_inbound(\n",
+    )
+    replace_once(
+        app,
+        "                let lock = if t.settings.auto_route {\n",
+        "                let lock = if core_manages_tun_routes(\n"
+        "                    t.settings.auto_route,\n"
+        "                    t.settings.fd.is_some(),\n"
+        "                ) {\n",
+    )
+    replace_once(
+        app,
+        "                    if dns.is_some() {\n"
+        "                        // Новые имена (серверы из обновлённой подписки) —\n"
+        "                        // у своего DNS, а не у системы: её запросы теперь\n"
+        "                        // идут через TUN и могли бы получить fake-IP.\n"
+        "                        // DNS — текущий (после перечитывания настроек —\n"
+        "                        // новый).\n"
+        "                        let r = Arc::downgrade(&routers);\n"
+        "                        crate::transport::tcp_tls::set_tun_resolver(Some(Arc::new(\n"
+        "                            move |host: String| {\n"
+        "                                let r = r.clone();\n"
+        "                                Box::pin(async move {\n"
+        "                                    let d = r\n"
+        "                                        .upgrade()\n"
+        "                                        .and_then(|r| r.get().dns().cloned())\n"
+        "                                        .ok_or_else(|| Error::Protocol(\"DNS остановлен\".into()))?;\n"
+        "                                    d.lookup(&host).await\n"
+        "                                })\n"
+        "                                    as futures_util::future::BoxFuture<'static, _>\n"
+        "                            },\n"
+        "                        )));\n"
+        "                        tun_resolver = true;\n"
+        "                    }\n"
+        "                }\n"
+        "                inbounds.push((i.tag.clone(), i.kind, SocketAddr::from(([0, 0, 0, 0], 0))));\n",
+        "                }\n"
+        "                // A system-owned TUN (Android/iOS) already has its\n"
+        "                // routes before core startup. Keep name resolution\n"
+        "                // inside the core DNS after its TUN worker is running.\n"
+        "                if t.settings.auto_route && dns.is_some() {\n"
+        "                    let r = Arc::downgrade(&routers);\n"
+        "                    crate::transport::tcp_tls::set_tun_resolver(Some(Arc::new(\n"
+        "                        move |host: String| {\n"
+        "                            let r = r.clone();\n"
+        "                            Box::pin(async move {\n"
+        "                                let d = r\n"
+        "                                    .upgrade()\n"
+        "                                    .and_then(|r| r.get().dns().cloned())\n"
+        "                                    .ok_or_else(|| Error::Protocol(\"DNS остановлен\".into()))?;\n"
+        "                                d.lookup(&host).await\n"
+        "                            })\n"
+        "                                as futures_util::future::BoxFuture<'static, _>\n"
+        "                        },\n"
+        "                    )));\n"
+        "                    tun_resolver = true;\n"
+        "                }\n"
+        "                inbounds.push((i.tag.clone(), i.kind, SocketAddr::from(([0, 0, 0, 0], 0))));\n",
     )
 
     ffi = root / "ffi/src/lib.rs"
@@ -242,7 +318,7 @@ def main() -> None:
         "}\n",
     )
 
-    print("CORE_TUN_FD_OWNERSHIP_PATCH=PASS")
+    print("CORE_SYSTEM_TUN_PATCH=PASS")
 
 
 if __name__ == "__main__":

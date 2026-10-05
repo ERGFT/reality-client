@@ -29,7 +29,7 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot 'Cargo.toml'))) { throw 'В архиве не найден корневой Cargo.toml ядра.' }
     $corePatch = Join-Path $PSScriptRoot 'rust-client\patches\apply_core_tun_fd_ownership.py'
     & python $corePatch $sourceRoot
-    if ($LASTEXITCODE -ne 0) { throw "Не удалось применить проверенную правку владения Android TUN-дескриптором (код $LASTEXITCODE)." }
+    if ($LASTEXITCODE -ne 0) { throw "Не удалось применить проверенный overlay Android TUN-дескриптора и системных маршрутов (код $LASTEXITCODE)." }
     Push-Location $sourceRoot
     try {
         & cargo build --locked --release -p reality-ffi
