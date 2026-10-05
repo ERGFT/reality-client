@@ -9,6 +9,49 @@ internal fun singleTunInboundIndex(inboundTypes: List<String>): Int {
     }
 }
 
+private val unsupportedAndroidTunFields = setOf(
+    "route_address",
+    "inet4_route_address",
+    "inet6_route_address",
+    "route_address_set",
+    "inet4_route_address_set",
+    "inet6_route_address_set",
+    "route_exclude_address",
+    "inet4_route_exclude_address",
+    "inet6_route_exclude_address",
+    "route_exclude_address_set",
+    "inet4_route_exclude_address_set",
+    "inet6_route_exclude_address_set",
+    "auto_redirect",
+    "include_interface",
+    "exclude_interface",
+    "include_uid",
+    "exclude_uid",
+    "include_package",
+    "exclude_package",
+    "include_android_user",
+    "loopback_address",
+    "iproute2_table_index",
+    "iproute2_rule_index",
+)
+
+internal fun validateAndroidTunOptions(
+    configuredFields: Set<String>,
+    autoRoute: Boolean,
+    strictRoute: Boolean,
+) {
+    val unsupported = configuredFields.intersect(unsupportedAndroidTunFields).firstOrNull()
+    require(unsupported == null) {
+        "Android пока не поддерживает параметр TUN $unsupported"
+    }
+    require(autoRoute) {
+        "Android пока не поддерживает отключение автоматических TUN-маршрутов"
+    }
+    require(!strictRoute) {
+        "Android пока не поддерживает strict_route для TUN"
+    }
+}
+
 internal fun effectiveTunAddressCidrs(configuredAddresses: List<String>): List<String> {
     val parsed = configuredAddresses.map(TunAddress::parseCidr)
     val ipv4 = parsed.firstOrNull { it.address.address.size == 4 }

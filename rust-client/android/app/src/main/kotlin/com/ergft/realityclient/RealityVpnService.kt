@@ -110,13 +110,15 @@ class RealityVpnService : VpnService() {
         }
 
         // The core receives a ready descriptor, so it cannot configure Android routes itself.
-        if (tun.has("route_exclude_address") || tun.has("route_exclude_address_set") ||
-            tun.has("route_address") || tun.has("route_address_set") ||
-            tun.has("include_package") || tun.has("exclude_package") ||
-            !tun.optBoolean("auto_route", true) || tun.optBoolean("strict_route", false)
-        ) {
-            throw IllegalArgumentException("Android пока не поддерживает пользовательские TUN-маршруты и kill switch из JSON")
+        val tunFields = buildSet {
+            val keys = tun.keys()
+            while (keys.hasNext()) add(keys.next())
         }
+        validateAndroidTunOptions(
+            tunFields,
+            autoRoute = tun.optBoolean("auto_route", true),
+            strictRoute = tun.optBoolean("strict_route", false),
+        )
         val builder = Builder()
             .setSession("Reality Client")
             .setMtu(tun.optInt("mtu", 1500))

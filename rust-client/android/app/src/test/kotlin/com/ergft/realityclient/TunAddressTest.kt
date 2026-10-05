@@ -17,6 +17,50 @@ class TunAddressTest {
         assertRejected { singleTunInboundIndex(listOf("mixed", "direct")) }
         assertRejected { singleTunInboundIndex(listOf("tun", "tun")) }
     }
+
+    @Test
+    fun androidTunRejectsRouteExclusionsThatVpnBuilderCannotRepresent() {
+        assertRejected {
+            validateAndroidTunOptions(setOf("inet4_route_exclude_address"), true, false)
+        }
+        assertRejected {
+            validateAndroidTunOptions(setOf("inet6_route_exclude_address"), true, false)
+        }
+    }
+
+    @Test
+    fun androidTunRejectsPinnedCoreUnsupportedRouteOptionsBeforeEstablish() {
+        val unsupportedFields = listOf(
+            "route_address",
+            "inet4_route_address",
+            "inet6_route_address",
+            "route_address_set",
+            "inet4_route_address_set",
+            "inet6_route_address_set",
+            "route_exclude_address",
+            "route_exclude_address_set",
+            "inet4_route_exclude_address_set",
+            "inet6_route_exclude_address_set",
+            "auto_redirect",
+            "include_interface",
+            "exclude_interface",
+            "include_uid",
+            "exclude_uid",
+            "include_package",
+            "exclude_package",
+            "include_android_user",
+            "loopback_address",
+            "iproute2_table_index",
+            "iproute2_rule_index",
+        )
+        unsupportedFields.forEach { field ->
+            assertRejected { validateAndroidTunOptions(setOf(field), true, false) }
+        }
+        assertRejected { validateAndroidTunOptions(emptySet(), false, false) }
+        assertRejected { validateAndroidTunOptions(emptySet(), true, true) }
+        validateAndroidTunOptions(emptySet(), true, false)
+    }
+
     @Test
     fun androidTunUsesCoreDefaultIpv4AndIpv6AddressesWhenOmitted() {
         val addresses = effectiveTunAddressCidrs(emptyList()).map(TunAddress::parseCidr)
