@@ -554,15 +554,18 @@ mod tests {
     }
 
     #[test]
-    fn roundtrips_dotnet_vault_format() {
-        let sample = SavedProfile {
-            name: "Профиль 1".into(),
-            protected_link: vec![1, 2, 3, 4],
-        };
-        let encoded = encode_vault(std::slice::from_ref(&sample));
-        let decoded = decode_legacy_vault(&encoded).unwrap();
-        assert_eq!(decoded[0].name, sample.name);
-        assert_eq!(decoded[0].protected_link, sample.protected_link);
+    fn reads_dotnet_binary_writer_golden_vault() {
+        // Generated with System.IO.BinaryWriter from the C# reference client:
+        // header "RCLIENT1", one UTF-8 profile name, and a four-byte blob.
+        let fixture = [
+            0x08, 0x52, 0x43, 0x4c, 0x49, 0x45, 0x4e, 0x54, 0x31, 0x01, 0x00, 0x00, 0x00, 0x10,
+            0xd0, 0x9f, 0xd1, 0x80, 0xd0, 0xbe, 0xd1, 0x84, 0xd0, 0xb8, 0xd0, 0xbb, 0xd1, 0x8c,
+            0x20, 0x31, 0x04, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
+        ];
+        let decoded = decode_legacy_vault(&fixture).unwrap();
+        assert_eq!(decoded[0].name, "Профиль 1");
+        assert_eq!(decoded[0].protected_link, [1, 2, 3, 4]);
+        assert_eq!(encode_vault(&decoded), fixture);
     }
 
     #[test]
