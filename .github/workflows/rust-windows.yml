@@ -71,7 +71,7 @@ jobs:
         shell: pwsh
         run: |
           $package = 'rust-client\dist\windows-x64'
-          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'reality.dll', 'third_party\reality-client.exe')) {
+          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'reality.dll', 'LICENSE.txt', 'THIRD_PARTY.md', 'README.md', 'third_party\reality-client.exe', 'third_party\vpn-core-source.zip', 'third_party\vpn-core-source.commit')) {
             if (-not (Test-Path -LiteralPath (Join-Path $package $file))) {
               throw "Missing packaged file: $file"
             }

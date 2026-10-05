@@ -27,6 +27,11 @@ $exe = Join-Path $PSScriptRoot 'target\x86_64-pc-windows-gnu\release\reality-cli
 Copy-Item -LiteralPath $exe -Destination (Join-Path $package 'RealityClient-Rust.exe') -Force
 Copy-Item -LiteralPath $core -Destination (Join-Path $thirdParty 'reality-client.exe') -Force
 Copy-Item -LiteralPath $ffi -Destination (Join-Path $package 'reality.dll') -Force
+Copy-Item -LiteralPath (Join-Path $repo 'LICENSE.txt') -Destination (Join-Path $package 'LICENSE.txt') -Force
+Copy-Item -LiteralPath (Join-Path $repo 'THIRD_PARTY.md') -Destination (Join-Path $package 'THIRD_PARTY.md') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'README.md') -Destination (Join-Path $package 'README.md') -Force
+Copy-Item -LiteralPath (Join-Path $repo 'third_party\vpn-core-source.zip') -Destination (Join-Path $thirdParty 'vpn-core-source.zip') -Force
+Copy-Item -LiteralPath (Join-Path $repo 'third_party\vpn-core-source.commit') -Destination (Join-Path $thirdParty 'vpn-core-source.commit') -Force
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut((Join-Path $package 'Reality Client Rust.lnk'))
