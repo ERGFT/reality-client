@@ -57,6 +57,10 @@ struct SavedProfile {
 
 type SelectedProfileLink = Arc<Mutex<Option<(usize, Zeroizing<String>)>>>;
 
+fn profile_mutation_blocked(operation_busy: bool, session_active: bool) -> bool {
+    operation_busy || session_active
+}
+
 fn save_profile_for_connection(
     profile_store: &Arc<Mutex<Option<ProfileStore>>>,
     name: &str,
@@ -809,12 +813,32 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         let window = window.as_weak();
         let profile_store = profile_store.clone();
         let selected_profile_link = selected_profile_link.clone();
+        #[cfg(not(target_os = "android"))]
+        let core_session = core_session.clone();
+        let is_starting = is_starting.clone();
         move || {
             let Some(window) = window.upgrade() else {
                 return;
             };
+            if is_starting.swap(true, Ordering::AcqRel) {
+                window.set_detail_text("Дождитесь завершения текущей операции.".into());
+                return;
+            }
+            #[cfg(target_os = "android")]
+            let session_active = matches!(platform::android_vpn_state(), 1 | 2);
+            #[cfg(not(target_os = "android"))]
+            let session_active = core_session
+                .lock()
+                .map(|session| session.is_some())
+                .unwrap_or(true);
+            if profile_mutation_blocked(false, session_active) {
+                is_starting.store(false, Ordering::Release);
+                window.set_detail_text("Сначала отключите клиент, затем удаляйте профиль.".into());
+                return;
+            }
             let index = window.get_selected_profile_index();
             if index < 0 {
+                is_starting.store(false, Ordering::Release);
                 window.set_detail_text("Сначала выберите профиль для удаления.".into());
                 return;
             }
@@ -822,6 +846,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
             let weak_window = window.as_weak();
             let worker_store = profile_store.clone();
             let worker_link_cache = selected_profile_link.clone();
+            let is_starting = is_starting.clone();
             std::thread::spawn(move || {
                 let result = match worker_store.lock() {
                     Ok(mut guard) => match guard.as_mut() {
@@ -840,6 +865,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     Err(_) => Err("Хранилище профилей недоступно.".into()),
                 };
                 let _ = slint::invoke_from_event_loop(move || {
+                    is_starting.store(false, Ordering::Release);
                     let Some(window) = weak_window.upgrade() else {
                         return;
                     };
@@ -1624,7 +1650,14 @@ fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<String>, St
 
 #[cfg(test)]
 mod clipboard_tests {
-    use super::sanitize_clipboard_profile_link;
+    use super::{profile_mutation_blocked, sanitize_clipboard_profile_link};
+
+    #[test]
+    fn profile_mutation_is_blocked_during_operation_or_live_session() {
+        assert!(!profile_mutation_blocked(false, false));
+        assert!(profile_mutation_blocked(true, false));
+        assert!(profile_mutation_blocked(false, true));
+    }
 
     #[test]
     fn clipboard_paste_trims_outer_whitespace_and_preserves_link() {
