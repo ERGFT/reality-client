@@ -1,0 +1,307 @@
+import { Button, CheckBox, ComboBox, LineEdit, TextEdit } from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    title: "Reality Client";
+    width: 920px;
+    height: 680px;
+    background: #0b1117;
+
+    in-out property <string> profile-name;
+    in-out property <string> vless-link;
+    in-out property <bool> show-vless-link: false;
+    in property <bool> clipboard-paste-supported: false;
+    in property <bool> file-dialog-supported: false;
+    in-out property <string> status-text: "Отключено";
+    in-out property <string> detail-text: "Добавьте VLESS-профиль для начала работы.";
+    in-out property <string> log-text;
+    in-out property <string> profile-count: "Профили: 0";
+    in-out property <bool> delete-confirmation-visible: false;
+    in-out property <string> connect-button-text: "Подключить";
+    in-out property <bool> config-editor-visible: false;
+    in-out property <bool> config-reload-supported: false;
+    in-out property <string> config-editor-path;
+    in-out property <string> config-editor-text;
+    in property <string> config-platform-guidance;
+    in-out property <bool> use-full-config: false;
+    in-out property <bool> enable-system-proxy: true;
+    in property <bool> system-proxy-supported: false;
+    in property <bool> group-controls-visible: false;
+    in property <[string]> group-model;
+    in-out property <int> selected-group-index: -1;
+    in property <[string]> member-model;
+    in-out property <int> selected-member-index: -1;
+    in-out property <string> traffic-text: "Трафик: —";
+    in-out property <bool> recovery-visible: false;
+    in-out property <bool> recovery-confirmation-visible: false;
+    in-out property <bool> discard-recovery-confirmation-visible: false;
+    in property <[string]> profile-model;
+    in-out property <int> selected-profile-index: -1;
+    callback save-profile();
+    callback paste-profile-link();
+    callback profile-selected(index: int);
+    callback confirm-delete-profile();
+    callback connect-requested();
+    callback group-selected(index: int);
+    callback member-selected(index: int);
+    callback config-load-requested();
+    callback config-open-requested();
+    callback config-save-requested();
+    callback config-save-as-requested();
+    callback config-check-requested();
+    callback config-reload-requested();
+    callback recover-proxy-requested();
+    callback discard-proxy-recovery-requested();
+
+    changed use-full-config => {
+        if root.use-full-config { root.enable-system-proxy = false; }
+    }
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 10px;
+
+        HorizontalLayout {
+            height: 44px;
+            spacing: 10px;
+            Text {
+                text: "REALITY  /  CLIENT";
+                color: #43d9bd;
+                font-size: 24px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+            Text {
+                text: root.status-text;
+                color: #a8bed0;
+                font-size: 15px;
+                vertical-alignment: center;
+            }
+            Button {
+                text: root.config-editor-visible ? "К профилям" : "Полный JSON…";
+                clicked => { root.config-editor-visible = !root.config-editor-visible; }
+            }
+        }
+
+        if !root.config-editor-visible: Rectangle {
+            background: #101a22;
+            border-width: 1px;
+            border-color: #40515d;
+            border-radius: 8px;
+            VerticalLayout {
+                padding: 12px;
+                spacing: 6px;
+                Text { text: "Профиль подключения"; color: #a8bed0; font-size: 16px; }
+                HorizontalLayout {
+                    spacing: 10px;
+                    ComboBox {
+                        horizontal-stretch: 1;
+                        model: root.profile-model;
+                        current-index <=> root.selected-profile-index;
+                        selected => { root.profile-selected(root.selected-profile-index); }
+                    }
+                    Button {
+                        text: root.delete-confirmation-visible ? "Отмена" : "Удалить";
+                        clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; }
+                    }
+                }
+                if root.delete-confirmation-visible: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "Удалить выбранный профиль?"; color: #e1b85b; }
+                    Button {
+                        text: "Да, удалить";
+                        clicked => {
+                            root.confirm-delete-profile();
+                            root.delete-confirmation-visible = false;
+                        }
+                    }
+                }
+                Text { text: root.profile-count; color: #788e9b; font-size: 12px; }
+                Text { text: "Название профиля"; color: #a8bed0; font-size: 13px; }
+                LineEdit {
+                    placeholder-text: "Например, Домашний сервер";
+                    text <=> root.profile-name;
+                }
+                Text { text: "Ссылка VLESS"; color: #a8bed0; font-size: 13px; }
+                LineEdit {
+                    placeholder-text: "Вставьте ссылку vless://…";
+                    input-type: root.show-vless-link ? text : password;
+                    text <=> root.vless-link;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Button {
+                        text: root.show-vless-link ? "Скрыть" : "Показать";
+                        clicked => { root.show-vless-link = !root.show-vless-link; }
+                    }
+                    Button {
+                        text: "Вставить";
+                        visible: root.clipboard-paste-supported;
+                        clicked => { root.paste-profile-link(); }
+                    }
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                    Button {
+                        text: "Сохранить профиль";
+                        clicked => { root.save-profile(); }
+                    }
+                }
+            }
+        }
+
+        if !root.config-editor-visible: Rectangle {
+            background: #101a22;
+            border-width: 1px;
+            border-color: #40515d;
+            border-radius: 8px;
+            VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
+                Text { text: "Подключение"; color: #a8bed0; font-size: 16px; }
+                Text { text: "Локальный прокси: 127.0.0.1:1080"; color: #d7e3ec; font-size: 14px; }
+                if root.group-controls-visible: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "Группа"; color: #a8bed0; vertical-alignment: center; }
+                    ComboBox {
+                        horizontal-stretch: 1;
+                        model: root.group-model;
+                        current-index <=> root.selected-group-index;
+                        selected => { root.group-selected(root.selected-group-index); }
+                    }
+                    Text { text: "Сервер"; color: #a8bed0; vertical-alignment: center; }
+                    ComboBox {
+                        horizontal-stretch: 1;
+                        model: root.member-model;
+                        current-index <=> root.selected-member-index;
+                        selected => { root.member-selected(root.selected-member-index); }
+                    }
+                }
+                Text { text: root.traffic-text; color: #a8bed0; font-size: 13px; }
+                if root.recovery-visible: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "Найдена незавершённая сессия прокси."; color: #e1b85b; }
+                    Button {
+                        text: root.recovery-confirmation-visible ? "Отмена" : "Восстановить…";
+                        clicked => { root.recovery-confirmation-visible = !root.recovery-confirmation-visible; }
+                    }
+                    Button {
+                        text: root.discard-recovery-confirmation-visible ? "Отмена" : "Удалить копию…";
+                        clicked => {
+                            root.discard-recovery-confirmation-visible = !root.discard-recovery-confirmation-visible;
+                            root.recovery-confirmation-visible = false;
+                        }
+                    }
+                }
+                if root.recovery-visible && root.recovery-confirmation-visible: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "Вернуть прежние настройки, если прокси всё ещё указывает на Reality Client?"; color: #e1b85b; wrap: word-wrap; }
+                    Button {
+                        text: "Да, восстановить";
+                        clicked => {
+                            root.recover-proxy-requested();
+                            root.recovery-confirmation-visible = false;
+                        }
+                    }
+                }
+                if root.recovery-visible && root.discard-recovery-confirmation-visible: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "Удалить только сохранённую копию? Настройки прокси не изменятся."; color: #e1b85b; wrap: word-wrap; }
+                    Button {
+                        text: "Да, удалить копию";
+                        clicked => {
+                            root.discard-proxy-recovery-requested();
+                            root.discard-recovery-confirmation-visible = false;
+                        }
+                    }
+                }
+                CheckBox {
+                    text: "Запустить полный JSON-конфиг (он может менять системную сеть)";
+                    checked <=> root.use-full-config;
+                }
+                CheckBox {
+                    text: "Включить системный прокси Windows";
+                    checked <=> root.enable-system-proxy;
+                    visible: root.system-proxy-supported;
+                    enabled: !root.use-full-config;
+                }
+                Button {
+                    text: root.connect-button-text;
+                    clicked => { root.connect-requested(); }
+                }
+                Text {
+                    text: root.detail-text;
+                    color: #e1b85b;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        if root.config-editor-visible: Rectangle {
+            vertical-stretch: 1;
+            background: #101a22;
+            border-width: 1px;
+            border-color: #40515d;
+            border-radius: 8px;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 8px;
+                Text {
+                    text: "Полный JSON-конфиг ядра. Значения секретов в файле сохраняются открытым текстом; ограничьте доступ и используйте link_file для ссылок. " + root.config-platform-guidance;
+                    color: #e1b85b;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+                LineEdit {
+                    placeholder-text: "Путь к JSON-конфигурации";
+                    text <=> root.config-editor-path;
+                }
+                TextEdit {
+                    vertical-stretch: 1;
+                    text <=> root.config-editor-text;
+                    placeholder-text: "Вставьте конфигурацию JSON ядра…";
+                    wrap: no-wrap;
+                    font-size: 13px;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Button { text: "Открыть…"; visible: root.file-dialog-supported; clicked => { root.config-open-requested(); } }
+                    Button { text: "Загрузить"; clicked => { root.config-load-requested(); } }
+                    Button { text: "Сохранить"; clicked => { root.config-save-requested(); } }
+                    Button { text: "Сохранить как…"; visible: root.file-dialog-supported; clicked => { root.config-save-as-requested(); } }
+                    Button { text: "Проверить ядром"; clicked => { root.config-check-requested(); } }
+                    Button {
+                        text: "Применить к ядру";
+                        visible: root.config-reload-supported;
+                        clicked => { root.config-reload-requested(); }
+                    }
+                }
+                Text {
+                    text: root.detail-text;
+                    color: #e1b85b;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: "Журнал ядра"; color: #a8bed0; font-size: 14px; vertical-alignment: center; }
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+            Button {
+                text: "Копировать журнал";
+                clicked => {
+                    log-view.select-all();
+                    log-view.copy();
+                }
+            }
+        }
+        log-view := TextEdit {
+            height: 70px;
+            text <=> root.log-text;
+            read-only: true;
+            wrap: word-wrap;
+            font-size: 13px;
+        }
+    }
+}

@@ -1,0 +1,58 @@
+name: Rust client Linux
+
+on:
+  push:
+    paths:
+      - "rust-client/**"
+      - "third_party/vpn-core-source.zip"
+      - "third_party/vpn-core-source.commit"
+      - ".github/workflows/rust-linux.yml"
+  pull_request:
+    paths:
+      - "rust-client/**"
+      - "third_party/vpn-core-source.zip"
+      - "third_party/vpn-core-source.commit"
+      - ".github/workflows/rust-linux.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux-x86_64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            cmake nasm pkg-config unzip \
+            python3 \
+            libdbus-1-dev libfontconfig1-dev libfreetype6-dev \
+            libwayland-dev libx11-xcb-dev libxcb-xkb-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust-client/Cargo.toml --check
+      - name: Run Rust static analysis
+        run: cargo clippy --manifest-path rust-client/Cargo.toml --locked --all-targets -- -D warnings -A dead_code
+      - name: Run client unit and local FFI tests
+        run: cargo test --manifest-path rust-client/Cargo.toml --locked
+      - name: Check Android JNI bridge types without an Android SDK
+        run: cargo check --manifest-path rust-client/Cargo.toml --features android-bridge-check --locked
+      - name: Smoke-test user-local Linux installer
+        run: bash rust-client/tests/linux-installer-smoke.sh
+      - name: Smoke-test Android JNI export validator
+        run: bash rust-client/tests/android-exports-smoke.sh
+      - name: Build and package Linux client
+        run: bash rust-client/build-linux.sh
+      - name: Upload Linux package for device testing
+        uses: actions/upload-artifact@v7
+        with:
+          name: reality-client-linux-x86_64
+          path: rust-client/dist/linux-x86_64/
+          if-no-files-found: error
+          retention-days: 14

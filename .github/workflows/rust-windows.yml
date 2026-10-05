@@ -1,0 +1,85 @@
+name: Rust client Windows
+
+on:
+  push:
+    paths:
+      - "rust-client/**"
+      - "third_party/vpn-core-source.zip"
+      - "third_party/vpn-core-source.commit"
+      - "third_party/reality-client.exe"
+      - "build_rust_core.ps1"
+      - ".github/workflows/rust-windows.yml"
+  pull_request:
+    paths:
+      - "rust-client/**"
+      - "third_party/vpn-core-source.zip"
+      - "third_party/vpn-core-source.commit"
+      - "third_party/reality-client.exe"
+      - "build_rust_core.ps1"
+      - ".github/workflows/rust-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MinGW build tools
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+      - name: Install Rust GNU toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-gnu
+          components: rustfmt, clippy
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust-client/Cargo.toml --check
+      - name: Run Rust static analysis
+        env:
+          RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
+        run: cargo clippy --manifest-path rust-client/Cargo.toml --locked --features android-bridge-check --all-targets --target x86_64-pc-windows-gnu -- -D warnings -A dead_code
+      - name: Build pinned vpn-core FFI DLL
+        shell: pwsh
+        env:
+          REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
+        run: .\build_rust_core.ps1
+      - name: Run Windows Rust tests
+        shell: pwsh
+        env:
+          REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
+          RUSTFLAGS: -C link-arg=-static
+          RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
+          AWS_LC_SYS_PREBUILT_NASM: "1"
+          CMAKE_GENERATOR: Ninja
+        run: |
+          $env:PATH = "$env:REALITY_MINGW_BIN;$env:PATH"
+          cargo test --manifest-path rust-client/Cargo.toml --features android-bridge-check --locked --target x86_64-pc-windows-gnu
+      - name: Build Windows package
+        shell: pwsh
+        env:
+          REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
+        run: .\rust-client\build-windows.ps1
+      - name: Verify packaged files
+        shell: pwsh
+        run: |
+          $package = 'rust-client\dist\windows-x64'
+          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'reality.dll', 'third_party\reality-client.exe')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $package $file))) {
+              throw "Missing packaged file: $file"
+            }
+          }
+      - name: Upload Windows x64 package
+        uses: actions/upload-artifact@v7
+        with:
+          name: reality-client-windows-x64
+          path: rust-client/dist/windows-x64/
+          if-no-files-found: error
+          retention-days: 14

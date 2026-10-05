@@ -9,6 +9,13 @@ third_party/vpn-core-current/
 *.suo
 bin/
 obj/
+rust-client/target/
+rust-client/dist/
+rust-client/third_party/reality.dll
+rust-client/android/.gradle/
+rust-client/android/local.properties
+rust-client/android/app/build/
+rust-client/android/app/src/main/jniLibs/
 dist/*.lnk
 
 # Secrets and runtime profile data must never be committed.
