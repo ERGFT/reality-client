@@ -249,7 +249,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     } else if cfg!(target_os = "linux") {
         "Linux TUN требует root или CAP_NET_ADMIN; после аварии с strict_route используйте reality-client --tun-cleanup."
     } else if cfg!(target_os = "android") {
-        "Android VPN пока экспериментальный и не проверен на устройстве; нужны DNS и TUN address. Пользовательские маршруты, per-app и strict_route пока не поддержаны."
+        "Android VPN пока экспериментальный и не проверен на устройстве. Фильтр приложений работает через Android VPN API, а доменные/IP правила применяет ядро. Нативные поля маршрутов TUN и strict_route пока не поддерживаются."
     } else {
         "TUN на этой платформе пока не поддерживается клиентом."
     };
