@@ -15,7 +15,7 @@ class RealityVpnService : VpnService() {
     companion object {
         const val ACTION_START = "com.ergft.realityclient.START"
         const val ACTION_STOP = "com.ergft.realityclient.STOP"
-        const val EXTRA_CONFIG = "config"
+        const val EXTRA_CONFIG_PATH = "config_path"
         const val EXTRA_BASE_DIR = "base_dir"
         const val EXTRA_REMOVE_PROFILE_SECRET = "remove_profile_secret"
         private const val CHANNEL_ID = "reality_vpn"
@@ -48,10 +48,10 @@ class RealityVpnService : VpnService() {
             }
             ACTION_START -> {
                 startForeground(NOTIFICATION_ID, notification("Подключение…"))
-                val config = intent.getStringExtra(EXTRA_CONFIG)
+                val configPath = intent.getStringExtra(EXTRA_CONFIG_PATH)
                 val baseDir = intent.getStringExtra(EXTRA_BASE_DIR)
                 val removeProfileSecret = intent.getBooleanExtra(EXTRA_REMOVE_PROFILE_SECRET, false)
-                if (config.isNullOrBlank() || baseDir.isNullOrBlank()) {
+                if (configPath.isNullOrBlank() || baseDir.isNullOrBlank()) {
                     nativeVpnStartFailed(
                         removeProfileSecret,
                         "Android не передал конфигурацию или папку данных VPN.",
@@ -61,8 +61,12 @@ class RealityVpnService : VpnService() {
                     return START_NOT_STICKY
                 }
                 try {
+                    // Keep large/full JSON configs out of Binder Intent extras. The
+                    // file is private to this app and erased immediately after read.
+                    val config = PendingVpnConfig.consume(filesDir, configPath)
                     startTunnel(config, baseDir, removeProfileSecret)
                 } catch (problem: Exception) {
+                    runCatching { PendingVpnConfig.erase(filesDir, configPath) }
                     val stopProblem = try {
                         nativeStop().takeIf { it.isNotEmpty() }
                     } catch (_: Exception) {

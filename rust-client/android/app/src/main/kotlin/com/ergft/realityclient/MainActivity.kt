@@ -6,7 +6,7 @@ import android.net.VpnService
 import android.os.Build
 
 internal data class PendingVpnStart(
-    val config: String,
+    val configPath: String,
     val baseDir: String,
     val removeProfileSecret: Boolean,
 )
@@ -25,27 +25,39 @@ internal object PendingVpnStartStore {
         pending = null
         return request
     }
+
+    @Synchronized
+    fun current(): PendingVpnStart? = pending
 }
 
 class MainActivity : NativeActivity() {
     private external fun nativeVpnPermissionDenied()
     private external fun nativeActivityDestroyed()
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        PendingVpnConfig.eraseStale(filesDir, PendingVpnStartStore.current()?.configPath)
+    }
+
     fun requestVpn(config: String, baseDir: String, removeProfileSecret: Boolean) {
+        val stagedConfig = PendingVpnConfig.stage(filesDir, config)
         runOnUiThread {
-            if (PendingVpnStartStore.take() != null) {
+            PendingVpnStartStore.take()?.let { previous ->
+                runCatching { PendingVpnConfig.erase(filesDir, previous.configPath) }
                 nativeVpnPermissionDenied()
             }
+            val request = PendingVpnStart(stagedConfig.absolutePath, baseDir, removeProfileSecret)
+            PendingVpnStartStore.put(request)
             val permission = VpnService.prepare(this)
             if (permission == null) {
-                startVpnService(config, baseDir, removeProfileSecret)
+                PendingVpnStartStore.take()
+                startVpnService(request)
             } else {
-                PendingVpnStartStore.put(PendingVpnStart(config, baseDir, removeProfileSecret))
                 try {
                     @Suppress("DEPRECATION")
                     startActivityForResult(permission, VPN_PERMISSION_REQUEST)
                 } catch (problem: RuntimeException) {
-                    PendingVpnStartStore.take()
+                    PendingVpnStartStore.take()?.let { PendingVpnConfig.erase(filesDir, it.configPath) }
                     nativeVpnPermissionDenied()
                     throw problem
                 }
@@ -55,7 +67,8 @@ class MainActivity : NativeActivity() {
 
     fun stopVpn() {
         runOnUiThread {
-            if (PendingVpnStartStore.take() != null) {
+            PendingVpnStartStore.take()?.let { pending ->
+                runCatching { PendingVpnConfig.erase(filesDir, pending.configPath) }
                 nativeVpnPermissionDenied()
             }
             val intent = Intent(this, RealityVpnService::class.java).setAction(RealityVpnService.ACTION_STOP)
@@ -64,7 +77,8 @@ class MainActivity : NativeActivity() {
     }
 
     override fun onDestroy() {
-        if (isFinishing && PendingVpnStartStore.take() != null) {
+        if (isFinishing) PendingVpnStartStore.take()?.let { pending ->
+            runCatching { PendingVpnConfig.erase(filesDir, pending.configPath) }
             nativeVpnPermissionDenied()
         }
         nativeActivityDestroyed()
@@ -77,22 +91,29 @@ class MainActivity : NativeActivity() {
         if (requestCode != VPN_PERMISSION_REQUEST) return
         val pending = PendingVpnStartStore.take() ?: return
         if (resultCode == RESULT_OK) {
-            startVpnService(pending.config, pending.baseDir, pending.removeProfileSecret)
+            startVpnService(pending)
         } else {
+            runCatching { PendingVpnConfig.erase(filesDir, pending.configPath) }
             nativeVpnPermissionDenied()
         }
     }
 
-    private fun startVpnService(config: String, baseDir: String, removeProfileSecret: Boolean) {
+    private fun startVpnService(pending: PendingVpnStart) {
         val intent = Intent(this, RealityVpnService::class.java)
             .setAction(RealityVpnService.ACTION_START)
-            .putExtra(RealityVpnService.EXTRA_CONFIG, config)
-            .putExtra(RealityVpnService.EXTRA_BASE_DIR, baseDir)
-            .putExtra(RealityVpnService.EXTRA_REMOVE_PROFILE_SECRET, removeProfileSecret)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+            .putExtra(RealityVpnService.EXTRA_CONFIG_PATH, pending.configPath)
+            .putExtra(RealityVpnService.EXTRA_BASE_DIR, pending.baseDir)
+            .putExtra(RealityVpnService.EXTRA_REMOVE_PROFILE_SECRET, pending.removeProfileSecret)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (problem: RuntimeException) {
+            runCatching { PendingVpnConfig.erase(filesDir, pending.configPath) }
+            nativeVpnPermissionDenied()
+            throw problem
         }
     }
 
