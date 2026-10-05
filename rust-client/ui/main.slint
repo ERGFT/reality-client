@@ -52,8 +52,8 @@ export component MainWindow inherits Window {
     title: "Reality Client";
     in property <bool> mobile-layout: false;
     in property <string> app-version;
-    width: mobile-layout ? 430px : 1080px;
-    height: mobile-layout ? 820px : 760px;
+    preferred-width: mobile-layout ? 360px : 1080px;
+    preferred-height: mobile-layout ? 720px : 760px;
     background: dark-theme ? #0a0f19 : #f3f5f9;
 
     in-out property <bool> dark-theme: true;
@@ -178,7 +178,7 @@ export component MainWindow inherits Window {
             spacing: 1px;
             NavTab { horizontal-stretch: 1; label: "Домой"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
             NavTab { horizontal-stretch: 1; label: "Узлы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
-            NavTab { horizontal-stretch: 1; label: "Потоки"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
+            NavTab { horizontal-stretch: 1; label: "Связи"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
             NavTab { horizontal-stretch: 1; label: "Настр."; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
             NavTab { horizontal-stretch: 1; label: "О нас"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
         }
