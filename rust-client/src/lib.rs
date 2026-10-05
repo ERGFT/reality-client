@@ -2648,12 +2648,7 @@ fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Resul
             let servers = servers
                 .as_array_mut()
                 .ok_or("dns.servers должен быть массивом.")?;
-            if !servers.iter().any(|server| {
-                server.as_str() == Some("fakedns")
-                    || server.get("address").and_then(serde_json::Value::as_str) == Some("fakedns")
-            }) {
-                servers.push(serde_json::json!("fakedns"));
-            }
+            prioritize_xray_fake_dns(servers);
         } else {
             root.remove("fakedns");
             if let Some(servers) = root
@@ -2787,6 +2782,17 @@ fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Resul
         }
     }
     Ok(())
+}
+
+fn prioritize_xray_fake_dns(servers: &mut Vec<serde_json::Value>) {
+    let fake_dns_index = servers.iter().position(|server| {
+        server.as_str() == Some("fakedns")
+            || server.get("address").and_then(serde_json::Value::as_str) == Some("fakedns")
+    });
+    let fake_dns = fake_dns_index
+        .map(|index| servers.remove(index))
+        .unwrap_or_else(|| serde_json::json!("fakedns"));
+    servers.insert(0, fake_dns);
 }
 
 fn split_rule_values(text: &str) -> Vec<String> {
@@ -3046,6 +3052,54 @@ mod network_options_tests {
         "route": {"final":"direct"}
     }"#;
 
+    const XRAY_DIRECT_CONFIG: &str = r#"{
+        "inbounds": [{"listen":"127.0.0.1","port":1080,"protocol":"socks"}],
+        "outbounds": [{"protocol":"freedom","tag":"direct","settings":{}}],
+        "dns": {"servers":["9.9.9.9"]},
+        "routing": {"rules":[]}
+    }"#;
+
+    #[test]
+    fn xray_fake_dns_precedes_existing_catch_all_dns_and_is_idempotent() {
+        let enabled = set_network_options(XRAY_DIRECT_CONFIG, false, true).unwrap();
+        let enabled_again = set_network_options(&enabled, false, true).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&enabled_again).unwrap();
+        let servers = value["dns"]["servers"].as_array().unwrap();
+        assert_eq!(servers[0], "fakedns");
+        assert_eq!(servers[1], "9.9.9.9");
+        assert_eq!(
+            servers.iter().filter(|server| *server == "fakedns").count(),
+            1
+        );
+        assert_eq!(value["fakedns"][0]["ipPool"], "198.18.0.0/15");
+        assert!(value_has_fakeip(&value));
+    }
+
+    #[test]
+    fn xray_fake_dns_toggle_off_removes_managed_dns_entries() {
+        let enabled = set_network_options(XRAY_DIRECT_CONFIG, false, true).unwrap();
+        let disabled = set_network_options(&enabled, false, false).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&disabled).unwrap();
+        assert!(value.get("fakedns").is_none());
+        assert_eq!(value["dns"]["servers"], serde_json::json!(["9.9.9.9"]));
+        assert!(!value_has_fakeip(&value));
+    }
+
+    #[test]
+    fn xray_fake_dns_existing_custom_server_is_moved_to_first_without_duplication() {
+        let config = r#"{
+            "inbounds": [],
+            "outbounds": [{"protocol":"freedom","tag":"direct"}],
+            "dns": {"servers":["1.1.1.1",{"address":"fakedns","domains":["domain:example.org"]}]}
+        }"#;
+        let enabled = set_network_options(config, false, true).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&enabled).unwrap();
+        let servers = value["dns"]["servers"].as_array().unwrap();
+        assert_eq!(servers[0]["address"], "fakedns");
+        assert_eq!(servers[0]["domains"][0], "domain:example.org");
+        assert_eq!(servers[1], "1.1.1.1");
+    }
+
     #[test]
     fn dns_detour_uses_the_configured_final_outbound() {
         let value: serde_json::Value = serde_json::from_str(DIRECT_ONLY_CONFIG).unwrap();
@@ -3113,6 +3167,28 @@ mod network_options_tests {
             .as_nanos();
         let dir = std::env::temp_dir().join(format!(
             "reality-fakeip-config-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config_path = dir.join("config.json");
+        std::fs::write(&config_path, configured).unwrap();
+        let result = crate::core::check_config_file(&config_path);
+        let _ = std::fs::remove_dir_all(&dir);
+        result.unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn pinned_core_accepts_generated_xray_fake_dns_config() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let configured = set_network_options(XRAY_DIRECT_CONFIG, false, true).unwrap();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "reality-xray-fakedns-config-{}-{nonce}",
             std::process::id()
         ));
         std::fs::create_dir_all(&dir).unwrap();

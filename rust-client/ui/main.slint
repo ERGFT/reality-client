@@ -457,6 +457,7 @@ export component MainWindow inherits Window {
                                 Text { text: "Переключатели записывают параметры в JSON. На Windows для TUN нужен официальный wintun.dll рядом с приложением и запуск от имени администратора."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
                                 CheckBox { text: "TUN: направлять системный трафик через VPN"; checked <=> root.config-tun-enabled; enabled: root.tun-settings-supported; }
                                 CheckBox { text: "Fake-IP DNS"; checked <=> root.fakeip-enabled; }
+                                if root.fakeip-enabled: Text { text: "В Xray FakeDNS может оставить поддельные адреса в системном DNS-кэше после отключения. Если сайты перестанут открываться, очистите DNS-кэш системы."; color: root.dark-theme ? #d7b45e : #906315; font-size: 11px; wrap: word-wrap; }
                                 if root.android-app-filter-supported: Rectangle {
                                     background: root.dark-theme ? #0a1117 : #ffffff;
                                     border-width: 1px;
