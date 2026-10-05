@@ -31,7 +31,7 @@ $env:RUSTUP_TOOLCHAIN = 'stable-x86_64-pc-windows-gnu'
 $env:CARGO_TARGET_DIR = Join-Path $env:TEMP 'reality-client-target-ee680399'
 Push-Location $source
 try {
-    & cargo build --release -p reality-client
+    & cargo build --locked --release -p reality-client
     if ($LASTEXITCODE -ne 0) { throw "Сборка свежего ядра завершилась с кодом $LASTEXITCODE." }
     $built = Join-Path $env:CARGO_TARGET_DIR 'release\reality-client.exe'
     if (-not (Test-Path -LiteralPath $built)) { throw 'Cargo завершился без файла reality-client.exe.' }
