@@ -59,6 +59,10 @@ struct SavedProfile {
 
 type SelectedProfileLink = Arc<Mutex<Option<(usize, Zeroizing<String>)>>>;
 
+fn initial_profile_index(profile_count: usize) -> Option<usize> {
+    (profile_count > 0).then_some(0)
+}
+
 fn profile_mutation_blocked(operation_busy: bool, session_active: bool) -> bool {
     operation_busy || session_active
 }
@@ -792,6 +796,12 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
             });
         }
     });
+
+    if let Some(index) = initial_profile_index(window.get_profile_model().row_count()) {
+        let index = index as i32;
+        window.set_selected_profile_index(index);
+        window.invoke_profile_selected(index);
+    }
 
     window.on_config_load_requested({
         let window = window.as_weak();
@@ -2971,6 +2981,22 @@ mod clipboard_tests {
     #[test]
     fn clipboard_paste_rejects_empty_text() {
         assert!(sanitize_clipboard_profile_link(" \t ".into()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod profile_startup_tests {
+    use super::initial_profile_index;
+
+    #[test]
+    fn selects_first_saved_profile_on_startup() {
+        assert_eq!(initial_profile_index(1), Some(0));
+        assert_eq!(initial_profile_index(100), Some(0));
+    }
+
+    #[test]
+    fn leaves_selection_empty_when_no_profiles_exist() {
+        assert_eq!(initial_profile_index(0), None);
     }
 }
 
