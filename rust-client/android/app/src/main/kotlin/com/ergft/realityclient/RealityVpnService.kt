@@ -121,26 +121,32 @@ class RealityVpnService : VpnService() {
             .setSession("Reality Client")
             .setMtu(tun.optInt("mtu", 1500))
 
-        val addresses = tun.optJSONArray("address")
-            ?: throw IllegalArgumentException("В TUN-конфигурации отсутствует address")
+        val addressValues = mutableListOf<String>()
+        for (field in listOf("address", "inet4_address", "inet6_address")) {
+            when (val value = tun.opt(field)) {
+                null -> Unit
+                is String -> addressValues += value
+                is org.json.JSONArray -> for (index in 0 until value.length()) {
+                    addressValues += value.getString(index)
+                }
+                else -> throw IllegalArgumentException("Поле $field TUN должно быть строкой или массивом строк")
+            }
+        }
+        val addresses = effectiveTunAddressCidrs(addressValues).map(TunAddress::parseCidr)
         var hasIpv4 = false
         var hasIpv6 = false
         var hasDnsAddress = false
-        for (i in 0 until addresses.length()) {
-            val (address, prefix) = TunAddress.parseCidr(addresses.getString(i))
+        for ((address, prefix) in addresses.map { it.address to it.prefix }) {
             builder.addAddress(address, prefix)
             if (address.address.size == 4) {
                 hasIpv4 = true
-                if (prefix < 32) {
-                    builder.addDnsServer(TunAddress.dnsPeerAddress(address, prefix))
-                    hasDnsAddress = true
-                }
             } else {
                 hasIpv6 = true
-                if (prefix < 128) {
-                    builder.addDnsServer(TunAddress.dnsPeerAddress(address, prefix))
-                    hasDnsAddress = true
-                }
+            }
+            val maxPrefix = if (address.address.size == 4) 32 else 128
+            if (prefix < maxPrefix) {
+                builder.addDnsServer(TunAddress.dnsPeerAddress(address, prefix))
+                hasDnsAddress = true
             }
         }
         require(hasIpv4 || hasIpv6) { "В TUN-конфигурации нет IP-адресов" }

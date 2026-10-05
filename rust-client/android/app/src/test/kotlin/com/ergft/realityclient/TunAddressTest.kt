@@ -18,6 +18,29 @@ class TunAddressTest {
         assertRejected { singleTunInboundIndex(listOf("tun", "tun")) }
     }
     @Test
+    fun androidTunUsesCoreDefaultIpv4AndIpv6AddressesWhenOmitted() {
+        val addresses = effectiveTunAddressCidrs(emptyList()).map(TunAddress::parseCidr)
+        assertEquals(2, addresses.size)
+        assertArrayEquals(byteArrayOf(172.toByte(), 19, 0, 1), addresses[0].address.address)
+        assertEquals(30, addresses[0].prefix)
+        assertEquals(16, addresses[1].address.address.size)
+        assertEquals(126, addresses[1].prefix)
+    }
+
+    @Test
+    fun androidTunMirrorsCoreAddressAndLegacyAddressFields() {
+        val addresses = effectiveTunAddressCidrs(
+            listOf("fd00::1/126", "10.9.0.1/24", "10.10.0.1/24"),
+        ).map(TunAddress::parseCidr)
+        assertArrayEquals(byteArrayOf(10, 9, 0, 1), addresses[0].address.address)
+        assertArrayEquals(TunAddress.parseCidr("fd00::1/126").address.address, addresses[1].address.address)
+    }
+
+    @Test
+    fun androidTunRejectsIpv4PrefixUnsupportedByPinnedCore() {
+        assertRejected { effectiveTunAddressCidrs(listOf("192.0.2.1/31")) }
+    }
+    @Test
     fun pendingVpnRequestSurvivesActivityRecreationAndIsConsumedOnce() {
         val request = PendingVpnStart("/data/user/0/app/files/reality-pending-vpn-id.json", "/data/user/0/app/files", true)
         PendingVpnStartStore.put(request)
