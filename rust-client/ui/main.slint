@@ -303,7 +303,7 @@ export component MainWindow inherits Window {
                 if root.mobile-layout: VerticalLayout {
                     spacing: 8px;
                     InfoCard { title: "IP СЕРВЕРА"; value: root.server-ip-text; caption: root.profile-name == "" ? root.server-endpoint-text : root.profile-name + " · " + root.server-endpoint-text; action-label: "Определить IP"; dark-theme: root.dark-theme; action-requested => { root.server-ip-check-requested(); } }
-                    InfoCard { title: "МОЙ ВНЕШНИЙ IP БЕЗ VPN"; value: root.direct-ip-text; caption: "Проверка через api.ipify.org · только по нажатию"; action-label: "Проверить напрямую"; dark-theme: root.dark-theme; action-requested => { root.direct-ip-check-requested(); } }
+                    InfoCard { title: "IP ПО ОБЫЧНОМУ МАРШРУТУ"; value: root.direct-ip-text; caption: "Обычный маршрут ОС · при активном VPN адрес может быть адресом VPN"; action-label: "Проверить напрямую"; dark-theme: root.dark-theme; action-requested => { root.direct-ip-check-requested(); } }
                     InfoCard { title: "МОЙ ВНЕШНИЙ IP ЧЕРЕЗ VPN"; value: root.public-ip-text; caption: "Сервис увидит адрес выхода запроса · только по нажатию"; action-label: "Проверить через VPN"; dark-theme: root.dark-theme; action-requested => { root.public-ip-check-requested(); } }
                     InfoCard { title: "СКОРОСТЬ"; value: root.connection-speed-text; caption: "По счётчикам локального ядра"; dark-theme: root.dark-theme; }
                     InfoCard { title: "ТРАФИК"; value: "↑ " + root.uploaded-total-text; caption: "↓ " + root.downloaded-total-text + " · Активных соединений: " + root.active-connection-count-text; dark-theme: root.dark-theme; }
@@ -311,7 +311,7 @@ export component MainWindow inherits Window {
                 if !root.mobile-layout: HorizontalLayout {
                     spacing: 12px;
                     InfoCard { horizontal-stretch: 1; title: "IP СЕРВЕРА"; value: root.server-ip-text; caption: root.profile-name == "" ? root.server-endpoint-text : root.profile-name + " · " + root.server-endpoint-text; action-label: "Определить IP"; dark-theme: root.dark-theme; action-requested => { root.server-ip-check-requested(); } }
-                    InfoCard { horizontal-stretch: 1; title: "МОЙ ВНЕШНИЙ IP БЕЗ VPN"; value: root.direct-ip-text; caption: "Проверка через api.ipify.org · только по нажатию"; action-label: "Проверить напрямую"; dark-theme: root.dark-theme; action-requested => { root.direct-ip-check-requested(); } }
+                    InfoCard { horizontal-stretch: 1; title: "IP ПО ОБЫЧНОМУ МАРШРУТУ"; value: root.direct-ip-text; caption: "Обычный маршрут ОС · при активном VPN адрес может быть адресом VPN"; action-label: "Проверить напрямую"; dark-theme: root.dark-theme; action-requested => { root.direct-ip-check-requested(); } }
                     InfoCard { horizontal-stretch: 1; title: "МОЙ ВНЕШНИЙ IP ЧЕРЕЗ VPN"; value: root.public-ip-text; caption: "Сервис увидит адрес выхода запроса · только по нажатию"; action-label: "Проверить через VPN"; dark-theme: root.dark-theme; action-requested => { root.public-ip-check-requested(); } }
                 }
                 if !root.mobile-layout: HorizontalLayout {
