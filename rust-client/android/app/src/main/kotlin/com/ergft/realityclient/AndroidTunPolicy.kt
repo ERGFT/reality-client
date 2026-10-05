@@ -27,7 +27,6 @@ private val unsupportedAndroidTunFields = setOf(
     "exclude_interface",
     "include_uid",
     "exclude_uid",
-    "include_package",
     "exclude_package",
     "include_android_user",
     "loopback_address",

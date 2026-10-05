@@ -29,7 +29,7 @@ use slint::{
     CloseRequestResponse, ComponentHandle, Model, ModelRc, SharedString, Timer, TimerMode, VecModel,
 };
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use zeroize::Zeroizing;
 
 slint::include_modules!();
@@ -103,8 +103,22 @@ fn apply_saved_profile(
     window.set_profile_count(format!("Профили: {}", profile.names.len()).into());
     window.set_profile_name(profile.name.as_str().into());
     window.set_vless_link(profile.link.as_str().into());
+    window.set_server_endpoint_text(server_endpoint(profile.link.as_str()).into());
     if let Ok(mut cache) = selected_profile_link.lock() {
         *cache = Some((profile.index, Zeroizing::new(profile.link.to_string())));
+    }
+}
+
+fn server_endpoint(link: &str) -> String {
+    let Ok(url) = url::Url::parse(link) else {
+        return "Некорректная ссылка".to_owned();
+    };
+    let Some(host) = url.host_str() else {
+        return "Адрес не указан".to_owned();
+    };
+    match url.port() {
+        Some(port) => format!("{host}:{port}"),
+        None => host.to_owned(),
     }
 }
 
@@ -130,6 +144,17 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     };
 
     let window = MainWindow::new()?;
+    #[cfg(target_os = "android")]
+    window.set_mobile_layout(true);
+    let theme_path = platform::app_data_dir()
+        .ok()
+        .map(|dir| dir.join("theme.txt"));
+    if let Some(path) = &theme_path
+        && std::fs::read_to_string(path).is_ok_and(|saved| saved.trim() == "light")
+    {
+        window.set_theme_index(1);
+        window.set_dark_theme(false);
+    }
     let profile_store = Arc::new(Mutex::new(ProfileStore::open_default().ok()));
     let selected_profile_link = Arc::new(Mutex::new(None::<(usize, Zeroizing<String>)>));
     let core_session: Arc<Mutex<Option<CoreSession>>> = Arc::new(Mutex::new(None));
@@ -183,6 +208,30 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
             .collect::<Vec<_>>(),
     ));
     window.set_profile_model(ModelRc::from(profile_model.clone()));
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    window.set_tun_settings_supported(true);
+    #[cfg(target_os = "android")]
+    window.set_android_app_filter_supported(true);
+    #[cfg(target_os = "android")]
+    let android_apps = match platform::list_android_launchable_apps() {
+        Ok(apps) => apps,
+        Err(problem) => {
+            window.set_detail_text(problem.into());
+            Vec::new()
+        }
+    };
+    #[cfg(not(target_os = "android"))]
+    let android_apps = Vec::<(String, String)>::new();
+    let android_package_ids = android_apps
+        .iter()
+        .map(|(package, _)| package.clone())
+        .collect::<Vec<_>>();
+    window.set_android_app_model(ModelRc::from(Rc::new(VecModel::from(
+        android_apps
+            .iter()
+            .map(|(package, label)| SharedString::from(format!("{label} · {package}")))
+            .collect::<Vec<_>>(),
+    ))));
     let selectable_groups = Arc::new(Mutex::new(Vec::<SelectableGroup>::new()));
     let updating_group_controls = Arc::new(AtomicBool::new(false));
     window.set_log_text("Предупреждения и ошибки ядра появятся здесь.".into());
@@ -204,11 +253,17 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                 };
                 if let Ok(text) = result {
                     window.set_config_editor_text(text.into());
+                    if let Err(problem) = sync_config_options(&window) {
+                        window.set_detail_text(format!("Конфигурация загружена, но параметры не удалось прочитать: {problem}").into());
+                    }
                 }
             });
         });
     } else {
         window.set_config_editor_text(STARTER_CONFIG.into());
+        if let Err(problem) = sync_config_options(&window) {
+            window.set_detail_text(problem.into());
+        }
     }
 
     if profile_store
@@ -221,6 +276,149 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                 .into(),
         );
     }
+
+    window.on_theme_selected({
+        let window = window.as_weak();
+        let theme_path = theme_path.clone();
+        move |index| {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            let index = index.clamp(0, 1);
+            window.set_theme_index(index);
+            window.set_dark_theme(index == 0);
+            if let Some(path) = &theme_path
+                && let Some(parent) = path.parent()
+                && let Err(problem) = platform::ensure_private_dir(parent).and_then(|()| {
+                    std::fs::write(path, if index == 0 { "dark\n" } else { "light\n" })
+                        .map_err(|error| error.to_string())
+                })
+            {
+                window
+                    .set_detail_text(format!("Тема применена, но не сохранена: {problem}").into());
+            }
+        }
+    });
+
+    window.on_config_options_sync_requested({
+        let window = window.as_weak();
+        move || {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            match sync_config_options(&window) {
+                Ok(()) => window.set_detail_text("Параметры и правила перечитаны из JSON.".into()),
+                Err(problem) => window.set_detail_text(problem.into()),
+            }
+        }
+    });
+
+    window.on_network_options_save_requested({
+        let window = window.as_weak();
+        move || {
+            let Some(window) = window.upgrade() else { return; };
+            let text = window.get_config_editor_text().to_string();
+            let result = set_network_options(
+                &text,
+                window.get_config_tun_enabled(),
+                window.get_fakeip_enabled(),
+            );
+            match result {
+                Ok(updated) => {
+                    window.set_config_editor_text(updated.into());
+                    window.set_use_full_config(true);
+                    let _ = sync_config_options(&window);
+                    window.set_detail_text(
+                        "Параметры записаны в JSON редактора. Проверьте конфиг и переподключитесь, чтобы применить их.".into(),
+                    );
+                }
+                Err(problem) => window.set_detail_text(problem.into()),
+            }
+        }
+    });
+
+    window.on_routing_rule_add_requested({
+        let window = window.as_weak();
+        move || {
+            let Some(window) = window.upgrade() else { return; };
+            let text = window.get_config_editor_text().to_string();
+            let result = add_routing_rule(
+                &text,
+                window.get_route_domain_input().as_str(),
+                window.get_route_ip_input().as_str(),
+                window.get_route_outbound_input().as_str(),
+            );
+            match result {
+                Ok(updated) => {
+                    window.set_config_editor_text(updated.into());
+                    window.set_route_domain_input("".into());
+                    window.set_route_ip_input("".into());
+                    let _ = sync_config_options(&window);
+                    window.set_use_full_config(true);
+                    window.set_detail_text(
+                        "Правило записано в JSON. Сетевой уровень применяет его ко всему домену или IP/CIDR, а не к URL-пути.".into(),
+                    );
+                }
+                Err(problem) => window.set_detail_text(problem.into()),
+            }
+        }
+    });
+
+    window.on_routing_rules_clear_requested({
+        let window = window.as_weak();
+        move || {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            let text = window.get_config_editor_text().to_string();
+            match clear_managed_routing_rules(&text) {
+                Ok(updated) => {
+                    window.set_config_editor_text(updated.into());
+                    let _ = sync_config_options(&window);
+                    window.set_detail_text(
+                        "Удалены только правила, добавленные из этой формы.".into(),
+                    );
+                }
+                Err(problem) => window.set_detail_text(problem.into()),
+            }
+        }
+    });
+
+    window.on_android_app_filter_save_requested({
+        let window = window.as_weak();
+        move || {
+            let Some(window) = window.upgrade() else { return; };
+            let text = window.get_config_editor_text().to_string();
+            match set_android_app_filter(&text, window.get_android_apps_input().as_str()) {
+                Ok(updated) => {
+                    window.set_config_editor_text(updated.into());
+                    window.set_use_full_config(true);
+                    window.set_detail_text("Список приложений записан в настройки TUN. Проверьте конфигурацию и переподключитесь.".into());
+                }
+                Err(problem) => window.set_detail_text(problem.into()),
+            }
+        }
+    });
+
+    window.on_android_app_add_requested({
+        let window = window.as_weak();
+        move |index| {
+            let Some(window) = window.upgrade() else { return; };
+            let Some(package) = usize::try_from(index)
+                .ok()
+                .and_then(|index| android_package_ids.get(index))
+            else {
+                window.set_detail_text("Выберите приложение из списка Android.".into());
+                return;
+            };
+            let mut packages = split_rule_values(window.get_android_apps_input().as_str());
+            if !packages.iter().any(|existing| existing == package) {
+                packages.push(package.clone());
+            }
+            window.set_android_apps_input(packages.join(", ").into());
+            window.set_detail_text("Приложение добавлено в список. Нажмите «Сохранить список», чтобы записать его в TUN-конфиг.".into());
+        }
+    });
 
     window.on_save_profile({
         let window = window.as_weak();
@@ -273,6 +471,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             ))));
                             window.set_selected_profile_index(index as i32);
                             window.set_profile_count(format!("Профили: {count}").into());
+                            window.set_server_endpoint_text(server_endpoint(&link).into());
                             if let Ok(mut cache) = worker_link_cache.lock() {
                                 *cache = Some((index, Zeroizing::new(link.to_string())));
                             }
@@ -367,6 +566,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             }
                             window.set_profile_name(name.as_str().into());
                             window.set_vless_link(link.as_str().into());
+                            window.set_server_endpoint_text(server_endpoint(&link).into());
                             window.set_detail_text(
                                 format!("Профиль получен из {}.", storage_backend_description())
                                     .into(),
@@ -374,6 +574,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                         }
                         Err(problem) => {
                             window.set_vless_link("".into());
+                            window.set_server_endpoint_text("Адрес не определён".into());
                             window.set_detail_text(problem.into());
                         }
                     }
@@ -407,9 +608,15 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                     match result {
                         Ok(text) => {
                             window.set_config_editor_text(text.into());
-                            window.set_detail_text(
-                                format!("Загружен JSON: {}", path.display()).into(),
-                            );
+                            match sync_config_options(&window) {
+                                Ok(()) => window.set_detail_text(
+                                    format!("Загружен JSON: {}", path.display()).into(),
+                                ),
+                                Err(problem) => window.set_detail_text(
+                                    format!("JSON загружен, но параметры не прочитаны: {problem}")
+                                        .into(),
+                                ),
+                            }
                         }
                         Err(problem) => window.set_detail_text(
                             format!("Не удалось загрузить JSON: {problem}").into(),
@@ -462,9 +669,15 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             window
                                 .set_config_editor_path(path.to_string_lossy().into_owned().into());
                             window.set_config_editor_text(text.into());
-                            window.set_detail_text(
-                                format!("Загружен JSON: {}", path.display()).into(),
-                            );
+                            match sync_config_options(&window) {
+                                Ok(()) => window.set_detail_text(
+                                    format!("Загружен JSON: {}", path.display()).into(),
+                                ),
+                                Err(problem) => window.set_detail_text(
+                                    format!("JSON загружен, но параметры не прочитаны: {problem}")
+                                        .into(),
+                                ),
+                            }
                         }
                         Some(Err(problem)) => window.set_detail_text(
                             format!("Не удалось загрузить JSON: {problem}").into(),
@@ -888,15 +1101,18 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                             if let Some(link) = link {
                                 window.set_profile_name(names[next as usize].as_str().into());
                                 window.set_vless_link(link.as_str().into());
+                                window.set_server_endpoint_text(server_endpoint(&link).into());
                                 window.set_detail_text(
                                     "Профиль удалён; следующий профиль выбран.".into(),
                                 );
                             } else if next < 0 {
                                 window.set_profile_name("".into());
                                 window.set_vless_link("".into());
+                                window.set_server_endpoint_text("Выберите сервер".into());
                                 window.set_detail_text("Профиль удалён.".into());
                             } else {
                                 window.set_vless_link("".into());
+                                window.set_server_endpoint_text("Адрес не определён".into());
                                 window.set_detail_text(
                                     "Профиль удалён, но следующий профиль не удалось прочитать."
                                         .into(),
@@ -1268,6 +1484,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     });
 
     let runtime_poll_pending = Arc::new(AtomicBool::new(false));
+    let previous_traffic = Arc::new(Mutex::new(None::<(Instant, u64, u64)>));
     let runtime_timer = Timer::default();
     runtime_timer.start(TimerMode::Repeated, Duration::from_secs(1), {
         let window = window.as_weak();
@@ -1276,6 +1493,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         let updating_group_controls = updating_group_controls.clone();
         let runtime_poll_pending = runtime_poll_pending.clone();
         let is_starting = is_starting.clone();
+        let previous_traffic = previous_traffic.clone();
         move || {
             if is_starting.load(Ordering::Acquire)
                 || runtime_poll_pending.swap(true, Ordering::AcqRel)
@@ -1288,6 +1506,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
             let updating_group_controls = updating_group_controls.clone();
             let runtime_poll_pending = runtime_poll_pending.clone();
             let is_starting = is_starting.clone();
+            let previous_traffic = previous_traffic.clone();
             std::thread::spawn(move || {
                 let result = match core_session.lock() {
                     Ok(session) => match session.as_ref() {
@@ -1329,6 +1548,13 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                                 updating_group_controls.store(false, Ordering::Release);
                             }
                             window.set_traffic_text("Трафик: —".into());
+                            window.set_uploaded_total_text("—".into());
+                            window.set_downloaded_total_text("—".into());
+                            window.set_active_connection_count_text("—".into());
+                            window.set_connection_speed_text("↑ —  ↓ —".into());
+                            if let Ok(mut previous) = previous_traffic.lock() {
+                                *previous = None;
+                            }
                             return;
                         }
                         Err(_) => return,
@@ -1387,6 +1613,40 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                         updating_group_controls.store(false, Ordering::Release);
                     }
                     drop(cached);
+                    let now = Instant::now();
+                    let rates = previous_traffic
+                        .lock()
+                        .ok()
+                        .map(|mut previous| {
+                            let rates = previous
+                                .as_ref()
+                                .filter(|(_, up, down)| {
+                                    snapshot.uploaded >= *up && snapshot.downloaded >= *down
+                                })
+                                .map(|(at, up, down)| {
+                                    let elapsed = now.duration_since(*at).as_secs_f64().max(0.001);
+                                    (
+                                        (snapshot.uploaded - up) as f64 / elapsed,
+                                        (snapshot.downloaded - down) as f64 / elapsed,
+                                    )
+                                })
+                                .unwrap_or((0.0, 0.0));
+                            *previous = Some((now, snapshot.uploaded, snapshot.downloaded));
+                            rates
+                        })
+                        .unwrap_or((0.0, 0.0));
+                    window.set_uploaded_total_text(format_bytes(snapshot.uploaded).into());
+                    window.set_downloaded_total_text(format_bytes(snapshot.downloaded).into());
+                    window
+                        .set_active_connection_count_text(snapshot.connections.to_string().into());
+                    window.set_connection_speed_text(
+                        format!(
+                            "↑ {}/с  ↓ {}/с",
+                            format_bytes(rates.0.round() as u64),
+                            format_bytes(rates.1.round() as u64),
+                        )
+                        .into(),
+                    );
                     window.set_traffic_text(
                         format!(
                             "Передано: ↑ {}  ↓ {}  ·  Соединений: {}",
@@ -1562,6 +1822,582 @@ fn format_bytes(bytes: u64) -> String {
         unit += 1;
     }
     format!("{value:.1} {}", UNITS[unit])
+}
+
+const MANAGED_ROUTE_MARKER: &str = "//reality-client-ui";
+
+fn parse_jsonc_value(text: &str) -> Result<serde_json::Value, String> {
+    let bytes = text.as_bytes();
+    let mut cleaned = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    let mut in_string = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if in_string {
+            cleaned.push(byte);
+            if byte == b'\\' && index + 1 < bytes.len() {
+                cleaned.push(bytes[index + 1]);
+                index += 2;
+                continue;
+            }
+            if byte == b'"' {
+                in_string = false;
+            }
+            index += 1;
+            continue;
+        }
+        match byte {
+            b'"' => {
+                in_string = true;
+                cleaned.push(byte);
+                index += 1;
+            }
+            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+                while index < bytes.len() && bytes[index] != b'\n' {
+                    index += 1;
+                }
+            }
+            b'/' if bytes.get(index + 1) == Some(&b'*') => {
+                index += 2;
+                while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/')
+                {
+                    if bytes[index] == b'\n' {
+                        cleaned.push(b'\n');
+                    }
+                    index += 1;
+                }
+                index = (index + 2).min(bytes.len());
+            }
+            b',' => {
+                let mut lookahead = index + 1;
+                while lookahead < bytes.len() && bytes[lookahead].is_ascii_whitespace() {
+                    lookahead += 1;
+                }
+                if !matches!(bytes.get(lookahead), Some(b']') | Some(b'}')) {
+                    cleaned.push(byte);
+                }
+                index += 1;
+            }
+            _ => {
+                cleaned.push(byte);
+                index += 1;
+            }
+        }
+    }
+    let cleaned = String::from_utf8(cleaned)
+        .map_err(|_| "Конфигурация содержит некорректный UTF-8.".to_owned())?;
+    serde_json::from_str(&cleaned).map_err(|problem| format!("Некорректный JSON: {problem}"))
+}
+
+fn is_xray_config(value: &serde_json::Value) -> bool {
+    value
+        .get("outbounds")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| items.first())
+        .is_some_and(|item| item.get("protocol").is_some() && item.get("type").is_none())
+}
+
+fn value_has_tun(value: &serde_json::Value) -> bool {
+    value
+        .get("inbounds")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|items| {
+            items.iter().any(|inbound| {
+                inbound.get("type").and_then(serde_json::Value::as_str) == Some("tun")
+                    || inbound.get("protocol").and_then(serde_json::Value::as_str) == Some("tun")
+            })
+        })
+}
+
+fn value_has_fakeip(value: &serde_json::Value) -> bool {
+    let dns = value.get("dns");
+    if dns
+        .and_then(|dns| dns.get("fakeip"))
+        .and_then(|fakeip| fakeip.get("enabled"))
+        .and_then(serde_json::Value::as_bool)
+        == Some(true)
+    {
+        return true;
+    }
+    value
+        .get("fakedns")
+        .is_some_and(|pools| pools.as_array().is_none_or(|items| !items.is_empty()))
+        && dns
+            .and_then(|dns| dns.get("servers"))
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|servers| {
+                servers.iter().any(|server| {
+                    server.as_str() == Some("fakedns")
+                        || server.get("address").and_then(serde_json::Value::as_str)
+                            == Some("fakedns")
+                })
+            })
+}
+
+fn route_rules_mut(
+    value: &mut serde_json::Value,
+    xray: bool,
+) -> Result<&mut Vec<serde_json::Value>, String> {
+    let section = if xray { "routing" } else { "route" };
+    let object = value
+        .get_mut(section)
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or_else(|| {
+            format!("В конфигурации нет объекта {section}; сначала добавьте его в JSON.")
+        })?;
+    let rules = object
+        .entry("rules")
+        .or_insert_with(|| serde_json::json!([]));
+    rules
+        .as_array_mut()
+        .ok_or_else(|| format!("{section}.rules должен быть массивом."))
+}
+
+fn sync_config_options(window: &MainWindow) -> Result<(), String> {
+    let text = window.get_config_editor_text().to_string();
+    let value = parse_jsonc_value(&text)?;
+    window.set_config_tun_enabled(value_has_tun(&value));
+    window.set_fakeip_enabled(value_has_fakeip(&value));
+    window.set_android_apps_input(android_app_filter_values(&value).join(", ").into());
+    let xray = is_xray_config(&value);
+    let rules = value
+        .get(if xray { "routing" } else { "route" })
+        .and_then(|section| section.get("rules"))
+        .and_then(serde_json::Value::as_array);
+    let managed = rules
+        .into_iter()
+        .flatten()
+        .filter(|rule| rule.get(MANAGED_ROUTE_MARKER).is_some())
+        .map(|rule| {
+            let domains = if xray {
+                rule.get("domain")
+            } else {
+                rule.get("domain_suffix")
+            }
+            .and_then(serde_json::Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(serde_json::Value::as_str)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+            let ips = rule
+                .get(if xray { "ip" } else { "ip_cidr" })
+                .and_then(serde_json::Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(serde_json::Value::as_str)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let target = rule
+                .get(if xray { "outboundTag" } else { "outbound" })
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("?");
+            format!(
+                "{} → {target}",
+                domains
+                    .into_iter()
+                    .chain(ips)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })
+        .collect::<Vec<_>>();
+    window.set_route_rules_summary(
+        if managed.is_empty() {
+            "Нет правил, добавленных через эту форму.".to_owned()
+        } else {
+            managed.join("\n")
+        }
+        .into(),
+    );
+    Ok(())
+}
+
+fn android_app_filter_values(value: &serde_json::Value) -> Vec<String> {
+    value
+        .get("inbounds")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .find(|inbound| {
+            inbound.get("type").and_then(serde_json::Value::as_str) == Some("tun")
+                || inbound.get("protocol").and_then(serde_json::Value::as_str) == Some("tun")
+        })
+        .and_then(|inbound| inbound.get("include_package"))
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .map(str::to_owned)
+        .collect()
+}
+
+fn set_android_app_filter(text: &str, packages_text: &str) -> Result<String, String> {
+    if !cfg!(target_os = "android") {
+        return Err("Фильтр приложений доступен только в Android-сборке.".into());
+    }
+    let packages = split_rule_values(packages_text);
+    for package in &packages {
+        let valid = package.split('.').count() >= 2
+            && package.split('.').all(|part| {
+                !part.is_empty()
+                    && part.as_bytes()[0].is_ascii_alphabetic()
+                    && part
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+            });
+        if !valid {
+            return Err(format!("Некорректный Android package ID «{package}»."));
+        }
+    }
+    let mut value = parse_jsonc_value(text)?;
+    let tun = value
+        .get_mut("inbounds")
+        .and_then(serde_json::Value::as_array_mut)
+        .and_then(|inbounds| {
+            inbounds.iter_mut().find(|inbound| {
+                inbound.get("type").and_then(serde_json::Value::as_str) == Some("tun")
+                    || inbound.get("protocol").and_then(serde_json::Value::as_str) == Some("tun")
+            })
+        })
+        .ok_or_else(|| "Сначала включите TUN и примените настройки.".to_owned())?;
+    let tun = tun
+        .as_object_mut()
+        .ok_or("Объект TUN должен быть JSON-объектом.")?;
+    if packages.is_empty() {
+        tun.remove("include_package");
+    } else {
+        tun.insert("include_package".to_owned(), serde_json::json!(packages));
+    }
+    serde_json::to_string_pretty(&value)
+        .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
+}
+
+fn set_network_options(
+    text: &str,
+    tun_enabled: bool,
+    fakeip_enabled: bool,
+) -> Result<String, String> {
+    if tun_enabled && !cfg!(any(target_os = "linux", target_os = "android")) {
+        return Err(
+            "TUN в этой сборке недоступен. Windows TUN пока не поддерживается клиентом.".into(),
+        );
+    }
+    let mut value = parse_jsonc_value(text)?;
+    let xray = is_xray_config(&value);
+    let inbounds = value
+        .as_object_mut()
+        .ok_or_else(|| "Корень JSON-конфигурации должен быть объектом.".to_owned())?
+        .entry("inbounds")
+        .or_insert_with(|| serde_json::json!([]))
+        .as_array_mut()
+        .ok_or_else(|| "inbounds должен быть массивом.".to_owned())?;
+    let key = if xray { "protocol" } else { "type" };
+    if tun_enabled {
+        if !inbounds
+            .iter()
+            .any(|inbound| inbound.get(key).and_then(serde_json::Value::as_str) == Some("tun"))
+        {
+            let tun = if xray {
+                serde_json::json!({
+                    "protocol": "tun", "tag": "tun",
+                    "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"], "mtu": 1500
+                })
+            } else {
+                serde_json::json!({
+                    "type": "tun", "tag": "tun",
+                    "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"], "mtu": 1500
+                })
+            };
+            inbounds.push(tun);
+        }
+        ensure_dns_for_tun(&mut value, xray);
+    } else {
+        inbounds
+            .retain(|inbound| inbound.get(key).and_then(serde_json::Value::as_str) != Some("tun"));
+        if inbounds.is_empty() {
+            inbounds.push(if xray {
+                serde_json::json!({ "protocol": "mixed", "tag": "local", "listen": "127.0.0.1", "port": 1080 })
+            } else {
+                serde_json::json!({ "type": "mixed", "tag": "local", "listen": "127.0.0.1", "listen_port": 1080 })
+            });
+        }
+    }
+    set_fakeip(&mut value, xray, fakeip_enabled)?;
+    serde_json::to_string_pretty(&value)
+        .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
+}
+
+fn ensure_dns_for_tun(value: &mut serde_json::Value, xray: bool) {
+    let detour_tag = value
+        .get("outbounds")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|item| {
+                matches!(
+                    item.get("type").and_then(serde_json::Value::as_str),
+                    Some("vless" | "trojan" | "selector" | "urltest")
+                )
+            })
+        })
+        .and_then(|item| item.get("tag"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("proxy")
+        .to_owned();
+    let Some(root) = value.as_object_mut() else {
+        return;
+    };
+    let dns = root.entry("dns").or_insert_with(|| serde_json::json!({}));
+    let Some(dns) = dns.as_object_mut() else {
+        return;
+    };
+    if !dns.contains_key("servers")
+        || dns
+            .get("servers")
+            .is_some_and(|servers| servers.as_array().is_some_and(Vec::is_empty))
+    {
+        if xray {
+            dns.insert(
+                "servers".to_owned(),
+                serde_json::json!(["https://1.1.1.1/dns-query"]),
+            );
+        } else {
+            dns.insert("servers".to_owned(), serde_json::json!([{"type":"https","tag":"remote","server":"1.1.1.1","detour":detour_tag}]));
+            dns.entry("final")
+                .or_insert_with(|| serde_json::json!("remote"));
+        }
+    }
+}
+
+fn set_fakeip(value: &mut serde_json::Value, xray: bool, enabled: bool) -> Result<(), String> {
+    let proxy_tag = value
+        .get("outbounds")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|item| {
+                matches!(
+                    item.get("type").and_then(serde_json::Value::as_str),
+                    Some("vless" | "trojan" | "selector" | "urltest")
+                )
+            })
+        })
+        .and_then(|item| item.get("tag"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("proxy")
+        .to_owned();
+    let root = value
+        .as_object_mut()
+        .ok_or_else(|| "Корень JSON-конфигурации должен быть объектом.".to_owned())?;
+    if xray {
+        if enabled {
+            let pools = root.entry("fakedns").or_insert_with(|| {
+                serde_json::json!([
+                    {"ipPool":"198.18.0.0/15"}, {"ipPool":"fc00::/18"}
+                ])
+            });
+            if pools.is_null() {
+                *pools = serde_json::json!([{"ipPool":"198.18.0.0/15"}, {"ipPool":"fc00::/18"}]);
+            }
+            let dns = root
+                .entry("dns")
+                .or_insert_with(|| serde_json::json!({"servers":[]}));
+            let dns = dns.as_object_mut().ok_or("dns должен быть объектом.")?;
+            let servers = dns
+                .entry("servers")
+                .or_insert_with(|| serde_json::json!([]));
+            let servers = servers
+                .as_array_mut()
+                .ok_or("dns.servers должен быть массивом.")?;
+            if !servers.iter().any(|server| {
+                server.as_str() == Some("fakedns")
+                    || server.get("address").and_then(serde_json::Value::as_str) == Some("fakedns")
+            }) {
+                servers.push(serde_json::json!("fakedns"));
+            }
+        } else {
+            root.remove("fakedns");
+            if let Some(servers) = root
+                .get_mut("dns")
+                .and_then(|dns| dns.get_mut("servers"))
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                servers.retain(|server| {
+                    server.as_str() != Some("fakedns")
+                        && server.get("address").and_then(serde_json::Value::as_str)
+                            != Some("fakedns")
+                });
+            }
+        }
+        return Ok(());
+    }
+    if enabled {
+        let dns = root.entry("dns").or_insert_with(|| serde_json::json!({}));
+        let dns = dns.as_object_mut().ok_or("dns должен быть объектом.")?;
+        if !dns.contains_key("servers") {
+            dns.insert("servers".to_owned(), serde_json::json!([{"type":"https","tag":"remote","server":"1.1.1.1","detour":proxy_tag}]));
+            dns.entry("final")
+                .or_insert_with(|| serde_json::json!("remote"));
+        }
+        let fakeip = dns.entry("fakeip").or_insert_with(|| serde_json::json!({}));
+        let fakeip = fakeip
+            .as_object_mut()
+            .ok_or("dns.fakeip должен быть объектом.")?;
+        fakeip.insert("enabled".to_owned(), serde_json::json!(true));
+        fakeip
+            .entry("inet4_range")
+            .or_insert_with(|| serde_json::json!("198.18.0.0/15"));
+        fakeip
+            .entry("inet6_range")
+            .or_insert_with(|| serde_json::json!("fc00::/18"));
+    } else if let Some(fakeip) = root
+        .get_mut("dns")
+        .and_then(|dns| dns.get_mut("fakeip"))
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        fakeip.insert("enabled".to_owned(), serde_json::json!(false));
+    }
+    Ok(())
+}
+
+fn split_rule_values(text: &str) -> Vec<String> {
+    text.split(|character: char| character.is_whitespace() || character == ',' || character == ';')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn valid_ip_cidr(value: &str) -> bool {
+    let Some((address, prefix)) = value.split_once('/') else {
+        return false;
+    };
+    let Ok(address) = address.parse::<std::net::IpAddr>() else {
+        return false;
+    };
+    let Ok(prefix) = prefix.parse::<u8>() else {
+        return false;
+    };
+    prefix <= if address.is_ipv4() { 32 } else { 128 }
+}
+
+fn valid_domain_suffix(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 253
+        && !value
+            .chars()
+            .any(|character| matches!(character, '/' | ':' | '@' | '?' | '#'))
+        && value.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+                && label
+                    .as_bytes()
+                    .first()
+                    .is_some_and(|byte| byte.is_ascii_alphanumeric())
+                && label
+                    .as_bytes()
+                    .last()
+                    .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        })
+}
+
+fn add_routing_rule(
+    text: &str,
+    domains_text: &str,
+    ips_text: &str,
+    outbound: &str,
+) -> Result<String, String> {
+    let domains = split_rule_values(domains_text);
+    let ips = split_rule_values(ips_text);
+    if domains.is_empty() && ips.is_empty() {
+        return Err("Укажите хотя бы один домен или IP/CIDR.".into());
+    }
+    if let Some(domain) = domains.iter().find(|domain| !valid_domain_suffix(domain)) {
+        return Err(format!(
+            "«{domain}» не похоже на домен. Вводите vk.com без схемы, пути и wildcard."
+        ));
+    }
+    if let Some(ip) = ips.iter().find(|ip| !valid_ip_cidr(ip)) {
+        return Err(format!("«{ip}» — некорректный IP/CIDR."));
+    }
+    let outbound = outbound.trim();
+    if outbound.is_empty() {
+        return Err("Укажите тег выходного узла.".into());
+    }
+    let mut value = parse_jsonc_value(text)?;
+    let xray = is_xray_config(&value);
+    let has_outbound = value
+        .get("outbounds")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|items| {
+            items.iter().any(|item| {
+                item.get("tag").and_then(serde_json::Value::as_str) == Some(outbound)
+                    || (xray
+                        && item.get("protocol").and_then(serde_json::Value::as_str)
+                            == Some(outbound))
+            })
+        });
+    if !has_outbound {
+        return Err(format!("Выход «{outbound}» не найден в outbounds JSON."));
+    }
+    let mut rule = if xray {
+        serde_json::json!({ "type":"field", "outboundTag":outbound })
+    } else {
+        serde_json::json!({ "action":"route", "outbound":outbound })
+    };
+    rule[MANAGED_ROUTE_MARKER] = serde_json::json!("v1");
+    if xray {
+        if !domains.is_empty() {
+            rule["domain"] = serde_json::json!(
+                domains
+                    .iter()
+                    .map(|domain| format!("domain:{domain}"))
+                    .collect::<Vec<_>>()
+            );
+        }
+        if !ips.is_empty() {
+            rule["ip"] = serde_json::json!(ips);
+        }
+    } else {
+        if !domains.is_empty() {
+            rule["domain_suffix"] = serde_json::json!(domains);
+        }
+        if !ips.is_empty() {
+            rule["ip_cidr"] = serde_json::json!(ips);
+        }
+    }
+    let rules = route_rules_mut(&mut value, xray)?;
+    let insert_at = if xray {
+        0
+    } else {
+        rules
+            .iter()
+            .take_while(|rule| {
+                matches!(
+                    rule.get("action").and_then(serde_json::Value::as_str),
+                    Some("sniff" | "hijack-dns")
+                )
+            })
+            .count()
+    };
+    rules.insert(insert_at, rule);
+    serde_json::to_string_pretty(&value)
+        .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
+}
+
+fn clear_managed_routing_rules(text: &str) -> Result<String, String> {
+    let mut value = parse_jsonc_value(text)?;
+    let xray = is_xray_config(&value);
+    let rules = route_rules_mut(&mut value, xray)?;
+    rules.retain(|rule| rule.get(MANAGED_ROUTE_MARKER).is_none());
+    serde_json::to_string_pretty(&value)
+        .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
 }
 
 #[cfg(windows)]

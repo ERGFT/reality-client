@@ -103,7 +103,9 @@ class RealityVpnService : VpnService() {
         val inbounds = root.optJSONArray("inbounds")
             ?: throw IllegalArgumentException("В конфигурации отсутствуют inbounds")
         val inboundObjects = (0 until inbounds.length()).map { inbounds.getJSONObject(it) }
-        val tunIndex = singleTunInboundIndex(inboundObjects.map { it.optString("type") })
+        val tunIndex = singleTunInboundIndex(inboundObjects.map {
+            it.optString("type").ifBlank { it.optString("protocol") }
+        })
         val tun = inboundObjects[tunIndex]
         if (!tun.optBoolean("dns_hijack", true) || root.optJSONObject("dns") == null) {
             throw IllegalArgumentException("Android требует DNS-модуль и перехват DNS-запросов в TUN")
@@ -122,6 +124,23 @@ class RealityVpnService : VpnService() {
         val builder = Builder()
             .setSession("Reality Client")
             .setMtu(tun.optInt("mtu", 1500))
+
+        val includedPackages = tun.optJSONArray("include_package")
+        if (includedPackages != null) {
+            require(includedPackages.length() > 0) { "include_package должен содержать хотя бы одно приложение" }
+            for (index in 0 until includedPackages.length()) {
+                val packageName = includedPackages.getString(index).trim()
+                require(packageName.isNotEmpty()) { "Пустой Android package ID в include_package" }
+                try {
+                    builder.addAllowedApplication(packageName)
+                } catch (problem: Exception) {
+                    throw IllegalArgumentException("Не удалось добавить приложение $packageName: ${problem.localizedMessage}", problem)
+                }
+            }
+        }
+        // Application selection belongs to Android's VpnService, not the core schema.
+        // The pinned core rejects include_package, so strip this UI-only field before FFI.
+        tun.remove("include_package")
 
         val addressValues = mutableListOf<String>()
         for (field in listOf("address", "inet4_address", "inet6_address")) {
@@ -161,7 +180,7 @@ class RealityVpnService : VpnService() {
         tunnel = established
         val fd = established.detachFd()
         val error = nativeStart(
-            config,
+            root.toString(),
             applicationInfo.nativeLibraryDir,
             baseDir,
             fd,

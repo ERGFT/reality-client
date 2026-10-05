@@ -336,6 +336,44 @@ pub fn read_android_clipboard_text() -> Result<String, String> {
         .map_err(|e| format!("Не удалось прочитать буфер обмена Android: {e}"))
 }
 
+#[cfg(target_os = "android")]
+pub fn list_android_launchable_apps() -> Result<Vec<(String, String)>, String> {
+    use jni::objects::JString;
+
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let state_guard = lock_recover(slot);
+    let state = state_guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let encoded = state
+        .vm
+        .attach_current_thread(|env| -> jni::errors::Result<String> {
+            let value = env
+                .call_method(
+                    state.activity.as_ref(),
+                    jni::jni_str!("listLaunchableApps"),
+                    jni::jni_sig!("()Ljava/lang/String;"),
+                    &[],
+                )?
+                .l()?;
+            env.cast_local::<JString>(value)?.try_to_string(env)
+        })
+        .map_err(|problem| format!("Не удалось получить список приложений Android: {problem}"))?;
+    let apps: Vec<serde_json::Value> = serde_json::from_str(&encoded)
+        .map_err(|problem| format!("Android вернул неверный список приложений: {problem}"))?;
+    Ok(apps
+        .into_iter()
+        .filter_map(|app| {
+            Some((
+                app.get("package")?.as_str()?.to_owned(),
+                app.get("label")?.as_str()?.to_owned(),
+            ))
+        })
+        .collect())
+}
+
 #[cfg(any(target_os = "android", feature = "android-bridge-check"))]
 fn clear_android_activity(
     env: &jni::Env<'_>,

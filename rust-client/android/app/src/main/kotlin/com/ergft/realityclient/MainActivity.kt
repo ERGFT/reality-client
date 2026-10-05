@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build
+import org.json.JSONArray
+import org.json.JSONObject
 
 internal data class PendingVpnStart(
     val configPath: String,
@@ -41,6 +43,20 @@ class MainActivity : NativeActivity() {
         val clip = clipboard.primaryClip ?: return ""
         if (clip.itemCount != 1) return "\n"
         return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
+    }
+
+    fun listLaunchableApps(): String {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        @Suppress("DEPRECATION")
+        val activities = packageManager.queryIntentActivities(launcherIntent, 0)
+        val packages = activities.mapNotNull { resolveInfo ->
+            val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
+            val packageName = activityInfo.packageName ?: return@mapNotNull null
+            packageName to resolveInfo.loadLabel(packageManager).toString()
+        }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+        return JSONArray(packages.map { (packageName, label) ->
+            JSONObject().put("package", packageName).put("label", label)
+        }).toString()
     }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
