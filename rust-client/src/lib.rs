@@ -3101,6 +3101,31 @@ fn format_connection_row(connection: &serde_json::Value) -> String {
 }
 
 #[cfg(test)]
+mod connection_row_tests {
+    use super::format_connection_row;
+
+    #[test]
+    fn formats_core_connection_metadata_and_traffic() {
+        let connection = serde_json::json!({
+            "metadata": {
+                "host": "vk.com",
+                "destinationPort": "443",
+                "network": "tcp",
+                "type": "tun/tun"
+            },
+            "chains": ["selector", "reality-out"],
+            "upload": 1024,
+            "download": 2048
+        });
+
+        assert_eq!(
+            format_connection_row(&connection),
+            "vk.com:443  ·  tcp  ·  tun/tun  ·  selector → reality-out  ·  ↑ 1.0 КБ  ↓ 2.0 КБ"
+        );
+    }
+}
+
+#[cfg(test)]
 mod public_ip_proxy_tests {
     use super::local_socks_proxy_uri;
 
