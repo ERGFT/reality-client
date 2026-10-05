@@ -48,6 +48,10 @@ Before building, the script applies `patches/apply_core_tun_fd_ownership.py` to 
 
 The Android manifest declares the VPN foreground service as `systemExempted` and includes its corresponding Android permission, which is the platform category listed for VPN apps configured through system VPN settings. `tests/android-manifest-smoke.py` checks that declaration and the `BIND_VPN_SERVICE` protection; this static check does not replace an APK build or device runtime test.
 
+### Clipboard import update (2026-10-05)
+
+The Rust/Slint profile form now exposes the paste action on Android as well as Windows. On Android, the action reads the foreground app's clipboard through `MainActivity.readClipboardText()` only after the user taps Paste; the shared sanitizer trims surrounding whitespace and rejects multiline clipboard contents before the link reaches the profile field. Verification on this Windows host: Rust ARM64 Android library cross-compilation passed, required JNI exports passed, the 13 Android JVM tests passed, and Gradle assembled a debug APK containing the updated Rust library. APK SHA-256: `74F8BE880F9BD705462659F5108AC4397865B84D5048A2A8F7285BF1B4B1A42B`. No Android device was available, so the GUI paste action and VPN runtime have not been exercised on-device.
+
 ## Current status
 
 - **Platform-specific JSON guidance and mode parity:** the editor now distinguishes the Windows limitation (TUN configs are refused), Linux TUN privileges and cleanup, and Android's unverified state and unsupported custom-route/per-app/strict-route options. Selecting full-JSON mode also clears the Windows system-proxy toggle, matching the C# reference and preventing it from silently reactivating when returning to profile mode.

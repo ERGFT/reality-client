@@ -155,7 +155,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     });
     window.set_recovery_visible(core::has_proxy_recovery());
     window.set_system_proxy_supported(cfg!(windows));
-    window.set_clipboard_paste_supported(cfg!(windows));
+    window.set_clipboard_paste_supported(cfg!(any(windows, target_os = "android")));
     window.set_file_dialog_supported(cfg!(any(windows, target_os = "linux")));
     let platform_guidance = if cfg!(windows) {
         "Windows Rust-клиент пока принимает только desktop-конфиги без TUN; TUN-конфиги будут отклонены."
@@ -288,7 +288,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         }
     });
 
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "android"))]
     window.on_paste_profile_link({
         let weak_window = window.as_weak();
         move || {
@@ -1604,7 +1604,12 @@ fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String> {
     sanitize_clipboard_profile_link(text)
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "android")]
+fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String> {
+    let text = platform::read_android_clipboard_text()?;
+    sanitize_clipboard_profile_link(text)
+}
+
 fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<String>, String> {
     let text = Zeroizing::new(text);
     if text.contains(['\r', '\n', '\0']) {
@@ -1617,7 +1622,7 @@ fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<String>, St
     Ok(Zeroizing::new(trimmed.to_owned()))
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod clipboard_tests {
     use super::sanitize_clipboard_profile_link;
 

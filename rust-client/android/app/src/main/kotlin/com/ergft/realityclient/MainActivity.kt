@@ -1,6 +1,7 @@
 package com.ergft.realityclient
 
 import android.app.NativeActivity
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build
@@ -33,6 +34,14 @@ internal object PendingVpnStartStore {
 class MainActivity : NativeActivity() {
     private external fun nativeVpnPermissionDenied()
     private external fun nativeActivityDestroyed()
+
+    fun readClipboardText(): String {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        if (!clipboard.hasPrimaryClip()) return ""
+        val clip = clipboard.primaryClip ?: return ""
+        if (clip.itemCount != 1) return "\n"
+        return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
+    }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
