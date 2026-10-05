@@ -443,6 +443,34 @@ pub fn list_android_launchable_apps() -> Result<Vec<(String, String)>, String> {
         .collect())
 }
 
+#[cfg(target_os = "android")]
+pub fn open_repository() -> Result<(), String> {
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let state_guard = lock_recover(slot);
+    let state = state_guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let opened = state
+        .vm
+        .attach_current_thread(|env| {
+            env.call_method(
+                state.activity.as_ref(),
+                jni::jni_str!("openRepository"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
+        })
+        .map_err(|problem| format!("Не удалось открыть репозиторий в Android: {problem}"))?;
+    if opened {
+        Ok(())
+    } else {
+        Err("На устройстве не удалось открыть браузер для репозитория.".into())
+    }
+}
+
 #[cfg(any(target_os = "android", feature = "android-bridge-check"))]
 fn clear_android_activity(
     env: &jni::Env<'_>,
@@ -539,6 +567,49 @@ pub fn ensure_private_dir(path: &std::path::Path) -> Result<(), String> {
     #[cfg(windows)]
     harden_windows_directory(path)?;
     Ok(())
+}
+
+#[cfg(windows)]
+pub fn open_repository() -> Result<(), String> {
+    use windows::{
+        Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL},
+        core::w,
+    };
+
+    // SAFETY: all strings are static, NUL-terminated literals and ShellExecuteW
+    // only asks Windows to open this fixed public project URL in the default browser.
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            w!("https://github.com/ERGFT/reality-client"),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        )
+    };
+    if result.0 as isize <= 32 {
+        Err(format!(
+            "Windows не смог открыть страницу проекта (код {}).",
+            result.0 as isize
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn open_repository() -> Result<(), String> {
+    std::process::Command::new("xdg-open")
+        .arg("https://github.com/ERGFT/reality-client")
+        .spawn()
+        .map(|_| ())
+        .map_err(|problem| format!("Не удалось запустить браузер для репозитория: {problem}"))
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
+pub fn open_repository() -> Result<(), String> {
+    Err("Открытие ссылки на этой платформе пока не поддерживается.".into())
 }
 
 #[cfg(windows)]

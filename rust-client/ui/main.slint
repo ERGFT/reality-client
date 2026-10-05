@@ -140,6 +140,7 @@ export component MainWindow inherits Window {
     callback outbound-selected(index: int);
     callback android-app-filter-save-requested();
     callback android-app-add-requested(index: int);
+    callback open-repository-requested();
 
     changed use-full-config => {
         if root.use-full-config { root.enable-system-proxy = false; }
@@ -587,7 +588,8 @@ export component MainWindow inherits Window {
                         spacing: 10px;
                         Text { text: "Клиент для Reality Core"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
                         Text { text: "Проект объединяет графический клиент и закреплённое сетевое ядро. Набор функций зависит от операционной системы и доступных возможностей ядра."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
-                        Text { text: "Исходный код: github.com/ERGFT/reality-client"; color: root.dark-theme ? #55ddc2 : #087f70; font-size: 13px; }
+                        Button { text: "Открыть репозиторий ↗"; clicked => { root.open-repository-requested(); } }
+                        Text { text: "Разработчик: ERGFT"; color: root.dark-theme ? #91a8b7 : #687789; font-size: 12px; }
                         Text { text: "Целевые платформы: Windows, Linux и Android. Статус сборки и проверенные возможности каждой платформы указаны в README репозитория."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
                         Text { text: "Лицензия: GPL-3.0-or-later"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; }
                     }

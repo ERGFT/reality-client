@@ -3,6 +3,7 @@ package com.ergft.realityclient
 import android.app.NativeActivity
 import android.content.ClipboardManager
 import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import org.json.JSONArray
@@ -44,6 +45,10 @@ class MainActivity : NativeActivity() {
         if (clip.itemCount != 1) return "\n"
         return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
     }
+
+    fun openRepository(): Boolean = runCatching {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ERGFT/reality-client")))
+    }.isSuccess
 
     fun listLaunchableApps(): String {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)

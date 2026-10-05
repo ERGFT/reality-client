@@ -362,6 +362,17 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         }
     });
 
+    window.on_open_repository_requested({
+        let window = window.as_weak();
+        move || {
+            if let Err(problem) = platform::open_repository()
+                && let Some(window) = window.upgrade()
+            {
+                window.set_detail_text(problem.into());
+            }
+        }
+    });
+
     window.on_public_ip_check_requested({
         let window = window.as_weak();
         #[cfg(not(target_os = "android"))]
