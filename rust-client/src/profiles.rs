@@ -77,10 +77,8 @@ impl ProfileStore {
 
     pub fn read_link(&self, index: usize) -> Result<Zeroizing<String>, String> {
         let profile = self.profiles.get(index).ok_or("Профиль не найден.")?;
-        let clear = unprotect(&profile.protected_link)?;
-        let text = String::from_utf8(clear.to_vec())
-            .map_err(|_| "Сохранённая ссылка профиля повреждена.".to_owned())?;
-        Ok(Zeroizing::new(text))
+        let mut clear = unprotect(&profile.protected_link)?;
+        decode_secret_link(&mut clear)
     }
 
     pub fn save(
@@ -150,6 +148,18 @@ impl ProfileStore {
         self.profiles = updated;
         let _ = delete_protected(&removed.protected_link);
         Ok(())
+    }
+}
+
+fn decode_secret_link(clear: &mut Zeroizing<Vec<u8>>) -> Result<Zeroizing<String>, String> {
+    let bytes = std::mem::take(&mut **clear);
+    match String::from_utf8(bytes) {
+        Ok(text) => Ok(Zeroizing::new(text)),
+        Err(problem) => {
+            let mut invalid_bytes = problem.into_bytes();
+            invalid_bytes.zeroize();
+            Err("Сохранённая ссылка профиля повреждена.".to_owned())
+        }
     }
 }
 
@@ -591,6 +601,25 @@ public static class RealityClientDpapiInterop {
         assert!(validate_vless_link("https://id@example.org:443").is_err());
         assert!(validate_vless_link("vless://id@example.org").is_err());
         assert!(validate_vless_link("vless://id@example.org:443\nsecret").is_err());
+    }
+
+    #[test]
+    fn secret_link_conversion_moves_the_plaintext_buffer_without_copying() {
+        let link = "vless://00000000-0000-4000-8000-000000000000@edge.example.org:443";
+        let mut clear = Zeroizing::new(link.as_bytes().to_vec());
+
+        let decoded = decode_secret_link(&mut clear).unwrap();
+
+        assert_eq!(decoded.as_str(), link);
+        assert!(clear.is_empty());
+    }
+
+    #[test]
+    fn invalid_secret_link_conversion_clears_the_plaintext_buffer() {
+        let mut clear = Zeroizing::new(vec![0xff, 0xfe, 0xfd]);
+
+        assert!(decode_secret_link(&mut clear).is_err());
+        assert!(clear.is_empty());
     }
 
     #[test]

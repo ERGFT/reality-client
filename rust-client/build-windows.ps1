@@ -44,12 +44,65 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'PACKAGE-README.md') -Destinatio
 Copy-Item -LiteralPath (Join-Path $repo 'third_party\vpn-core-source.zip') -Destination (Join-Path $thirdParty 'vpn-core-source.zip') -Force
 Copy-Item -LiteralPath (Join-Path $repo 'third_party\vpn-core-source.commit') -Destination (Join-Path $thirdParty 'vpn-core-source.commit') -Force
 
-$shell = New-Object -ComObject WScript.Shell
-$shortcut = $shell.CreateShortcut((Join-Path $package 'Reality Client Rust.lnk'))
-$shortcut.TargetPath = Join-Path $package 'RealityClient-Rust.exe'
-$shortcut.WorkingDirectory = $package
-$shortcut.Description = 'Экспериментальная Rust-версия Reality Client'
-$shortcut.Save()
+# WScript.Shell does not expose IShellLink::SetRelativePath, so its shortcuts
+# keep an absolute target and break when the package folder is moved. Create a
+# Shell Link directly and record the link's original location for relocation.
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("000214F9-0000-0000-C000-000000000046")]
+public interface IShellLinkW {
+    void GetPath(IntPtr file, IntPtr data, uint dataSize, IntPtr findData, uint flags);
+    void GetIDList(out IntPtr item);
+    void SetIDList(IntPtr item);
+    void GetDescription(IntPtr name, int maxLength);
+    void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string name);
+    void GetWorkingDirectory(IntPtr directory, int maxLength);
+    void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string directory);
+    void GetArguments(IntPtr arguments, int maxLength);
+    void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string arguments);
+    void GetHotkey(out short hotkey);
+    void SetHotkey(short hotkey);
+    void GetShowCmd(out int showCommand);
+    void SetShowCmd(int showCommand);
+    void GetIconLocation(IntPtr iconPath, int maxLength, out int iconIndex);
+    void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string iconPath, int iconIndex);
+    void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string linkPath, uint reserved);
+    void Resolve(IntPtr window, uint flags);
+    void SetPath([MarshalAs(UnmanagedType.LPWStr)] string target);
+}
+
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("0000010b-0000-0000-C000-000000000046")]
+public interface IPersistFile {
+    void GetClassID(out Guid classId);
+    [PreserveSig] int IsDirty();
+    void Load([MarshalAs(UnmanagedType.LPWStr)] string fileName, uint mode);
+    void Save([MarshalAs(UnmanagedType.LPWStr)] string fileName, [MarshalAs(UnmanagedType.Bool)] bool remember);
+    void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string fileName);
+    void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string fileName);
+}
+
+public static class RealityClientShortcutBuilder {
+    public static void Create(string shortcutPath, string targetPath, string workingDirectory, string description) {
+        var type = Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046"));
+        var link = (IShellLinkW)Activator.CreateInstance(type);
+        link.SetPath(targetPath);
+        link.SetWorkingDirectory(workingDirectory);
+        link.SetDescription(description);
+        link.SetRelativePath(shortcutPath, 0);
+        ((IPersistFile)link).Save(shortcutPath, true);
+    }
+}
+'@
+
+$shortcutPath = Join-Path $package 'Reality Client Rust.lnk'
+[RealityClientShortcutBuilder]::Create(
+    $shortcutPath,
+    (Join-Path $package 'RealityClient-Rust.exe'),
+    $package,
+    'Экспериментальная Rust-версия Reality Client'
+)
 
 $sha = (Get-FileHash -LiteralPath (Join-Path $package 'RealityClient-Rust.exe') -Algorithm SHA256).Hash
 Write-Output 'RUST_CLIENT_BUILD=PASS'
