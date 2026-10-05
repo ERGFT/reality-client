@@ -222,6 +222,37 @@ fn find_core() -> Result<PathBuf, String> {
         })
 }
 
+#[cfg(windows)]
+pub fn cleanup_tun_routes() -> Result<String, String> {
+    let executable = find_core()?;
+    let output = Command::new(&executable)
+        .arg("--tun-cleanup")
+        .current_dir(executable.parent().unwrap_or_else(|| Path::new(".")))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|problem| format!("Не удалось запустить восстановление Windows TUN: {problem}"))?;
+    let diagnostic = [output.stdout.as_slice(), output.stderr.as_slice()]
+        .into_iter()
+        .filter(|stream| !stream.is_empty())
+        .map(String::from_utf8_lossy)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let safe = crate::security::redact_sensitive_text(diagnostic.trim());
+    if output.status.success() {
+        Ok(if safe.is_empty() {
+            "Ядро выполнило очистку собственных остатков TUN.".to_owned()
+        } else {
+            safe
+        })
+    } else if safe.is_empty() {
+        Err("Очистка TUN завершилась ошибкой. Запустите Reality Client от имени администратора и повторите.".into())
+    } else {
+        Err(safe)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

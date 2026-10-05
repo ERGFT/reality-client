@@ -16,6 +16,15 @@ $core = Join-Path $repo 'third_party\reality-client.exe'
 if (-not (Test-Path -LiteralPath $core)) { throw "Не найден закреплённый файл ядра: $core" }
 $ffi = Join-Path $PSScriptRoot 'third_party\reality.dll'
 if (-not (Test-Path -LiteralPath $ffi)) { throw "Не найдена библиотека Rust-ядра: $ffi. Сначала выполните ..\build_rust_core.ps1." }
+$wintun = Join-Path $repo 'third_party\wintun\wintun.dll'
+$wintunLicense = Join-Path $repo 'third_party\wintun\LICENSE.txt'
+$expectedWintunSha256 = 'E5DA8447DC2C320EDC0FC52FA01885C103DE8C118481F683643CACC3220DAFCE'
+if (-not (Test-Path -LiteralPath $wintun) -or -not (Test-Path -LiteralPath $wintunLicense)) {
+    throw 'Не найден официальный Wintun DLL и его лицензия в third_party\wintun.'
+}
+if ((Get-FileHash -LiteralPath $wintun -Algorithm SHA256).Hash -ne $expectedWintunSha256) {
+    throw 'SHA-256 Wintun DLL не совпадает с закреплённым официальным файлом.'
+}
 
 cargo +stable-x86_64-pc-windows-gnu build --manifest-path (Join-Path $PSScriptRoot 'Cargo.toml') --locked --release --target x86_64-pc-windows-gnu
 if ($LASTEXITCODE -ne 0) { throw "Сборка Rust-клиента завершилась с кодом $LASTEXITCODE." }
@@ -27,6 +36,8 @@ $exe = Join-Path $PSScriptRoot 'target\x86_64-pc-windows-gnu\release\reality-cli
 Copy-Item -LiteralPath $exe -Destination (Join-Path $package 'RealityClient-Rust.exe') -Force
 Copy-Item -LiteralPath $core -Destination (Join-Path $thirdParty 'reality-client.exe') -Force
 Copy-Item -LiteralPath $ffi -Destination (Join-Path $package 'reality.dll') -Force
+Copy-Item -LiteralPath $wintun -Destination (Join-Path $package 'wintun.dll') -Force
+Copy-Item -LiteralPath $wintunLicense -Destination (Join-Path $package 'WINTUN-LICENSE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $repo 'LICENSE.txt') -Destination (Join-Path $package 'LICENSE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $repo 'THIRD_PARTY.md') -Destination (Join-Path $package 'THIRD_PARTY.md') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'README.md') -Destination (Join-Path $package 'README.md') -Force

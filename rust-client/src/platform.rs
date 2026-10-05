@@ -473,6 +473,172 @@ pub fn ensure_private_dir(path: &std::path::Path) -> Result<(), String> {
 }
 
 #[cfg(windows)]
+pub fn prepare_windows_tun_lock_dir() -> Result<PathBuf, String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::{
+        Win32::{
+            Foundation::{ERROR_ALREADY_EXISTS, HLOCAL, LocalFree},
+            Security::Authorization::{
+                ConvertStringSecurityDescriptorToSecurityDescriptorW, GetNamedSecurityInfoW,
+                SDDL_REVISION_1, SE_FILE_OBJECT, SetNamedSecurityInfoW,
+            },
+            Security::{
+                DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, IsWellKnownSid,
+                OBJECT_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
+                PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
+                SECURITY_ATTRIBUTES, WinBuiltinAdministratorsSid, WinLocalSystemSid,
+            },
+            Storage::FileSystem::{CreateDirectoryW, FILE_ATTRIBUTE_REPARSE_POINT},
+        },
+        core::PCWSTR,
+    };
+
+    const LOCK_DIR_SDDL: &str = "O:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+    let program_data = std::env::var_os("ProgramData")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .ok_or("Не удалось определить защищённый каталог Windows ProgramData.")?;
+    let path = program_data.join("RealityClient");
+    let path_wide = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let sddl_wide = LOCK_DIR_SDDL
+        .encode_utf16()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+
+    struct LocalDescriptor(PSECURITY_DESCRIPTOR);
+    impl Drop for LocalDescriptor {
+        fn drop(&mut self) {
+            if !self.0.0.is_null() {
+                unsafe {
+                    let _ = LocalFree(Some(HLOCAL(self.0.0)));
+                }
+            }
+        }
+    }
+
+    let mut descriptor = PSECURITY_DESCRIPTOR::default();
+    unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            PCWSTR(sddl_wide.as_ptr()),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            None,
+        )
+    }
+    .map_err(|problem| format!("Не удалось создать защищённые права Windows TUN: {problem}"))?;
+    let descriptor = LocalDescriptor(descriptor);
+    let attributes = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: descriptor.0.0,
+        bInheritHandle: false.into(),
+    };
+
+    let existing = match unsafe { CreateDirectoryW(PCWSTR(path_wide.as_ptr()), Some(&attributes)) }
+    {
+        Ok(()) => false,
+        Err(problem) if problem.code().0 as u32 == ERROR_ALREADY_EXISTS.0 => true,
+        Err(problem) => {
+            return Err(format!(
+                "Не удалось создать защищённую папку {}. Запустите клиент от имени администратора для работы TUN: {problem}",
+                path.display()
+            ));
+        }
+    };
+
+    if existing {
+        let metadata = std::fs::symlink_metadata(&path).map_err(|problem| {
+            format!(
+                "Не удалось проверить защищённую папку {}: {problem}",
+                path.display()
+            )
+        })?;
+        use std::os::windows::fs::MetadataExt;
+        if !metadata.is_dir() || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0 {
+            return Err(format!(
+                "Папка блокировки TUN {} является ссылкой или не является каталогом.",
+                path.display()
+            ));
+        }
+
+        let mut owner = PSID::default();
+        let mut existing_descriptor = PSECURITY_DESCRIPTOR::default();
+        let status = unsafe {
+            GetNamedSecurityInfoW(
+                PCWSTR(path_wide.as_ptr()),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION,
+                Some(&mut owner),
+                None,
+                None,
+                None,
+                &mut existing_descriptor,
+            )
+        };
+        if status.0 != 0 {
+            return Err(format!(
+                "Не удалось проверить владельца папки TUN {} (код Windows {}).",
+                path.display(),
+                status.0
+            ));
+        }
+        let existing_descriptor = LocalDescriptor(existing_descriptor);
+        let trusted_owner = unsafe {
+            IsWellKnownSid(owner, WinBuiltinAdministratorsSid).as_bool()
+                || IsWellKnownSid(owner, WinLocalSystemSid).as_bool()
+        };
+        if !trusted_owner {
+            return Err(format!(
+                "Папка TUN {} создана не администратором или SYSTEM; автоматический запуск TUN отменён.",
+                path.display()
+            ));
+        }
+
+        let mut dacl_present = false.into();
+        let mut dacl_defaulted = false.into();
+        let mut dacl = std::ptr::null_mut();
+        unsafe {
+            GetSecurityDescriptorDacl(
+                descriptor.0,
+                &mut dacl_present,
+                &mut dacl,
+                &mut dacl_defaulted,
+            )
+        }
+        .map_err(|problem| format!("Не удалось прочитать защищённые права TUN: {problem}"))?;
+        if !dacl_present.as_bool() || dacl.is_null() {
+            return Err("Windows не создала закрытый ACL каталога TUN.".into());
+        }
+        let status = unsafe {
+            SetNamedSecurityInfoW(
+                PCWSTR(path_wide.as_ptr()),
+                SE_FILE_OBJECT,
+                OBJECT_SECURITY_INFORMATION(
+                    DACL_SECURITY_INFORMATION.0 | PROTECTED_DACL_SECURITY_INFORMATION.0,
+                ),
+                None,
+                None,
+                Some(dacl),
+                None,
+            )
+        };
+        drop(existing_descriptor);
+        if status.0 != 0 {
+            return Err(format!(
+                "Не удалось ограничить доступ к папке TUN {} (код Windows {}). Запустите клиент от имени администратора.",
+                path.display(),
+                status.0
+            ));
+        }
+    }
+
+    Ok(path)
+}
+
+#[cfg(windows)]
 fn harden_windows_directory(path: &std::path::Path) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
     use windows::{

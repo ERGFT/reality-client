@@ -239,11 +239,12 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         }
     });
     window.set_recovery_visible(core::has_proxy_recovery());
+    window.set_tun_cleanup_supported(cfg!(windows));
     window.set_system_proxy_supported(cfg!(windows));
     window.set_clipboard_paste_supported(cfg!(any(windows, target_os = "android")));
     window.set_file_dialog_supported(cfg!(any(windows, target_os = "linux")));
     let platform_guidance = if cfg!(windows) {
-        "Windows Rust-клиент пока принимает только desktop-конфиги без TUN; TUN-конфиги будут отклонены."
+        "Windows TUN требует запуска клиента от имени администратора и wintun.dll из официального пакета. При аварийном завершении доступна ручная очистка маршрутов Reality Core."
     } else if cfg!(target_os = "linux") {
         "Linux TUN требует root или CAP_NET_ADMIN; после аварии с strict_route используйте reality-client --tun-cleanup."
     } else if cfg!(target_os = "android") {
@@ -264,7 +265,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
             .collect::<Vec<_>>(),
     ));
     window.set_profile_model(ModelRc::from(profile_model.clone()));
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "android"))]
     window.set_tun_settings_supported(true);
     #[cfg(target_os = "android")]
     window.set_android_app_filter_supported(true);
@@ -1210,6 +1211,47 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
                         }
                         Err(problem) => {
                             window.set_status_text("Копия сохранена".into());
+                            window.set_detail_text(problem.into());
+                        }
+                    }
+                });
+            });
+        }
+    });
+
+    #[cfg(windows)]
+    window.on_tun_cleanup_requested({
+        let window = window.as_weak();
+        let is_starting = is_starting.clone();
+        move || {
+            if is_starting.swap(true, Ordering::AcqRel) {
+                return;
+            }
+            let Some(window) = window.upgrade() else {
+                is_starting.store(false, Ordering::Release);
+                return;
+            };
+            window.set_status_text("Очистка TUN…".into());
+            window.set_detail_text(
+                "Запускаю штатную очистку только помеченных маршрутов и фильтров Reality Core…"
+                    .into(),
+            );
+            let weak_window = window.as_weak();
+            let is_starting = is_starting.clone();
+            std::thread::spawn(move || {
+                let result = core::cleanup_tun_routes();
+                let _ = slint::invoke_from_event_loop(move || {
+                    is_starting.store(false, Ordering::Release);
+                    let Some(window) = weak_window.upgrade() else {
+                        return;
+                    };
+                    match result {
+                        Ok(message) => {
+                            window.set_status_text("TUN очищен".into());
+                            window.set_detail_text(message.into());
+                        }
+                        Err(problem) => {
+                            window.set_status_text("Очистка не завершена".into());
                             window.set_detail_text(problem.into());
                         }
                     }
@@ -2393,10 +2435,8 @@ fn set_network_options(
     tun_enabled: bool,
     fakeip_enabled: bool,
 ) -> Result<String, String> {
-    if tun_enabled && !cfg!(any(target_os = "linux", target_os = "android")) {
-        return Err(
-            "TUN в этой сборке недоступен. Windows TUN пока не поддерживается клиентом.".into(),
-        );
+    if tun_enabled && !cfg!(any(windows, target_os = "linux", target_os = "android")) {
+        return Err("TUN в этой сборке недоступен на этой платформе.".into());
     }
     let mut value = parse_jsonc_value(text)?;
     let xray = is_xray_config(&value);

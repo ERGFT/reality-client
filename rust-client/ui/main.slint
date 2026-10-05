@@ -103,6 +103,8 @@ export component MainWindow inherits Window {
     in-out property <bool> recovery-visible: false;
     in-out property <bool> recovery-confirmation-visible: false;
     in-out property <bool> discard-recovery-confirmation-visible: false;
+    in-out property <bool> tun-cleanup-confirmation-visible: false;
+    in property <bool> tun-cleanup-supported: false;
     in property <[string]> profile-model;
     in-out property <int> selected-profile-index: -1;
     callback save-profile();
@@ -120,6 +122,7 @@ export component MainWindow inherits Window {
     callback config-reload-requested();
     callback recover-proxy-requested();
     callback discard-proxy-recovery-requested();
+    callback tun-cleanup-requested();
     callback theme-selected(index: int);
     callback public-ip-check-requested();
     callback direct-ip-check-requested();
@@ -367,7 +370,7 @@ export component MainWindow inherits Window {
                                 padding: 12px;
                                 spacing: 7px;
                                 Text { text: "DNS и маршрутизация"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 14px; font-weight: 700; }
-                                Text { text: "Переключатели изменяют JSON-конфиг. Windows пока не поддерживает TUN в этом клиенте."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
+                                Text { text: "Переключатели записывают параметры в JSON. На Windows для TUN нужен официальный wintun.dll рядом с приложением и запуск от имени администратора."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
                                 CheckBox { text: "TUN: направлять системный трафик через VPN"; checked <=> root.config-tun-enabled; enabled: root.tun-settings-supported; }
                                 CheckBox { text: "Fake-IP DNS"; checked <=> root.fakeip-enabled; }
                                 if root.android-app-filter-supported: Rectangle {
@@ -434,6 +437,24 @@ export component MainWindow inherits Window {
                                 spacing: 8px;
                                 Text { text: "Удалить только сохранённую копию?"; color: #d49a41; vertical-alignment: center; }
                                 Button { text: "Удалить копию"; clicked => { root.discard-proxy-recovery-requested(); root.discard-recovery-confirmation-visible = false; } }
+                            }
+                        }
+                        if root.tun-cleanup-supported: Rectangle {
+                            background: root.dark-theme ? #0e171e : #ffffff;
+                            border-width: 1px;
+                            border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                            border-radius: 8px;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 7px;
+                                Text { text: "Восстановление Windows TUN"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 14px; font-weight: 700; }
+                                Text { text: "После аварийного завершения запустите очистку только после отключения клиента. Ядро снимает лишь собственные остатки; операция требует прав администратора."; color: root.dark-theme ? #d7b45e : #906315; font-size: 11px; wrap: word-wrap; }
+                                Button { text: root.tun-cleanup-confirmation-visible ? "Отмена" : "Подготовить очистку…"; enabled: root.connect-button-text == "Подключить"; clicked => { root.tun-cleanup-confirmation-visible = !root.tun-cleanup-confirmation-visible; } }
+                                if root.tun-cleanup-confirmation-visible: HorizontalLayout {
+                                    spacing: 8px;
+                                    Text { text: "Выполнить очистку маршрутов Reality Core?"; color: #d49a41; vertical-alignment: center; }
+                                    Button { text: "Очистить"; clicked => { root.tun-cleanup-requested(); root.tun-cleanup-confirmation-visible = false; } }
+                                }
                             }
                         }
                     }
