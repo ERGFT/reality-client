@@ -12,8 +12,10 @@ use std::{
 
 use zeroize::Zeroizing;
 
+#[cfg(windows)]
+use crate::core::recover_proxy;
 use crate::{
-    core::{check_config_file, default_config_path, has_proxy_recovery, recover_proxy},
+    core::{check_config_file, default_config_path, has_proxy_recovery},
     ffi_core::FfiCore,
     security::redact_sensitive_text,
 };
@@ -22,6 +24,7 @@ pub struct CoreSession {
     core: Option<FfiCore>,
     _log_queue: Arc<Mutex<VecDeque<String>>>,
     secret_file: Option<PathBuf>,
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     proxy_backup: Option<PathBuf>,
     verify_socks: bool,
     reload_supported: bool,
@@ -183,6 +186,12 @@ impl CoreSession {
         refuse_unmanaged_platform_tun(&config)?;
         let reload_supported = !config_has_tun(&config)?;
         let library = FfiCore::load()?;
+        #[cfg(windows)]
+        if !reload_supported {
+            require_bundled_wintun()?;
+            let lock_dir = crate::platform::prepare_windows_tun_lock_dir()?;
+            FfiCore::set_lock_dir(&library, &lock_dir)?;
+        }
         let mut core = FfiCore::start(library, &config, base_dir, -1)?;
         install_log_callback(&mut core, logs)?;
         Ok(Self {
@@ -677,11 +686,24 @@ fn validate_tun_policy(
 
 #[cfg(windows)]
 fn refuse_unmanaged_platform_tun(config: &str) -> Result<(), String> {
-    validate_tun_policy(
-        config,
-        false,
-        "Полный JSON содержит TUN. Настройка защищённого lock-каталога и восстановление маршрутов Windows ещё не перенесены.",
-    )
+    validate_tun_policy(config, true, "")
+}
+
+#[cfg(windows)]
+fn require_bundled_wintun() -> Result<PathBuf, String> {
+    let executable = std::env::current_exe()
+        .map_err(|problem| format!("Не удалось определить путь клиента Windows: {problem}"))?;
+    let dll = executable
+        .parent()
+        .ok_or("Не удалось определить папку Windows-клиента.")?
+        .join("wintun.dll");
+    if !dll.is_file() {
+        return Err(format!(
+            "Для Windows TUN нужен официальный wintun.dll рядом с приложением: {}. Переустановите полный пакет клиента.",
+            dll.display()
+        ));
+    }
+    Ok(dll)
 }
 
 #[cfg(target_os = "linux")]
@@ -723,11 +745,15 @@ mod platform_config_tests {
         assert!(!config_has_tun(proxy_config).unwrap());
         #[cfg(target_os = "linux")]
         assert!(refuse_unmanaged_platform_tun(tun_config).is_ok());
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", windows)))]
         assert!(refuse_unmanaged_platform_tun(tun_config).is_err());
+        #[cfg(any(target_os = "linux", windows))]
+        assert!(refuse_unmanaged_platform_tun(tun_config).is_ok());
         assert!(refuse_unmanaged_platform_tun(proxy_config).is_ok());
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", windows)))]
         assert!(refuse_unmanaged_platform_tun(xray_tun_config).is_err());
+        #[cfg(any(target_os = "linux", windows))]
+        assert!(refuse_unmanaged_platform_tun(xray_tun_config).is_ok());
         assert!(validate_tun_policy(tun_config, true, "unsupported").is_ok());
         assert!(validate_tun_policy(tun_config, false, "unsupported").is_err());
         assert!(validate_reload_config(proxy_config).is_ok());

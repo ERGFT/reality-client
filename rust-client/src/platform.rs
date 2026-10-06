@@ -112,14 +112,10 @@ pub fn app_data_dir() -> Result<PathBuf, String> {
     }
     #[cfg(target_os = "linux")]
     {
-        if let Some(root) = std::env::var_os("XDG_DATA_HOME") {
-            let root = PathBuf::from(root);
-            if root.is_absolute() {
-                return Ok(root.join("reality-client"));
-            }
-        }
-        let home = std::env::var_os("HOME").ok_or("Не найдена домашняя папка пользователя.")?;
-        Ok(PathBuf::from(home).join(".local/share/reality-client"))
+        linux_data_dir(
+            std::env::var_os("XDG_DATA_HOME").as_deref(),
+            std::env::var_os("HOME").as_deref(),
+        )
     }
     #[cfg(target_os = "android")]
     {
@@ -142,6 +138,29 @@ pub fn app_data_dir() -> Result<PathBuf, String> {
     {
         Err("Папка данных клиента для этой ОС не настроена.".into())
     }
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn linux_data_dir(
+    xdg_data_home: Option<&std::ffi::OsStr>,
+    home: Option<&std::ffi::OsStr>,
+) -> Result<PathBuf, String> {
+    if let Some(root) = xdg_data_home
+        .map(PathBuf::from)
+        .filter(|path| is_linux_absolute(path))
+    {
+        return Ok(root.join("reality-client"));
+    }
+    let home = home
+        .map(PathBuf::from)
+        .filter(|path| is_linux_absolute(path))
+        .ok_or("Не найдена абсолютная домашняя папка пользователя.")?;
+    Ok(home.join(".local/share/reality-client"))
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn is_linux_absolute(path: &std::path::Path) -> bool {
+    path.as_os_str().to_string_lossy().starts_with('/')
 }
 
 #[cfg(target_os = "android")]
@@ -336,6 +355,72 @@ pub fn read_android_clipboard_text() -> Result<String, String> {
         .map_err(|e| format!("Не удалось прочитать буфер обмена Android: {e}"))
 }
 
+#[cfg(target_os = "android")]
+pub fn list_android_launchable_apps() -> Result<Vec<(String, String)>, String> {
+    use jni::objects::JString;
+
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let state_guard = lock_recover(slot);
+    let state = state_guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let encoded = state
+        .vm
+        .attach_current_thread(|env| -> jni::errors::Result<String> {
+            let value = env
+                .call_method(
+                    state.activity.as_ref(),
+                    jni::jni_str!("listLaunchableApps"),
+                    jni::jni_sig!("()Ljava/lang/String;"),
+                    &[],
+                )?
+                .l()?;
+            env.cast_local::<JString>(value)?.try_to_string(env)
+        })
+        .map_err(|problem| format!("Не удалось получить список приложений Android: {problem}"))?;
+    let apps: Vec<serde_json::Value> = serde_json::from_str(&encoded)
+        .map_err(|problem| format!("Android вернул неверный список приложений: {problem}"))?;
+    Ok(apps
+        .into_iter()
+        .filter_map(|app| {
+            Some((
+                app.get("package")?.as_str()?.to_owned(),
+                app.get("label")?.as_str()?.to_owned(),
+            ))
+        })
+        .collect())
+}
+
+#[cfg(target_os = "android")]
+pub fn open_repository() -> Result<(), String> {
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let state_guard = lock_recover(slot);
+    let state = state_guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let opened = state
+        .vm
+        .attach_current_thread(|env| {
+            env.call_method(
+                state.activity.as_ref(),
+                jni::jni_str!("openRepository"),
+                jni::jni_sig!("()Z"),
+                &[],
+            )?
+            .z()
+        })
+        .map_err(|problem| format!("Не удалось открыть репозиторий в Android: {problem}"))?;
+    if opened {
+        Ok(())
+    } else {
+        Err("На устройстве не удалось открыть браузер для репозитория.".into())
+    }
+}
+
 #[cfg(any(target_os = "android", feature = "android-bridge-check"))]
 fn clear_android_activity(
     env: &jni::Env<'_>,
@@ -432,6 +517,215 @@ pub fn ensure_private_dir(path: &std::path::Path) -> Result<(), String> {
     #[cfg(windows)]
     harden_windows_directory(path)?;
     Ok(())
+}
+
+#[cfg(windows)]
+pub fn open_repository() -> Result<(), String> {
+    use windows::{
+        Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL},
+        core::w,
+    };
+
+    // SAFETY: all strings are static, NUL-terminated literals and ShellExecuteW
+    // only asks Windows to open this fixed public project URL in the default browser.
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            w!("https://github.com/ERGFT/reality-client"),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        )
+    };
+    if result.0 as isize <= 32 {
+        Err(format!(
+            "Windows не смог открыть страницу проекта (код {}).",
+            result.0 as isize
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn open_repository() -> Result<(), String> {
+    std::process::Command::new("xdg-open")
+        .arg("https://github.com/ERGFT/reality-client")
+        .spawn()
+        .map(|_| ())
+        .map_err(|problem| format!("Не удалось запустить браузер для репозитория: {problem}"))
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
+pub fn open_repository() -> Result<(), String> {
+    Err("Открытие ссылки на этой платформе пока не поддерживается.".into())
+}
+
+#[cfg(windows)]
+pub fn prepare_windows_tun_lock_dir() -> Result<PathBuf, String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::{
+        Win32::{
+            Foundation::{ERROR_ALREADY_EXISTS, HLOCAL, LocalFree},
+            Security::Authorization::{
+                ConvertStringSecurityDescriptorToSecurityDescriptorW, GetNamedSecurityInfoW,
+                SDDL_REVISION_1, SE_FILE_OBJECT, SetNamedSecurityInfoW,
+            },
+            Security::{
+                DACL_SECURITY_INFORMATION, GetSecurityDescriptorDacl, IsWellKnownSid,
+                OBJECT_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
+                PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
+                SECURITY_ATTRIBUTES, WinBuiltinAdministratorsSid, WinLocalSystemSid,
+            },
+            Storage::FileSystem::{CreateDirectoryW, FILE_ATTRIBUTE_REPARSE_POINT},
+        },
+        core::PCWSTR,
+    };
+
+    const LOCK_DIR_SDDL: &str = "O:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+    let program_data = std::env::var_os("ProgramData")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .ok_or("Не удалось определить защищённый каталог Windows ProgramData.")?;
+    let path = program_data.join("RealityClient");
+    let path_wide = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let sddl_wide = LOCK_DIR_SDDL
+        .encode_utf16()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+
+    struct LocalDescriptor(PSECURITY_DESCRIPTOR);
+    impl Drop for LocalDescriptor {
+        fn drop(&mut self) {
+            if !self.0.0.is_null() {
+                unsafe {
+                    let _ = LocalFree(Some(HLOCAL(self.0.0)));
+                }
+            }
+        }
+    }
+
+    let mut descriptor = PSECURITY_DESCRIPTOR::default();
+    unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            PCWSTR(sddl_wide.as_ptr()),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            None,
+        )
+    }
+    .map_err(|problem| format!("Не удалось создать защищённые права Windows TUN: {problem}"))?;
+    let descriptor = LocalDescriptor(descriptor);
+    let attributes = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: descriptor.0.0,
+        bInheritHandle: false.into(),
+    };
+
+    let existing = match unsafe { CreateDirectoryW(PCWSTR(path_wide.as_ptr()), Some(&attributes)) }
+    {
+        Ok(()) => false,
+        Err(problem) if problem.code().0 as u32 == ERROR_ALREADY_EXISTS.0 => true,
+        Err(problem) => {
+            return Err(format!(
+                "Не удалось создать защищённую папку {}. Запустите клиент от имени администратора для работы TUN: {problem}",
+                path.display()
+            ));
+        }
+    };
+
+    if existing {
+        let metadata = std::fs::symlink_metadata(&path).map_err(|problem| {
+            format!(
+                "Не удалось проверить защищённую папку {}: {problem}",
+                path.display()
+            )
+        })?;
+        use std::os::windows::fs::MetadataExt;
+        if !metadata.is_dir() || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT.0 != 0 {
+            return Err(format!(
+                "Папка блокировки TUN {} является ссылкой или не является каталогом.",
+                path.display()
+            ));
+        }
+
+        let mut owner = PSID::default();
+        let mut existing_descriptor = PSECURITY_DESCRIPTOR::default();
+        let status = unsafe {
+            GetNamedSecurityInfoW(
+                PCWSTR(path_wide.as_ptr()),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION,
+                Some(&mut owner),
+                None,
+                None,
+                None,
+                &mut existing_descriptor,
+            )
+        };
+        if status.0 != 0 {
+            return Err(format!(
+                "Не удалось проверить владельца папки TUN {} (код Windows {}).",
+                path.display(),
+                status.0
+            ));
+        }
+        let existing_descriptor = LocalDescriptor(existing_descriptor);
+        let trusted_owner = unsafe {
+            IsWellKnownSid(owner, WinBuiltinAdministratorsSid).as_bool()
+                || IsWellKnownSid(owner, WinLocalSystemSid).as_bool()
+        };
+        if !trusted_owner {
+            return Err(format!(
+                "Папка TUN {} создана не администратором или SYSTEM; автоматический запуск TUN отменён.",
+                path.display()
+            ));
+        }
+
+        let mut dacl_present = false.into();
+        let mut dacl_defaulted = false.into();
+        let mut dacl = std::ptr::null_mut();
+        unsafe {
+            GetSecurityDescriptorDacl(
+                descriptor.0,
+                &mut dacl_present,
+                &mut dacl,
+                &mut dacl_defaulted,
+            )
+        }
+        .map_err(|problem| format!("Не удалось прочитать защищённые права TUN: {problem}"))?;
+        if !dacl_present.as_bool() || dacl.is_null() {
+            return Err("Windows не создала закрытый ACL каталога TUN.".into());
+        }
+        let status = unsafe {
+            SetNamedSecurityInfoW(
+                PCWSTR(path_wide.as_ptr()),
+                SE_FILE_OBJECT,
+                OBJECT_SECURITY_INFORMATION(
+                    DACL_SECURITY_INFORMATION.0 | PROTECTED_DACL_SECURITY_INFORMATION.0,
+                ),
+                None,
+                None,
+                Some(dacl),
+                None,
+            )
+        };
+        drop(existing_descriptor);
+        if status.0 != 0 {
+            return Err(format!(
+                "Не удалось ограничить доступ к папке TUN {} (код Windows {}). Запустите клиент от имени администратора.",
+                path.display(),
+                status.0
+            ));
+        }
+    }
+
+    Ok(path)
 }
 
 #[cfg(windows)]
@@ -587,5 +881,55 @@ mod windows_acl_tests {
         std::fs::write(&probe, b"ok").unwrap();
         assert_eq!(std::fs::read(&probe).unwrap(), b"ok");
         std::fs::remove_dir_all(path).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod linux_data_dir_tests {
+    use super::linux_data_dir;
+    use std::ffi::OsStr;
+    use std::path::Path;
+
+    #[test]
+    fn prefers_absolute_xdg_data_home() {
+        assert_eq!(
+            linux_data_dir(
+                Some(OsStr::new("/data/user")),
+                Some(OsStr::new("/home/user"))
+            )
+            .unwrap(),
+            Path::new("/data/user/reality-client")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_absolute_home_when_xdg_path_is_relative() {
+        assert_eq!(
+            linux_data_dir(
+                Some(OsStr::new("relative/data")),
+                Some(OsStr::new("/home/user"))
+            )
+            .unwrap(),
+            Path::new("/home/user/.local/share/reality-client")
+        );
+    }
+
+    #[test]
+    fn rejects_missing_empty_and_relative_home_paths() {
+        for home in [
+            None,
+            Some(OsStr::new("")),
+            Some(OsStr::new("relative/home")),
+        ] {
+            assert!(linux_data_dir(None, home).is_err());
+        }
+    }
+
+    #[test]
+    fn absolute_xdg_path_does_not_require_home() {
+        assert_eq!(
+            linux_data_dir(Some(OsStr::new("/data/user")), None).unwrap(),
+            Path::new("/data/user/reality-client")
+        );
     }
 }

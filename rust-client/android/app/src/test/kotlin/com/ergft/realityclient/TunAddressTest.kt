@@ -12,6 +12,41 @@ import java.nio.file.Files
 
 class TunAddressTest {
     @Test
+    fun androidPackageFilterNormalizesConfiguredIds() {
+        assertEquals(
+            listOf("com.example.vpn", "org.example.chat"),
+            validateIncludedAndroidPackages(
+                isConfigured = true,
+                configured = listOf(" com.example.vpn ", "org.example.chat"),
+            ),
+        )
+    }
+
+    @Test
+    fun malformedAndroidPackageFiltersFailClosed() {
+        val malformed = listOf(
+            "com.example.vpn",
+            mapOf<String, Any>(),
+            null,
+            emptyList<Any>(),
+            listOf(""),
+            listOf(7),
+        )
+        malformed.forEach { configured ->
+            try {
+                validateIncludedAndroidPackages(true, configured)
+                fail("Expected malformed application filter to be rejected: $configured")
+            } catch (_: IllegalArgumentException) {
+            }
+        }
+    }
+
+    @Test
+    fun absentAndroidPackageFilterKeepsDefaultAllApplicationsBehavior() {
+        assertNull(validateIncludedAndroidPackages(false, null))
+    }
+
+    @Test
     fun androidVpnRequiresExactlyOneTunInbound() {
         assertEquals(1, singleTunInboundIndex(listOf("mixed", "tun", "direct")))
         assertRejected { singleTunInboundIndex(listOf("mixed", "direct")) }
@@ -46,7 +81,6 @@ class TunAddressTest {
             "exclude_interface",
             "include_uid",
             "exclude_uid",
-            "include_package",
             "exclude_package",
             "include_android_user",
             "loopback_address",

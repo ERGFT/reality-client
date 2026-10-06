@@ -27,6 +27,8 @@ type RcSetProtect = unsafe extern "C" fn(Option<RcProtect>, *mut c_void);
 pub type RcCallback = Option<unsafe extern "C" fn(*const c_char, *mut c_void)>;
 type RcSetLogCallback =
     unsafe extern "C" fn(*mut c_void, *const c_char, RcCallback, *mut c_void) -> c_int;
+#[cfg(windows)]
+type RcSetLockDir = unsafe extern "C" fn(*const c_char) -> c_int;
 
 struct CoreFunctions {
     start: RcStart,
@@ -36,6 +38,8 @@ struct CoreFunctions {
     free_string: RcFreeString,
     #[cfg(any(target_os = "android", feature = "android-bridge-check"))]
     set_protect: RcSetProtect,
+    #[cfg(windows)]
+    set_lock_dir: RcSetLockDir,
     set_log_callback: RcSetLogCallback,
 }
 
@@ -88,6 +92,10 @@ impl FfiCore {
                 set_protect: *library
                     .get(b"rc_set_protect\0")
                     .map_err(|e| missing_symbol("rc_set_protect", e))?,
+                #[cfg(windows)]
+                set_lock_dir: *library
+                    .get(b"rc_set_lock_dir\0")
+                    .map_err(|e| missing_symbol("rc_set_lock_dir", e))?,
                 set_log_callback: *library
                     .get(b"rc_set_log_callback\0")
                     .map_err(|e| missing_symbol("rc_set_log_callback", e))?,
@@ -97,6 +105,19 @@ impl FfiCore {
             _library: library,
             functions,
         }))
+    }
+
+    #[cfg(windows)]
+    pub fn set_lock_dir(library: &CoreLibrary, path: &Path) -> Result<(), String> {
+        let path = c_string(&path.to_string_lossy(), "каталог блокировки Windows TUN")?;
+        // SAFETY: the path is a valid NUL-terminated string and the core FFI
+        // stores an owned PathBuf before returning.
+        let status = unsafe { (library.functions.set_lock_dir)(path.as_ptr()) };
+        if status == 0 {
+            Ok(())
+        } else {
+            Err("Ядро не приняло защищённый каталог блокировки TUN.".into())
+        }
     }
 
     pub fn start(

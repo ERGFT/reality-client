@@ -9,11 +9,18 @@ archive="$repo_root/third_party/vpn-core-source.zip"
 revision_file="$repo_root/third_party/vpn-core-source.commit"
 expected_commit='ee68039943ebb2aaf3287bf622ae34c18bfa0cae'
 expected_sha256='DF789EABC39029A403D72BA78367637E4347D372626A5FC79F35EC901AF1317D'
-abi='arm64-v8a'
-target='aarch64-linux-android'
+abi="${ANDROID_ABI:-arm64-v8a}"
+case "$abi" in
+    arm64-v8a) target='aarch64-linux-android' ;;
+    x86_64) target='x86_64-linux-android' ;;
+    *)
+        echo "Unsupported Android ABI: $abi (supported: arm64-v8a, x86_64)." >&2
+        exit 2
+        ;;
+esac
 platform=26
 
-for tool in cargo rustup cargo-ndk gradle unzip sha256sum python3; do
+for tool in cargo rustup cargo-ndk gradle sha256sum python3; do
     command -v "$tool" >/dev/null 2>&1 || {
         echo "Missing required tool: $tool" >&2
         exit 1
@@ -75,14 +82,27 @@ trap cleanup EXIT
 
 source_dir="$build_root/core-source"
 mkdir -p "$source_dir"
-unzip -q "$archive" -d "$source_dir"
+python3 - "$archive" "$source_dir" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+archive = pathlib.Path(sys.argv[1])
+destination = pathlib.Path(sys.argv[2]).resolve()
+with zipfile.ZipFile(archive) as bundle:
+    for member in bundle.infolist():
+        target = (destination / member.filename).resolve()
+        if target != destination and destination not in target.parents:
+            raise SystemExit(f"Refusing archive path outside extraction root: {member.filename}")
+    bundle.extractall(destination)
+PY
 [[ -f "$source_dir/Cargo.toml" ]] || {
     echo 'Pinned archive does not contain the expected workspace Cargo.toml.' >&2
     exit 1
 }
 python3 "$script_dir/patches/apply_core_tun_fd_ownership.py" "$source_dir"
 
-export CARGO_TARGET_DIR="$build_root/target"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$build_root/target}"
 if [[ "$(uname -s)" == Linux* ]]; then
     (
         cd "$source_dir"
@@ -93,6 +113,7 @@ else
     echo 'LINUX_TUN_FD_REGRESSION=SKIP (requires a native Linux host; run the Linux CI workflow)'
 fi
 jni_dir="$app_dir/build/generated/jniLibs"
+rm -rf -- "$jni_dir"
 mkdir -p "$jni_dir"
 
 (cd "$source_dir" && cargo ndk -t "$abi" --platform "$platform" -o "$jni_dir" build --locked --release -p reality-ffi)
@@ -108,15 +129,22 @@ bash "$script_dir/check-android-exports.sh" "$ndk_root" "$client_library"
 gradle --no-daemon -p "$android_dir" :app:assembleDebug
 apk="$app_dir/build/outputs/apk/debug/app-debug.apk"
 [[ -f "$apk" ]] || { echo "Gradle did not create the expected APK: $apk" >&2; exit 1; }
-unzip -l "$apk" | grep -Fq "lib/$abi/libreality.so" || {
-    echo 'APK is missing lib/arm64-v8a/libreality.so.' >&2
-    exit 1
-}
-unzip -l "$apk" | grep -Fq "lib/$abi/libreality_client_rs.so" || {
-    echo 'APK is missing lib/arm64-v8a/libreality_client_rs.so.' >&2
-    exit 1
-}
+python3 - "$apk" "$abi" <<'PY'
+import sys
+import zipfile
 
-echo 'ANDROID_ARM64_APK_BUILD=PASS'
+apk, abi = sys.argv[1:]
+required = {
+    f"lib/{abi}/libreality.so",
+    f"lib/{abi}/libreality_client_rs.so",
+}
+with zipfile.ZipFile(apk) as package:
+    missing = required.difference(package.namelist())
+if missing:
+    raise SystemExit("APK is missing: " + ", ".join(sorted(missing)))
+PY
+
+echo 'ANDROID_APK_BUILD=PASS'
+echo "ABI=$abi"
 echo "APK=$apk"
 echo "CORE_SOURCE_COMMIT=$expected_commit"

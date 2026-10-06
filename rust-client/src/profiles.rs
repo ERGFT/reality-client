@@ -77,10 +77,8 @@ impl ProfileStore {
 
     pub fn read_link(&self, index: usize) -> Result<Zeroizing<String>, String> {
         let profile = self.profiles.get(index).ok_or("Профиль не найден.")?;
-        let clear = unprotect(&profile.protected_link)?;
-        let text = String::from_utf8(clear.to_vec())
-            .map_err(|_| "Сохранённая ссылка профиля повреждена.".to_owned())?;
-        Ok(Zeroizing::new(text))
+        let mut clear = unprotect(&profile.protected_link)?;
+        decode_secret_link(&mut clear)
     }
 
     pub fn save(
@@ -150,6 +148,18 @@ impl ProfileStore {
         self.profiles = updated;
         let _ = delete_protected(&removed.protected_link);
         Ok(())
+    }
+}
+
+fn decode_secret_link(clear: &mut Zeroizing<Vec<u8>>) -> Result<Zeroizing<String>, String> {
+    let bytes = std::mem::take(&mut **clear);
+    match String::from_utf8(bytes) {
+        Ok(text) => Ok(Zeroizing::new(text)),
+        Err(problem) => {
+            let mut invalid_bytes = problem.into_bytes();
+            invalid_bytes.zeroize();
+            Err("Сохранённая ссылка профиля повреждена.".to_owned())
+        }
     }
 }
 
@@ -525,6 +535,62 @@ fn unprotect(_: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
+    struct TempDirectory(PathBuf);
+
+    #[cfg(windows)]
+    impl Drop for TempDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[cfg(windows)]
+    fn dotnet_dpapi_transform(input: &Path, output: &Path, operation: &str) {
+        use std::process::Command;
+
+        const HELPER: &str = r#"
+using System.IO;
+using System.Security.Cryptography;
+public static class RealityClientDpapiInterop {
+    public static void Protect(string input, string output) {
+        byte[] clear = File.ReadAllBytes(input);
+        File.WriteAllBytes(output, ProtectedData.Protect(clear, null, DataProtectionScope.CurrentUser));
+    }
+    public static void Unprotect(string input, string output) {
+        byte[] protectedBytes = File.ReadAllBytes(input);
+        File.WriteAllBytes(output, ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser));
+    }
+}
+"#;
+        let method = match operation {
+            "protect" => "Protect",
+            "unprotect" => "Unprotect",
+            _ => panic!("unsupported test operation"),
+        };
+        let script = format!(
+            "$ErrorActionPreference = 'Stop'; Add-Type -TypeDefinition $env:REALITY_DPAPI_CSHARP -Language CSharp -ReferencedAssemblies ([System.Security.Cryptography.ProtectedData].Assembly.Location); [RealityClientDpapiInterop]::{method}($env:REALITY_DPAPI_INPUT, $env:REALITY_DPAPI_OUTPUT)"
+        );
+        let result = Command::new("pwsh.exe")
+            .args([
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                &script,
+            ])
+            .env("REALITY_DPAPI_CSHARP", HELPER)
+            .env("REALITY_DPAPI_INPUT", input)
+            .env("REALITY_DPAPI_OUTPUT", output)
+            .output()
+            .expect("PowerShell 7 must be installed on the Windows test host");
+        assert!(
+            result.status.success(),
+            "C# DPAPI {operation} failed: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+
     #[test]
     fn accepts_vless_link_with_host_port_and_userinfo() {
         assert!(validate_vless_link("vless://00000000-0000-4000-8000-000000000000@edge.example.org:443?encryption=none&security=reality").is_ok());
@@ -535,6 +601,25 @@ mod tests {
         assert!(validate_vless_link("https://id@example.org:443").is_err());
         assert!(validate_vless_link("vless://id@example.org").is_err());
         assert!(validate_vless_link("vless://id@example.org:443\nsecret").is_err());
+    }
+
+    #[test]
+    fn secret_link_conversion_moves_the_plaintext_buffer_without_copying() {
+        let link = "vless://00000000-0000-4000-8000-000000000000@edge.example.org:443";
+        let mut clear = Zeroizing::new(link.as_bytes().to_vec());
+
+        let decoded = decode_secret_link(&mut clear).unwrap();
+
+        assert_eq!(decoded.as_str(), link);
+        assert!(clear.is_empty());
+    }
+
+    #[test]
+    fn invalid_secret_link_conversion_clears_the_plaintext_buffer() {
+        let mut clear = Zeroizing::new(vec![0xff, 0xfe, 0xfd]);
+
+        assert!(decode_secret_link(&mut clear).is_err());
+        assert!(clear.is_empty());
     }
 
     #[test]
@@ -554,15 +639,18 @@ mod tests {
     }
 
     #[test]
-    fn roundtrips_dotnet_vault_format() {
-        let sample = SavedProfile {
-            name: "Профиль 1".into(),
-            protected_link: vec![1, 2, 3, 4],
-        };
-        let encoded = encode_vault(std::slice::from_ref(&sample));
-        let decoded = decode_legacy_vault(&encoded).unwrap();
-        assert_eq!(decoded[0].name, sample.name);
-        assert_eq!(decoded[0].protected_link, sample.protected_link);
+    fn reads_dotnet_binary_writer_golden_vault() {
+        // Generated with System.IO.BinaryWriter from the C# reference client:
+        // header "RCLIENT1", one UTF-8 profile name, and a four-byte blob.
+        let fixture = [
+            0x08, 0x52, 0x43, 0x4c, 0x49, 0x45, 0x4e, 0x54, 0x31, 0x01, 0x00, 0x00, 0x00, 0x10,
+            0xd0, 0x9f, 0xd1, 0x80, 0xd0, 0xbe, 0xd1, 0x84, 0xd0, 0xb8, 0xd0, 0xbb, 0xd1, 0x8c,
+            0x20, 0x31, 0x04, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
+        ];
+        let decoded = decode_legacy_vault(&fixture).unwrap();
+        assert_eq!(decoded[0].name, "Профиль 1");
+        assert_eq!(decoded[0].protected_link, [1, 2, 3, 4]);
+        assert_eq!(encode_vault(&decoded), fixture);
     }
 
     #[test]
@@ -586,6 +674,36 @@ mod tests {
         let protected = protect(link).unwrap();
         assert_ne!(protected, link);
         assert_eq!(&*unprotect(&protected).unwrap(), link);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dotnet_and_rust_dpapi_blobs_are_interoperable() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = TempDirectory(std::env::temp_dir().join(format!(
+            "reality-client-dotnet-dpapi-{}-{nonce}",
+            std::process::id()
+        )));
+        fs::create_dir(&directory.0).unwrap();
+
+        let clear = b"non-secret C# and Rust DPAPI interoperability fixture";
+        let plaintext_path = directory.0.join("plaintext.bin");
+        let csharp_cipher_path = directory.0.join("csharp-protected.bin");
+        let rust_cipher_path = directory.0.join("rust-protected.bin");
+        let recovered_path = directory.0.join("csharp-recovered.bin");
+        fs::write(&plaintext_path, clear).unwrap();
+
+        dotnet_dpapi_transform(&plaintext_path, &csharp_cipher_path, "protect");
+        let csharp_cipher = fs::read(&csharp_cipher_path).unwrap();
+        assert_eq!(&*unprotect(&csharp_cipher).unwrap(), clear);
+
+        let rust_cipher = protect(clear).unwrap();
+        fs::write(&rust_cipher_path, &rust_cipher).unwrap();
+        dotnet_dpapi_transform(&rust_cipher_path, &recovered_path, "unprotect");
+        assert_eq!(fs::read(&recovered_path).unwrap(), clear);
     }
 
     #[cfg(windows)]

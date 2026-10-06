@@ -1,5 +1,27 @@
 package com.ergft.realityclient
 
+internal fun validateIncludedAndroidPackages(isConfigured: Boolean, configured: Any?): List<String>? {
+    if (!isConfigured) return null
+
+    require(configured is List<*>) {
+        "include_package должен быть массивом Android package ID"
+    }
+    require(configured.isNotEmpty()) {
+        "include_package должен содержать хотя бы одно приложение"
+    }
+
+    return configured.map { value ->
+        require(value is String) {
+            "Каждый элемент include_package должен быть строкой"
+        }
+        value.trim().also { packageName ->
+            require(packageName.isNotEmpty()) {
+                "Пустой Android package ID в include_package"
+            }
+        }
+    }
+}
+
 internal fun singleTunInboundIndex(inboundTypes: List<String>): Int {
     val tunIndices = inboundTypes.indices.filter { inboundTypes[it] == "tun" }
     return when (tunIndices.size) {
@@ -27,7 +49,6 @@ private val unsupportedAndroidTunFields = setOf(
     "exclude_interface",
     "include_uid",
     "exclude_uid",
-    "include_package",
     "exclude_package",
     "include_android_user",
     "loopback_address",

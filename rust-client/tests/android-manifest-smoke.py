@@ -31,6 +31,10 @@ require(
     "base foreground-service permission is missing",
 )
 require(
+    "android.permission.ACCESS_NETWORK_STATE" in permissions,
+    "network-state permission required by the VPN conflict check is missing",
+)
+require(
     "android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" in permissions,
     "VPN system-exempted foreground-service permission is missing",
 )

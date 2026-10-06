@@ -248,9 +248,10 @@ fn android_start(
         .get("inbounds")
         .and_then(serde_json::Value::as_array)
         .is_some_and(|items| {
-            items
-                .iter()
-                .any(|item| item.get("type").and_then(serde_json::Value::as_str) == Some("tun"))
+            items.iter().any(|item| {
+                item.get("type").and_then(serde_json::Value::as_str) == Some("tun")
+                    || item.get("protocol").and_then(serde_json::Value::as_str) == Some("tun")
+            })
         });
     if !has_tun {
         return Err("Для Android VPN-конфигурации требуется входящий тип tun.".into());

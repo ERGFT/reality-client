@@ -53,7 +53,7 @@ install -m 0755 "$CARGO_TARGET_DIR/release/reality-client-rs" "$package_dir/Real
 install -m 0755 "$CARGO_TARGET_DIR/release/reality-client" "$package_dir/reality-client"
 install -m 0644 "$CARGO_TARGET_DIR/release/libreality.so" "$package_dir/libreality.so"
 install -m 0644 "$repo_root/LICENSE.txt" "$package_dir/LICENSE.txt"
-install -m 0644 "$script_dir/README.md" "$package_dir/README.md"
+install -m 0644 "$script_dir/PACKAGE-README.md" "$package_dir/README.md"
 install -m 0755 "$script_dir/install-linux.sh" "$package_dir/install-linux.sh"
 
 cat > "$package_dir/reality-client.desktop" <<'DESKTOP'
