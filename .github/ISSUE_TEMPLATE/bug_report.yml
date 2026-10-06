@@ -1,0 +1,52 @@
+name: Ошибка / Bug report
+description: Что-то работает не так, как описано в README / Something does not work as the README says
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ Не вставляйте настоящую ссылку на сервер, UUID, ключи и адрес подписки — замените их заглушками. На скриншотах и в журналах тоже.
+        Уязвимость — не сюда, а закрыто: см. SECURITY.md.
+
+        ⚠️ Do not paste your real server link, UUID, keys or subscription URL — replace them with placeholders. The same goes for screenshots and logs.
+        Vulnerabilities go through private reporting, not here: see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Версия / Version
+      description: Версия из «О приложении» или коммит / Version from the About page or a commit
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Платформа / Platform
+      options: [Windows, Linux, Android, другая / other]
+    validations:
+      required: true
+  - type: input
+    id: osversion
+    attributes:
+      label: Версия системы / OS version
+      description: Например, Windows 11 24H2, Ubuntu 24.04 (GNOME/Wayland), Android 15 (Pixel 8) / e.g. Windows 11 24H2, Ubuntu 24.04 (GNOME/Wayland), Android 15 (Pixel 8)
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Режим / Mode
+      options: [Профиль (прокси) / Profile (proxy), Полный конфиг без TUN / Full config without TUN, Полный конфиг с TUN / Full config with TUN, Android VpnService]
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло и что ожидалось / What happened and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как воспроизвести / Steps to reproduce
+  - type: textarea
+    id: log
+    attributes:
+      label: Журнал / Log
+      description: Из страницы «Соединения» → «Копировать» (секреты в нём скрыты, но проверьте) / From Connections → Copy (secrets are redacted, but check)
+      render: text

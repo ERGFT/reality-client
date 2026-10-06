@@ -117,6 +117,8 @@ More: [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md).
 | [PLAN.en.md](PLAN.en.md) | roadmap |
 | [CONTRIBUTING.en.md](CONTRIBUTING.en.md) | how to build, test and contribute |
 | [SECURITY.md](SECURITY.md) | how to report a vulnerability |
+| [SUPPORT.md](SUPPORT.md#support) | where to get help |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md#contributor-covenant-code-of-conduct) | code of conduct |
 | [CHANGELOG.md](CHANGELOG.md) | changelog |
 
 ## License

@@ -1,0 +1,33 @@
+# Dependabot: раз в неделю. Cargo — только патч-обновления одним PR:
+# версии закреплены Cargo.lock, а минорные обновления Slint, jni и
+# хранилищ ключей меняют поведение интерфейса и платформенных адаптеров,
+# их обновляют вручную с проверкой на всех платформах.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: cargo
+    directory: /rust-client
+    schedule:
+      interval: weekly
+    groups:
+      cargo-patch:
+        patterns: ["*"]
+        update-types: [patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+  - package-ecosystem: gradle
+    directory: /rust-client/android
+    schedule:
+      interval: weekly
+    groups:
+      gradle-patch:
+        patterns: ["*"]
+        update-types: [patch]
