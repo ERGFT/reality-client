@@ -31,7 +31,6 @@ class RealityVpnService : VpnService() {
 
     private external fun nativeStart(
         config: String,
-        nativeLibraryDir: String,
         baseDir: String,
         tunFd: Int,
         removeProfileSecret: Boolean,
@@ -186,7 +185,6 @@ class RealityVpnService : VpnService() {
         val fd = established.detachFd()
         val error = nativeStart(
             root.toString(),
-            applicationInfo.nativeLibraryDir,
             baseDir,
             fd,
             removeProfileSecret,

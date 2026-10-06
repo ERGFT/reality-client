@@ -38,7 +38,7 @@ flowchart TB
     AB[android_bridge.rs<br/>JNI]
   end
   K[Kotlin: MainActivity, RealityVpnService]
-  LR[libreality — vpn-core, C ABI]
+  LR[libreality — vpn-core, зависимость Cargo]
 
   S <--> UIM
   UIM --> PURE & PR & SEC & CORE & MAT
@@ -92,21 +92,27 @@ sequenceDiagram
 
 ## 4. Ядро
 
-vpn-core подключается как библиотека через C ABI: `rc_start`, `rc_request`,
-`rc_reload`, `rc_stop`, колбэки событий и журнала, `rc_set_protect` (Android),
-`rc_set_lock_dir` (Windows). Клиент загружает её динамически (`libloading`).
+vpn-core — зависимость Cargo (`reality-ffi`, путь `third_party/vpn-core/ffi`) и
+линкуется в само приложение на всех платформах: отдельной `.dll`/`.so` нет, `libloading`
+не нужен. Клиент вызывает функции C ABI как обычные Rust-функции через обёртку
+`ffi_core.rs`: `rc_start`, `rc_request`, `rc_reload`, `rc_stop`, колбэки событий и
+журнала, `rc_set_protect` (Android), `rc_set_lock_dir` (Windows).
 Конфигурация — JSON sing-box/Xray; из VLESS-ссылки строится в приватном
 временном файле (`link_file`), чтобы секрет не попадал в аргументы процесса.
 
 Версия ядра закреплена хешем коммита в `third_party/vpn-core.rev`; скрипты
 сборки (`scripts/fetch-core.sh`, `scripts/fetch-core.ps1`) скачивают из
-репозитория vpn-core ровно этот коммит. Хеш коммита сам гарантирует содержимое,
-отдельная контрольная сумма и локальные патчи не нужны.
+репозитория vpn-core ровно этот коммит в `third_party/vpn-core/` (каталог вне git);
+перед любым `cargo` его нужно скачать. Хеш коммита сам гарантирует содержимое,
+отдельная контрольная сумма и локальные патчи не нужны. Патчи зависимостей ядра
+(`rustls` для REALITY, `smoltcp`) повторены в `[patch.crates-io]` файла
+`rust-client/Cargo.toml` и меняются только вместе с vpn-core. Консольная программа ядра
+`reality-client` по-прежнему собирается отдельно: GUI запускает её для проверки
+конфигурации, восстановления системного прокси и очистки TUN.
 
 > [!NOTE]
-> Целевая схема (этап 4 в [PLAN.md](../PLAN.md)): `reality-core` как обычная
-> зависимость Cargo без C ABI и `unsafe`-обёрток на десктопе. C ABI остаётся
-> только там, где ядро грузится в процесс с Kotlin-слоем (Android).
+> Следующий шаг по ядру: убрать оболочку C ABI на десктопе и вызывать `reality-core`
+> напрямую (без `unsafe`). Сейчас клиент вызывает те же `rc_*`, что и Kotlin на Android.
 
 ## 5. Потоки
 
@@ -166,7 +172,9 @@ vpn-core подключается как библиотека через C ABI: 
 
 - В `ui/` по-прежнему большие функции `install` (обработчики — замыкания с общими `Arc`);
   их можно дробить дальше, но поведение уже разнесено по темам (этап 5 выполнен).
-- Ядро загружается динамически (`libloading`); планируется прямая зависимость Cargo
-  (этап 4, часть 2).
+- Ядро вызывается через функции C ABI (`ffi_core.rs`, `unsafe`); прямой вызов
+  `reality-core` без C ABI — отдельный шаг.
+- `Cargo.lock` клиента содержит весь граф зависимостей ядра, а `[patch.crates-io]`
+  дублирует корневой `Cargo.toml` vpn-core: при смене коммита ядра сверять оба.
 - В git лежат бинарные файлы (`dist/`, `third_party/reality-client.exe` для C#, `wintun.dll`).
 - Политика Android-TUN живёт в Kotlin; её стоит перенести в Rust (этап 7).

@@ -16,7 +16,7 @@ package_dir="$test_root/package with spaces"
 home_dir="$test_root/home with spaces"
 data_home="$test_root/app data with spaces"
 mkdir -p "$package_dir" "$home_dir"
-for file in RealityClient reality-client libreality.so LICENSE.txt README.md; do
+for file in RealityClient reality-client LICENSE.txt README.md; do
     printf 'smoke fixture: %s\n' "$file" > "$package_dir/$file"
 done
 cp "$script_dir/../install-linux.sh" "$package_dir/install-linux.sh"
@@ -26,7 +26,7 @@ HOME="$home_dir" XDG_DATA_HOME="$data_home" \
 
 app_dir="$home_dir/.local/opt/reality-client"
 desktop_file="$data_home/applications/reality-client.desktop"
-for file in RealityClient reality-client libreality.so LICENSE.txt README.md; do
+for file in RealityClient reality-client LICENSE.txt README.md; do
     cmp "$package_dir/$file" "$app_dir/$file"
 done
 if [[ "${OSTYPE:-}" != msys* && "${OSTYPE:-}" != cygwin* ]]; then
@@ -41,12 +41,12 @@ expected_exec="${expected_exec//%/%%}"
 grep -Fxq "Exec=\"$expected_exec\"" "$desktop_file"
 
 printf 'user-owned file\n' > "$app_dir/user-note.txt"
-for file in RealityClient reality-client libreality.so LICENSE.txt README.md; do
+for file in RealityClient reality-client LICENSE.txt README.md; do
     printf 'updated smoke fixture: %s\n' "$file" > "$package_dir/$file"
 done
 HOME="$home_dir" XDG_DATA_HOME="$data_home" \
     bash "$package_dir/install-linux.sh" >/dev/null
-for file in RealityClient reality-client libreality.so LICENSE.txt README.md; do
+for file in RealityClient reality-client LICENSE.txt README.md; do
     cmp "$package_dir/$file" "$app_dir/$file"
 done
 [[ "$(cat "$app_dir/user-note.txt")" == 'user-owned file' ]]

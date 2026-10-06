@@ -30,7 +30,7 @@
 |---|---|
 | **reality-client** | этот репозиторий: графическое приложение |
 | **vpn-core** | [репозиторий ядра](https://github.com/ERGFT/vpn-core): протоколы, маршрутизация, DNS, TUN |
-| **libreality** | ядро как библиотека с C ABI (`ffi/` в vpn-core); клиент загружает её на каждой платформе |
+| **libreality** | ядро как библиотека с C ABI (`ffi/` в vpn-core); клиент линкует её в себя как зависимость Cargo (отдельной `.dll`/`.so` в пакете нет) |
 | **Reality Core** | то же ядро, как оно называется в интерфейсе |
 
 ## Платформы и статус
@@ -92,7 +92,7 @@ cd rust-client
 flowchart LR
   UI[Slint UI<br/>ui/main.slint] --> L[логика клиента<br/>профили, сессия, состояние]
   L --> P[платформенные адаптеры<br/>прокси Windows, Secret Service, JNI]
-  L --> C[libreality<br/>vpn-core, C ABI]
+  L --> C[libreality<br/>vpn-core, зависимость Cargo]
   A[Kotlin: VpnService] -- TUN fd, protect --> C
   P --> A
 ```

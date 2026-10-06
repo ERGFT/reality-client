@@ -18,7 +18,7 @@ Stage status (updated as work goes on):
 | 1 | UI: one theme, adaptive layout, a power-button home screen; Android in Material 3 Expressive with dynamic colours | ✅ layout verified by screenshots; dynamic colours not verified on a device |
 | 2 | Repository polish after vpn-core: README, docs, bilingual pages, status | ✅ |
 | 3 | CI: green builds and checks on three OSes (the repository is public, Actions are free) | ✅ |
-| 4 | The core without a zip archive and a Python patch: the TUN-descriptor fix goes into vpn-core itself ([#28](https://github.com/ERGFT/vpn-core/pull/28)), the build fetches the core by commit hash; then a Cargo dependency (`reality-core`) | ⏳ first part in progress |
+| 4 | The core without a zip archive and a Python patch: the TUN-descriptor fix goes into vpn-core itself ([#28](https://github.com/ERGFT/vpn-core/pull/28)), the build fetches the core by commit hash; the core is a Cargo dependency of the client (`reality-ffi`, linked into the app, no `libloading` or separate `.dll`/`.so`) | ✅ Linux verified, Windows/Android in CI |
 | 5 | `rust-client/src/lib.rs` (3600 lines) split into modules: `ui/` (handlers by topic, `UiState`) and pure modules with tests; behaviour and tests unchanged | ✅ |
 | 6 | End-to-end checks: a real REALITY server → Windows, Linux, Android | ⏳ needs a server and devices |
 | 7 | Android: move the TUN policy from Kotlin to Rust, keep a minimal `VpnService` shim | ⏳ |

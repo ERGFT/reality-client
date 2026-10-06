@@ -36,11 +36,15 @@ cd rust-client
 ```
 
 The build script fetches vpn-core by exactly the commit hash in `third_party/vpn-core.rev`
-(`scripts/fetch-core.sh`), runs the core's TUN-descriptor-closing regression test, and
-builds the core, the CLI and the UI in a temporary directory. To build against a local
-copy of the core: `REALITY_CORE_URL=/path/to/vpn-core ./build-linux.sh`.
+into `third_party/vpn-core/` (`scripts/fetch-core.sh`), builds the core's command-line
+program and the UI; the core itself is linked into `RealityClient` as a Cargo dependency
+(there is no separate `libreality.so`). To build against a local copy of the core:
+`REALITY_CORE_URL=/path/to/vpn-core ./build-linux.sh` (`third_party/vpn-core` must be
+empty or absent).
 
-**Client tests only** (no core build): `cargo test --locked` in `rust-client/`.
+**Client tests only:** first `scripts/fetch-core.sh third_party/vpn-core`, then
+`cargo test --locked` in `rust-client/` (the core compiles together with the client;
+`cmake` and `nasm` are needed, as for `aws-lc`).
 
 **TUN** needs `root` or `CAP_NET_ADMIN`:
 
@@ -61,12 +65,12 @@ core's `reality-client --tun-cleanup` as root.
 path `%LOCALAPPDATA%\Programs\msys64\mingw64\bin`, overridable with `REALITY_MINGW_BIN`).
 
 ```powershell
-.\build_rust_core.ps1                    # fetches the core by commit hash → rust-client\third_party\reality.dll and reality-client.exe
+.\build_rust_core.ps1                    # fetches the core by commit hash into third_party\vpn-core and builds rust-client\third_party\reality-client.exe
 .\rust-client\build-windows.ps1          # rust-client\dist\windows-x64\RealityClient-Rust.exe
 .\rust-client\tests\windows-test.ps1     # tests on the GNU toolchain, no MSVC link.exe
 ```
 
-The package holds `RealityClient-Rust.exe`, `reality.dll`, `third_party\reality-client.exe`
+The package holds `RealityClient-Rust.exe` (the core is inside it) and `third_party\reality-client.exe`
 (both built from one core commit), `wintun.dll` (the official one, checked by SHA-256),
 licences and `CORE-SOURCE.txt` with the core's source repository and commit (GPL).
 

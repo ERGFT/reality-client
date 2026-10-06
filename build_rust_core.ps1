@@ -16,34 +16,24 @@ $env:AWS_LC_SYS_PREBUILT_NASM = '1'
 $env:CMAKE_GENERATOR = 'Ninja'
 $env:CARGO_TARGET_DIR = Join-Path $env:TEMP ('reality-client-core-target-' + $coreRevision.Substring(0, 8))
 
-$sourceRoot = Join-Path $env:TEMP ('reality-client-ffi-source-' + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $sourceRoot | Out-Null
+# Ядро — Cargo-зависимость клиента (path-зависимость на third_party\vpn-core);
+# отдельно собирается только его консольная программа reality-client.exe.
+$sourceRoot = Join-Path $PSScriptRoot 'third_party\vpn-core'
+& (Join-Path $PSScriptRoot 'scripts\fetch-core.ps1') -Destination $sourceRoot
+Push-Location $sourceRoot
 try {
-    & (Join-Path $PSScriptRoot 'scripts\fetch-core.ps1') -Destination $sourceRoot
-    Push-Location $sourceRoot
-    try {
-        & cargo build --locked --release -p reality-ffi -p reality-client
-        if ($LASTEXITCODE -ne 0) { throw "Сборка FFI-библиотеки завершилась с кодом $LASTEXITCODE." }
-    }
-    finally { Pop-Location }
+    & cargo build --locked --release -p reality-client
+    if ($LASTEXITCODE -ne 0) { throw "Сборка reality-client завершилась с кодом $LASTEXITCODE." }
+}
+finally { Pop-Location }
 
-    $builtLibrary = Join-Path $env:CARGO_TARGET_DIR 'release\reality.dll'
-    if (-not (Test-Path -LiteralPath $builtLibrary)) { throw "Cargo не создал ожидаемую библиотеку: $builtLibrary" }
-    $builtCli = Join-Path $env:CARGO_TARGET_DIR 'release\reality-client.exe'
-    if (-not (Test-Path -LiteralPath $builtCli)) { throw "Cargo не создал ожидаемую программу: $builtCli" }
-    $outputDirectory = Join-Path $PSScriptRoot 'rust-client\third_party'
-    New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
-    $outputLibrary = Join-Path $outputDirectory 'reality.dll'
-    Copy-Item -LiteralPath $builtLibrary -Destination $outputLibrary -Force
-    Copy-Item -LiteralPath $builtCli -Destination (Join-Path $outputDirectory 'reality-client.exe') -Force
-    $sha256 = (Get-FileHash -LiteralPath $outputLibrary -Algorithm SHA256).Hash
-    Write-Output "CORE_SOURCE_COMMIT=$coreRevision"
-    Write-Output "CORE_FFI_DLL=$outputLibrary"
-    Write-Output "CORE_FFI_SHA256=$sha256"
-}
-finally {
-    $tempRoot = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
-    $resolvedSource = [IO.Path]::GetFullPath($sourceRoot)
-    if (-not $resolvedSource.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Путь временных исходников оказался вне TEMP; очистка отменена.' }
-    Remove-Item -LiteralPath $resolvedSource -Recurse -Force
-}
+$builtCli = Join-Path $env:CARGO_TARGET_DIR 'release\reality-client.exe'
+if (-not (Test-Path -LiteralPath $builtCli)) { throw "Cargo не создал ожидаемую программу: $builtCli" }
+$outputDirectory = Join-Path $PSScriptRoot 'rust-client\third_party'
+New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+$outputCli = Join-Path $outputDirectory 'reality-client.exe'
+Copy-Item -LiteralPath $builtCli -Destination $outputCli -Force
+$sha256 = (Get-FileHash -LiteralPath $outputCli -Algorithm SHA256).Hash
+Write-Output "CORE_SOURCE_COMMIT=$coreRevision"
+Write-Output "CORE_CLI_EXE=$outputCli"
+Write-Output "CORE_CLI_SHA256=$sha256"

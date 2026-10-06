@@ -2,6 +2,7 @@
 #
 # Скачивает исходники vpn-core ровно той версии, что записана в
 # third_party/vpn-core.rev (хеш коммита), в указанный пустой каталог.
+# Если в каталоге уже лежит чистая копия нужной версии, ничего не делает.
 # Переменная REALITY_CORE_URL подменяет адрес репозитория.
 param([Parameter(Mandatory = $true)][string]$Destination)
 $ErrorActionPreference = 'Stop'
@@ -11,7 +12,14 @@ $revision = (Get-Content -LiteralPath (Join-Path $repoRoot 'third_party\vpn-core
 $url = if ($env:REALITY_CORE_URL) { $env:REALITY_CORE_URL } else { 'https://github.com/ERGFT/vpn-core.git' }
 if ($revision -notmatch '^[0-9a-f]{40}$') { throw "third_party\vpn-core.rev должен содержать полный хеш коммита, получено: '$revision'" }
 if ((Test-Path -LiteralPath $Destination) -and (Get-ChildItem -LiteralPath $Destination -Force | Select-Object -First 1)) {
-    throw "Каталог не пуст: $Destination"
+    # Уже скачанное ядро нужной версии (например, third_party\vpn-core) не трогаем.
+    $head = (& git -C $Destination rev-parse HEAD 2>$null)
+    $dirty = (& git -C $Destination status --porcelain 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $head -and $head.Trim() -eq $revision -and -not $dirty) {
+        Write-Output "CORE_SOURCE_COMMIT=$revision"
+        return
+    }
+    throw "Каталог не пуст и содержит не ту версию ядра: $Destination"
 }
 
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null

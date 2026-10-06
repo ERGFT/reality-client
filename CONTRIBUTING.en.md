@@ -12,6 +12,7 @@ Contents:
 ## 1. Build and checks
 
 ```sh
+scripts/fetch-core.sh third_party/vpn-core   # the core is a Cargo dependency; once, and after vpn-core.rev changes
 cd rust-client
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings -A dead_code

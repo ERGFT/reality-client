@@ -15,23 +15,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
-source_dir="$build_root/core-source"
+# Ядро — Cargo-зависимость клиента (path-зависимость на third_party/vpn-core);
+# отдельно собирается только его консольная программа reality-client.
+source_dir="$repo_root/third_party/vpn-core"
 bash "$repo_root/scripts/fetch-core.sh" "$source_dir"
 
 export CARGO_TARGET_DIR="$build_root/target"
-(
-    cd "$source_dir"
-    cargo test --locked -p reality-ffi --lib \
-        tun_fd_ownership_tests::rc_start_closes_system_tun_fd_when_config_parse_fails
-)
-cargo build --locked --release --manifest-path "$source_dir/Cargo.toml" -p reality-ffi -p reality-client
+cargo build --locked --release --manifest-path "$source_dir/Cargo.toml" -p reality-client
 cargo build --locked --release --manifest-path "$script_dir/Cargo.toml"
 
 package_dir="$script_dir/dist/linux-x86_64"
 mkdir -p "$package_dir"
 install -m 0755 "$CARGO_TARGET_DIR/release/reality-client-rs" "$package_dir/RealityClient"
 install -m 0755 "$CARGO_TARGET_DIR/release/reality-client" "$package_dir/reality-client"
-install -m 0644 "$CARGO_TARGET_DIR/release/libreality.so" "$package_dir/libreality.so"
 install -m 0644 "$repo_root/LICENSE.txt" "$package_dir/LICENSE.txt"
 install -m 0644 "$script_dir/PACKAGE-README.md" "$package_dir/README.md"
 install -m 0755 "$script_dir/install-linux.sh" "$package_dir/install-linux.sh"

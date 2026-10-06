@@ -67,29 +67,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-source_dir="$build_root/core-source"
-bash "$repo_root/scripts/fetch-core.sh" "$source_dir"
+# Ядро — Cargo-зависимость клиента (path-зависимость на third_party/vpn-core),
+# линкуется в libreality_client_rs.so; отдельной libreality.so больше нет.
+bash "$repo_root/scripts/fetch-core.sh" "$repo_root/third_party/vpn-core"
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$build_root/target}"
-if [[ "$(uname -s)" == Linux* ]]; then
-    (
-        cd "$source_dir"
-        cargo test --locked -p reality-ffi --lib \
-            tun_fd_ownership_tests::rc_start_closes_system_tun_fd_when_config_parse_fails
-    )
-else
-    echo 'LINUX_TUN_FD_REGRESSION=SKIP (requires a native Linux host; run the Linux CI workflow)'
-fi
 jni_dir="$app_dir/build/generated/jniLibs"
 rm -rf -- "$jni_dir"
 mkdir -p "$jni_dir"
 
-(cd "$source_dir" && cargo ndk -t "$abi" --platform "$platform" -o "$jni_dir" build --locked --release -p reality-ffi)
 (cd "$script_dir" && cargo ndk -t "$abi" --platform "$platform" -o "$jni_dir" build --locked --release --lib)
 
-core_library="$jni_dir/$abi/libreality.so"
 client_library="$jni_dir/$abi/libreality_client_rs.so"
-[[ -f "$core_library" ]] || { echo "Missing Android core FFI library: $core_library" >&2; exit 1; }
 [[ -f "$client_library" ]] || { echo "Missing Android Slint/JNI library: $client_library" >&2; exit 1; }
 
 bash "$script_dir/check-android-exports.sh" "$ndk_root" "$client_library"
@@ -103,7 +92,6 @@ import zipfile
 
 apk, abi = sys.argv[1:]
 required = {
-    f"lib/{abi}/libreality.so",
     f"lib/{abi}/libreality_client_rs.so",
 }
 with zipfile.ZipFile(apk) as package:
