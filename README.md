@@ -68,7 +68,7 @@
 ### Linux
 
 ```sh
-sudo apt install build-essential cmake nasm pkg-config unzip python3 \
+sudo apt install build-essential cmake nasm pkg-config git python3 \
     libdbus-1-dev libfontconfig1-dev libfreetype6-dev \
     libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libgl1-mesa-dev
 cd rust-client
@@ -99,8 +99,8 @@ flowchart LR
 
 - **`rust-client/`** — приложение: общий Rust-код, интерфейс Slint, платформенные
   адаптеры и тонкий слой Kotlin для `VpnService`.
-- **vpn-core** подключается закреплённой версией (`third_party/`). Планируется
-  переход на зависимость Cargo — [PLAN.md](PLAN.md).
+- **vpn-core** закреплён хешем коммита (`third_party/vpn-core.rev`) и скачивается
+  скриптами сборки. Планируется переход на зависимость Cargo — [PLAN.md](PLAN.md).
 - **`src/`** — прежняя версия на C# (архив): [docs/LEGACY-CSHARP.md](docs/LEGACY-CSHARP.md).
 
 Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

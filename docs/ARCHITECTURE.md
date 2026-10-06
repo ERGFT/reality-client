@@ -155,8 +155,8 @@ vpn-core подключается как библиотека через C ABI: 
 | `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService`, политика TUN, JVM-тесты |
 | `rust-client/assets/` | иконка приложения |
 | `rust-client/build-*.{sh,ps1}` | сборка пакетов под платформы |
-| `rust-client/patches/` | локальные патчи закреплённого ядра |
-| `third_party/` | закреплённое ядро, `wintun.dll` |
+| `scripts/` | `fetch-core.sh` / `fetch-core.ps1` — скачивание ядра по хешу коммита |
+| `third_party/` | `vpn-core.rev` (коммит ядра), `wintun.dll` |
 | `src/`, `build.ps1`, `dist/` | прежняя версия на C# (архив) |
 | `.github/workflows/` | CI: Linux, Windows, Android |
 
@@ -164,6 +164,7 @@ vpn-core подключается как библиотека через C ABI: 
 
 - `rust-client/src/lib.rs` — монолит около 3600 строк: состояние, обработчики и
   привязки UI надо разнести по модулям (этап 5).
-- Ядро собирается из zip-архива с Python-патчем (этап 4).
-- В git лежат бинарные файлы (`dist/`, `third_party/*.exe`, `*.zip`, `wintun.dll`).
+- Ядро загружается динамически (`libloading`); планируется прямая зависимость Cargo
+  (этап 4, часть 2).
+- В git лежат бинарные файлы (`dist/`, `third_party/reality-client.exe` для C#, `wintun.dll`).
 - Политика Android-TUN живёт в Kotlin; её стоит перенести в Rust (этап 7).

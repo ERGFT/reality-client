@@ -19,7 +19,7 @@ Contents:
 **Dependencies** (Debian/Ubuntu):
 
 ```sh
-sudo apt install build-essential cmake nasm pkg-config unzip python3 \
+sudo apt install build-essential cmake nasm pkg-config git python3 \
     libdbus-1-dev libfontconfig1-dev libfreetype6-dev \
     libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libgl1-mesa-dev
 ```
@@ -35,9 +35,10 @@ cd rust-client
 ./install-linux.sh        # ~/.local/opt/reality-client, per-user launcher and icon
 ```
 
-The build script checks the pinned core's commit and SHA-256, applies the TUN
-descriptor ownership patch, runs the descriptor-closing regression test, and builds
-the core, the CLI and the UI in a temporary directory.
+The build script fetches vpn-core by exactly the commit hash in `third_party/vpn-core.rev`
+(`scripts/fetch-core.sh`), runs the core's TUN-descriptor-closing regression test, and
+builds the core, the CLI and the UI in a temporary directory. To build against a local
+copy of the core: `REALITY_CORE_URL=/path/to/vpn-core ./build-linux.sh`.
 
 **Client tests only** (no core build): `cargo test --locked` in `rust-client/`.
 
@@ -60,13 +61,14 @@ core's `reality-client --tun-cleanup` as root.
 path `%LOCALAPPDATA%\Programs\msys64\mingw64\bin`, overridable with `REALITY_MINGW_BIN`).
 
 ```powershell
-.\build_rust_core.ps1                    # pinned core → rust-client\third_party\reality.dll
+.\build_rust_core.ps1                    # fetches the core by commit hash → rust-client\third_party\reality.dll and reality-client.exe
 .\rust-client\build-windows.ps1          # rust-client\dist\windows-x64\RealityClient-Rust.exe
 .\rust-client\tests\windows-test.ps1     # tests on the GNU toolchain, no MSVC link.exe
 ```
 
-The package holds `RealityClient-Rust.exe`, `reality.dll`, `wintun.dll` (the official
-one, checked by SHA-256) and licences.
+The package holds `RealityClient-Rust.exe`, `reality.dll`, `third_party\reality-client.exe`
+(both built from one core commit), `wintun.dll` (the official one, checked by SHA-256),
+licences and `CORE-SOURCE.txt` with the core's source repository and commit (GPL).
 
 **System proxy** is enabled only in profile mode and restores the previous values on
 disconnect. A backup is kept on disk; after a crash the client offers recovery.

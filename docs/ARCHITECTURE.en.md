@@ -155,8 +155,8 @@ capped at 2 MiB and links at 16 KiB.
 | `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService`, TUN policy, JVM tests |
 | `rust-client/assets/` | app icon |
 | `rust-client/build-*.{sh,ps1}` | per-platform package builds |
-| `rust-client/patches/` | local patches to the pinned core |
-| `third_party/` | pinned core, `wintun.dll` |
+| `scripts/` | `fetch-core.sh` / `fetch-core.ps1`: fetch the core by commit hash |
+| `third_party/` | `vpn-core.rev` (core commit), `wintun.dll` |
 | `src/`, `build.ps1`, `dist/` | previous C# version (archive) |
 | `.github/workflows/` | CI: Linux, Windows, Android |
 
@@ -164,6 +164,7 @@ capped at 2 MiB and links at 16 KiB.
 
 - `rust-client/src/lib.rs` is a ~3600-line monolith: state, handlers and UI
   bindings should be split into modules (stage 5).
-- The core is built from a zip archive with a Python patch (stage 4).
-- Binary files are tracked in git (`dist/`, `third_party/*.exe`, `*.zip`, `wintun.dll`).
+- The core is loaded dynamically (`libloading`); a direct Cargo dependency is planned
+  (stage 4, part 2).
+- Binary files are tracked in git (`dist/`, `third_party/reality-client.exe` for C#, `wintun.dll`).
 - Android TUN policy lives in Kotlin; it should move to Rust (stage 7).

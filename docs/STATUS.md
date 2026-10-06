@@ -44,6 +44,6 @@
   сборке (патчей нет). Закреплён коммит слияния исправления владения
   TUN-дескриптором ([vpn-core#28](https://github.com/ERGFT/vpn-core/pull/28)).
 - `rust-client/src/lib.rs` — монолит около 3600 строк.
-- В git лежат бинарные файлы (`dist/RealityClient.exe`, `third_party/*.exe`, `*.zip`, `wintun.dll`).
+- В git лежат бинарные файлы (`dist/RealityClient.exe`, `third_party/reality-client.exe` — для C#, `wintun.dll`).
 - Раскладка десктопа рассчитана на окно не уже 760 px; адаптация по ширине окна
   отключена, чтобы избежать цикла размеров ([DESIGN.md](DESIGN.md#4-раскладка)).
