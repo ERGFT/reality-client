@@ -2,6 +2,10 @@
 name = "reality-client-rs"
 version = "0.1.0"
 edition = "2024"
+description = "Reality Client: GUI VPN client for vpn-core (VLESS, REALITY), Rust + Slint"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/ERGFT/reality-client"
+publish = false
 build = "build.rs"
 
 [lib]

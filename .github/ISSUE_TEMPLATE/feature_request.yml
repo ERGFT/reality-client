@@ -1,0 +1,21 @@
+name: Предложение / Feature request
+description: Новая возможность или улучшение / A new feature or an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что нужно / What is needed
+      description: Какую задачу это решает / What problem it solves
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Платформа / Platform
+      multiple: true
+      options: [Windows, Linux, Android, macOS, iOS, tvOS]
+  - type: textarea
+    id: why
+    attributes:
+      label: Почему это важно / Why it matters

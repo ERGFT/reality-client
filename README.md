@@ -117,6 +117,8 @@ flowchart LR
 | [PLAN.md](PLAN.md) | дорожная карта |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | как собирать, проверять и вносить изменения |
 | [SECURITY.md](SECURITY.md) | как сообщить об уязвимости |
+| [SUPPORT.md](SUPPORT.md) | где получить помощь |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | кодекс поведения |
 | [CHANGELOG.md](CHANGELOG.md) | журнал изменений |
 
 ## Лицензия

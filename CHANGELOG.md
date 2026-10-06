@@ -23,6 +23,10 @@
   по платформам, правила участия и политика безопасности — в двух языках.
 - Старые журналы перенесены в `docs/` как архив.
 
+### Подготовка к публикации
+- Проверена история (97 коммитов) и дерево на секреты и личные данные: настоящих ссылок, ключей и токенов нет, только тестовые заглушки.
+- Добавлены `CODE_OF_CONDUCT.md`, `SUPPORT.md`, шаблоны issue и pull request, `CODEOWNERS`, Dependabot; в `Cargo.toml` — лицензия и метаданные.
+
 ### Проверки
 - Впервые запущены нативная сборка и тесты на Linux (51 тест).
 
@@ -55,6 +59,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - README, roadmap, verification status, architecture, design system, platform guides,
   contribution rules and the security policy, in two languages.
 - Old logs moved to `docs/` as an archive.
+
+### Preparing for publication
+- The history (97 commits) and the tree were scanned for secrets and personal data: no real links, keys or tokens, only test placeholders.
+- Added `CODE_OF_CONDUCT.md`, `SUPPORT.md`, issue and pull request templates, `CODEOWNERS`, Dependabot; licence and metadata in `Cargo.toml`.
 
 ### Checks
 - Native Linux build and tests were run for the first time (51 tests).

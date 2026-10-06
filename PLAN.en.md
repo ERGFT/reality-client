@@ -43,7 +43,7 @@ Stage status (updated as work goes on):
   jobs do not run at all.
 - **Stage 6:** a test VLESS/REALITY server and real devices; without them "it works"
   cannot be claimed.
-- **Licence:** the core is GPL-3.0-or-later, so the client is too. The repository is
-  private; the source question must be settled before publishing releases.
+- **Licence:** the core is GPL-3.0-or-later, so the client is too; the repository is
+  published with open sources under the same terms.
 - **The fate of PR #2:** it carries Windows TUN, `wintun.dll` and release workflows;
   decide whether to merge it whole or split it.
