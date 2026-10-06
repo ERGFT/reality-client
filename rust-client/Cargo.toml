@@ -16,12 +16,14 @@ android-bridge-check = []
 
 [dependencies]
 slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
-libloading = "0.8.9"
 jni = "=0.22.4"
 serde_json = "1"
 url = "2.5.8"
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "socks-proxy"] }
 zeroize = "1.8"
+# Ядро vpn-core: исходники по хешу из ../third_party/vpn-core.rev, скачиваются
+# scripts/fetch-core.sh (.ps1) в ../third_party/vpn-core перед любой сборкой.
+reality-ffi = { path = "../third_party/vpn-core/ffi" }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Networking_WinInet", "Win32_Security_Authorization", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_DataExchange", "Win32_System_JobObjects", "Win32_System_Memory", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
@@ -40,3 +42,10 @@ uuid = { version = "1", features = ["v4"] }
 
 [build-dependencies]
 slint-build = "1.18.1"
+
+# Те же правки зависимостей, что в корневом Cargo.toml vpn-core (патченный
+# rustls для REALITY, smoltcp с правкой окна приёма): без них ядро не
+# собирается так, как проверено в его CI. Менять только вместе с vpn-core.
+[patch.crates-io]
+rustls = { path = "../third_party/vpn-core/vendor/rustls-reality-patch" }
+smoltcp = { path = "../third_party/vpn-core/vendor/smoltcp-window-patch" }

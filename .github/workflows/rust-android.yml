@@ -55,6 +55,9 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
+      - name: Fetch pinned vpn-core (Cargo dependency of the client)
+        run: bash scripts/fetch-core.sh third_party/vpn-core
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-client/Cargo.toml --check
 

@@ -16,7 +16,7 @@ fi
 applications_dir="$data_home/applications"
 icons_dir="$data_home/icons/hicolor/256x256/apps"
 
-for file in RealityClient reality-client libreality.so LICENSE.txt README.md; do
+for file in RealityClient reality-client LICENSE.txt README.md; do
     [[ -f "$package_dir/$file" ]] || {
         echo "Missing package file: $package_dir/$file" >&2
         exit 1
@@ -26,7 +26,6 @@ done
 install -d -m 0755 "$install_dir" "$applications_dir"
 install -m 0755 "$package_dir/RealityClient" "$install_dir/RealityClient"
 install -m 0755 "$package_dir/reality-client" "$install_dir/reality-client"
-install -m 0644 "$package_dir/libreality.so" "$install_dir/libreality.so"
 install -m 0644 "$package_dir/LICENSE.txt" "$install_dir/LICENSE.txt"
 install -m 0644 "$package_dir/README.md" "$install_dir/README.md"
 if [[ -f "$package_dir/reality-client.png" ]]; then

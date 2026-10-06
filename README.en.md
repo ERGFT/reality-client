@@ -30,7 +30,7 @@ device, and shows speed, traffic, connections and logs.
 |---|---|
 | **reality-client** | this repository: the graphical application |
 | **vpn-core** | [the core repository](https://github.com/ERGFT/vpn-core): protocols, routing, DNS, TUN |
-| **libreality** | the core as a library with a C ABI (`ffi/` in vpn-core); the client loads it on every platform |
+| **libreality** | the core as a library with a C ABI (`ffi/` in vpn-core); the client links it in as a Cargo dependency (no separate `.dll`/`.so` in the package) |
 | **Reality Core** | the same core, as it is called in the UI |
 
 ## Platforms and status
@@ -92,7 +92,7 @@ Step-by-step instructions, TUN, privileges and limits: [docs/PLATFORMS.en.md](do
 flowchart LR
   UI[Slint UI<br/>ui/main.slint] --> L[client logic<br/>profiles, session, state]
   L --> P[platform adapters<br/>Windows proxy, Secret Service, JNI]
-  L --> C[libreality<br/>vpn-core, C ABI]
+  L --> C[libreality<br/>vpn-core, Cargo dependency]
   A[Kotlin: VpnService] -- TUN fd, protect --> C
   P --> A
 ```

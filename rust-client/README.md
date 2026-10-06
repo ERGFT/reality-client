@@ -52,8 +52,9 @@ rustup target add aarch64-linux-android
 
 `../third_party/vpn-core.rev` — хеш коммита vpn-core, из которого собираются
 скрипты. `../scripts/fetch-core.sh` (`.ps1` на Windows) скачивает ровно этот
-коммит из публичного репозитория; патчей и архивов в git больше нет.
+коммит из публичного репозитория в `../third_party/vpn-core/` (вне git); патчей и
+архивов в git больше нет. Ядро — зависимость Cargo клиента (`reality-ffi`), поэтому
+перед `cargo build`/`cargo test` каталог нужно скачать: `../scripts/fetch-core.sh ../third_party/vpn-core`.
 Чтобы собрать с локальной копией ядра: `REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh`.
-Переход на зависимость Cargo — следующий шаг этапа 4 в [PLAN.md](../PLAN.md).
 
 Архив журнала проверок предварительных сборок — [docs/BUILD-LOG.md](../docs/BUILD-LOG.md).

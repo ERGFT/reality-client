@@ -45,6 +45,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Fetch pinned vpn-core (Cargo dependency of the client)
+        run: bash scripts/fetch-core.sh third_party/vpn-core
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-client/Cargo.toml --check
       - name: Run Rust static analysis

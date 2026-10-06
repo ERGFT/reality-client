@@ -23,6 +23,7 @@
 | Сборка Windows x64 кросс-компиляцией с Linux | `cargo build --locked --release --target x86_64-pc-windows-gnu` + `mingw-w64`: `reality-client-rs.exe` собран; не запускался | Claude, 2026-10-06 |
 | CI на GitHub Actions: Linux, Windows, Android | зелёные на `main` и PR #8: форматирование, Clippy, тесты (Windows — 75), сборка и проверка пакетов Linux/Windows, сборка APK | GitHub Actions, 2026-10-06 |
 | Разнесение `lib.rs` по модулям | Linux: `fmt`, Clippy, 51 тест, `android-bridge-check`, окно запускается; Windows: Clippy кросс-сборкой (`x86_64-pc-windows-gnu`, оба набора функций); Android-код компилирует только CI | Claude, 2026-10-06 |
+| Ядро как зависимость Cargo (Linux) | `reality-ffi` линкуется в приложение; 52 теста, среди них запуск ядра в процессе: SOCKS-слушатель на loopback, `/groups`, `/stats`, перезагрузка, остановка; Windows: Clippy кросс-сборкой; Android-код компилирует только CI | Claude, 2026-10-06 |
 | Установщик Linux | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | Вёрстка интерфейса | скриншоты `slint-viewer`: 5 страниц, телефон (380 px, M3) и компьютер (1080 px), обе темы | Claude, 2026-10-06 |
 | Сборка и тесты на Windows (66 + 69), DPAPI-совместимость с C# | машина разработчика | предыдущий автор ([журнал](BUILD-LOG.md)); повторно не запускалось |
@@ -36,7 +37,7 @@
 - Android: сборка APK после изменений (Material 3, `readSystemPalette` на Kotlin и JNI),
   `VpnService` и TUN на устройстве, `protect(fd)`, смена сети, отзыв разрешения,
   динамические цвета на Android 12+.
-- Регрессионный тест закрытия TUN-дескриптора на Linux (есть в скрипте сборки, отдельно не запускался).
+- Регрессионный тест закрытия TUN-дескриптора лежит в vpn-core и выполняется в его CI; клиент его больше не запускает.
 - Работа собранных `.exe` и APK: CI их только собирает и проверяет состав пакета, запуск и сетевые сценарии не выполняются.
 
 ## 3. Известные ограничения

@@ -4,6 +4,7 @@
 # Скачивает исходники vpn-core ровно той версии, что записана в
 # third_party/vpn-core.rev (хеш коммита), в указанный пустой каталог.
 # Хеш коммита сам гарантирует содержимое, отдельная контрольная сумма не нужна.
+# Если в каталоге уже лежит чистая копия нужной версии, ничего не делает.
 #
 # Переменная REALITY_CORE_URL подменяет адрес репозитория (например, на
 # локальную копию для разработки).
@@ -19,7 +20,13 @@ url="${REALITY_CORE_URL:-https://github.com/ERGFT/vpn-core.git}"
     exit 1
 }
 if [[ -e "$destination" ]] && [[ -n "$(ls -A "$destination" 2>/dev/null)" ]]; then
-    echo "Каталог не пуст: $destination" >&2
+    # Уже скачанное ядро нужной версии (например, third_party/vpn-core) не трогаем.
+    if [[ "$(git -C "$destination" rev-parse HEAD 2>/dev/null || true)" == "$revision" ]] \
+        && [[ -z "$(git -C "$destination" status --porcelain 2>/dev/null)" ]]; then
+        echo "CORE_SOURCE_COMMIT=$revision"
+        exit 0
+    fi
+    echo "Каталог не пуст и содержит не ту версию ядра: $destination" >&2
     exit 1
 fi
 

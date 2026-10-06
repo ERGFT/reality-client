@@ -40,27 +40,29 @@ jobs:
         with:
           toolchain: stable-x86_64-pc-windows-gnu
           components: rustfmt, clippy
+      - name: Fetch pinned vpn-core (Cargo dependency of the client)
+        shell: pwsh
+        run: .\scripts\fetch-core.ps1 -Destination third_party\vpn-core
+      - name: Configure core build environment
+        shell: pwsh
+        run: |
+          "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          "RUSTFLAGS=-C link-arg=-static" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "AWS_LC_SYS_PREBUILT_NASM=1" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CMAKE_GENERATOR=Ninja" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-client/Cargo.toml --check
       - name: Run Rust static analysis
-        env:
-          RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
         run: cargo clippy --manifest-path rust-client/Cargo.toml --locked --features android-bridge-check --all-targets --target x86_64-pc-windows-gnu -- -D warnings -A dead_code
-      - name: Build pinned vpn-core FFI DLL
+      - name: Build pinned vpn-core command-line program
         shell: pwsh
         env:
           REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
         run: .\build_rust_core.ps1
       - name: Run Windows Rust tests
         shell: pwsh
-        env:
-          REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
-          RUSTFLAGS: -C link-arg=-static
-          RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
-          AWS_LC_SYS_PREBUILT_NASM: "1"
-          CMAKE_GENERATOR: Ninja
         run: |
-          $env:PATH = "$env:REALITY_MINGW_BIN;$env:PATH"
           cargo test --manifest-path rust-client/Cargo.toml --features android-bridge-check --locked --target x86_64-pc-windows-gnu
       - name: Build Windows package
         shell: pwsh
@@ -71,7 +73,7 @@ jobs:
         shell: pwsh
         run: |
           $package = 'rust-client\dist\windows-x64'
-          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'reality.dll', 'wintun.dll', 'WINTUN-LICENSE.txt', 'LICENSE.txt', 'THIRD_PARTY.md', 'README.md', 'third_party\reality-client.exe', 'CORE-SOURCE.txt')) {
+          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'wintun.dll', 'WINTUN-LICENSE.txt', 'LICENSE.txt', 'THIRD_PARTY.md', 'README.md', 'third_party\reality-client.exe', 'CORE-SOURCE.txt')) {
             if (-not (Test-Path -LiteralPath (Join-Path $package $file))) {
               throw "Missing packaged file: $file"
             }

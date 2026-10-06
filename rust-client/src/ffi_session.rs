@@ -126,8 +126,7 @@ impl CoreSession {
             .map_err(|e| format!("Не удалось записать конфигурацию профиля: {e}"))?;
         check_config_file(&config_path)?;
 
-        let library = FfiCore::load()?;
-        let mut core = FfiCore::start(library, &config, &data_dir, -1)?;
+        let mut core = FfiCore::start(&config, &data_dir, -1)?;
         install_log_callback(&mut core, logs)?;
         let backup = if system_proxy {
             #[cfg(windows)]
@@ -185,14 +184,13 @@ impl CoreSession {
         crate::core::save_advanced_config_path(&config_path)?;
         refuse_unmanaged_platform_tun(&config)?;
         let reload_supported = !config_has_tun(&config)?;
-        let library = FfiCore::load()?;
         #[cfg(windows)]
         if !reload_supported {
             require_bundled_wintun()?;
             let lock_dir = crate::platform::prepare_windows_tun_lock_dir()?;
-            FfiCore::set_lock_dir(&library, &lock_dir)?;
+            FfiCore::set_lock_dir(&lock_dir)?;
         }
-        let mut core = FfiCore::start(library, &config, base_dir, -1)?;
+        let mut core = FfiCore::start(&config, base_dir, -1)?;
         install_log_callback(&mut core, logs)?;
         Ok(Self {
             core: Some(core),
@@ -402,20 +400,14 @@ unsafe extern "C" fn receive_core_log(json: *const std::ffi::c_char, user: *mut 
     }
 }
 
-#[cfg(all(test, windows))]
+#[cfg(all(test, any(windows, target_os = "linux")))]
 mod ffi_tests {
     use super::*;
     use crate::ffi_core::FfiCore;
     use std::net::{Ipv4Addr, TcpListener};
 
     #[test]
-    fn pinned_ffi_starts_reloads_and_stops_a_loopback_socks_listener() {
-        let library_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("third_party/reality.dll");
-        assert!(
-            library_path.is_file(),
-            "expected built FFI DLL at {}",
-            library_path.display()
-        );
+    fn linked_core_starts_reloads_and_stops_a_loopback_socks_listener() {
         let probe = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
         let port = probe.local_addr().unwrap().port();
         drop(probe);
@@ -432,8 +424,7 @@ mod ffi_tests {
         );
 
         let result = (|| {
-            let library = FfiCore::load_from(&library_path)?;
-            let mut core = FfiCore::start(library, &config, &base_dir, -1)?;
+            let mut core = FfiCore::start(&config, &base_dir, -1)?;
             let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
             let deadline = Instant::now() + Duration::from_secs(10);
             while Instant::now() < deadline {

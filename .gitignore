@@ -1,5 +1,7 @@
 # Local upstream checkout is a git repository; the pinned source archive is tracked instead.
 third_party/vpn-core-current/
+# Исходники ядра по хешу из third_party/vpn-core.rev (scripts/fetch-core.*): Cargo-зависимость клиента.
+third_party/vpn-core/
 
 # Local application state and build products.
 *.log
@@ -11,7 +13,6 @@ bin/
 obj/
 rust-client/target/
 rust-client/dist/
-rust-client/third_party/reality.dll
 rust-client/third_party/reality-client.exe
 rust-client/android/.gradle/
 rust-client/android/local.properties

@@ -128,7 +128,6 @@ pub extern "system" fn Java_com_ergft_realityclient_RealityVpnService_nativeStar
     mut unowned_env: EnvUnowned<'local>,
     service: JObject<'local>,
     config: JString<'local>,
-    native_library_dir: JString<'local>,
     base_dir: JString<'local>,
     tun_fd: jint,
     remove_profile_secret: bool,
@@ -139,7 +138,6 @@ pub extern "system" fn Java_com_ergft_realityclient_RealityVpnService_nativeStar
                 env,
                 &service,
                 &config,
-                &native_library_dir,
                 &base_dir,
                 tun_fd,
                 remove_profile_secret,
@@ -218,7 +216,6 @@ fn android_start(
     env: &mut Env<'_>,
     service: &JObject<'_>,
     config: &JString<'_>,
-    native_library_dir: &JString<'_>,
     base_dir: &JString<'_>,
     tun_fd: jint,
     remove_profile_secret: bool,
@@ -239,9 +236,6 @@ fn android_start(
     let config = config
         .try_to_string(env)
         .map_err(|e| format!("Не удалось прочитать JSON Android-клиента: {e}"))?;
-    let library_dir = native_library_dir
-        .try_to_string(env)
-        .map_err(|e| format!("Не удалось получить папку нативных библиотек: {e}"))?;
     let value: serde_json::Value = serde_json::from_str(&config)
         .map_err(|e| format!("Некорректный JSON Android-клиента: {e}"))?;
     let has_tun = value
@@ -266,8 +260,6 @@ fn android_start(
             .new_global_ref(service)
             .map_err(|e| format!("Не удалось удержать Android VpnService: {e}"))?,
     });
-    let library_path = Path::new(&library_dir).join("libreality.so");
-    let library = FfiCore::load_from(&library_path)?;
     let base_dir = base_dir
         .try_to_string(env)
         .map_err(|e| format!("Не удалось получить папку конфигурации Android: {e}"))?;
@@ -275,23 +267,22 @@ fn android_start(
     crate::platform::ensure_private_dir(base_dir)?;
 
     FfiCore::set_protect(
-        &library,
         Some(protect_socket as RcProtect),
         (&*protect as *const ProtectContext)
             .cast_mut()
             .cast::<c_void>(),
     );
     if config.contains('\0') || base_dir.to_string_lossy().contains('\0') {
-        FfiCore::set_protect(&library, None, std::ptr::null_mut());
+        FfiCore::set_protect(None, std::ptr::null_mut());
         return Err("Конфигурация или папка Android содержит недопустимый нулевой байт.".into());
     }
     // The FFI contract transfers ownership when rc_start is called. Until this
     // point, every early-return path closes the descriptor through the guard.
     let tun_fd = tun_fd.transfer_to_core();
-    let core = match FfiCore::start(library.clone(), &config, base_dir, tun_fd) {
+    let core = match FfiCore::start(&config, base_dir, tun_fd) {
         Ok(core) => core,
         Err(problem) => {
-            FfiCore::set_protect(&library, None, std::ptr::null_mut());
+            FfiCore::set_protect(None, std::ptr::null_mut());
             return Err(problem);
         }
     };
@@ -310,7 +301,7 @@ fn android_stop() -> Result<(), String> {
     if let Some(mut session) = active.take() {
         // rc_stop stops workers before the callback context is released.
         session.core.stop();
-        FfiCore::set_protect(session.core.library(), None, std::ptr::null_mut());
+        FfiCore::set_protect(None, std::ptr::null_mut());
         if session.remove_profile_secret {
             crate::ffi_session::erase_android_profile_secret();
         }

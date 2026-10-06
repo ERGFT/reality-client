@@ -12,6 +12,7 @@
 ## 1. Сборка и проверки
 
 ```sh
+scripts/fetch-core.sh third_party/vpn-core   # ядро — зависимость Cargo; один раз и после смены vpn-core.rev
 cd rust-client
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings -A dead_code

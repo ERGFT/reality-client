@@ -38,7 +38,7 @@ flowchart TB
     AB[android_bridge.rs<br/>JNI]
   end
   K[Kotlin: MainActivity, RealityVpnService]
-  LR[libreality — vpn-core, C ABI]
+  LR[libreality — vpn-core, Cargo dependency]
 
   S <--> UIM
   UIM --> PURE & PR & SEC & CORE & MAT
@@ -93,21 +93,27 @@ operation is in progress.
 
 ## 4. The core
 
-vpn-core is used as a library through its C ABI: `rc_start`, `rc_request`,
-`rc_reload`, `rc_stop`, event and log callbacks, `rc_set_protect` (Android),
-`rc_set_lock_dir` (Windows). The client loads it dynamically (`libloading`). The
+vpn-core is a Cargo dependency (`reality-ffi`, path `third_party/vpn-core/ffi`) linked
+into the application itself on every platform: there is no separate `.dll`/`.so` and no
+`libloading`. The client calls the C ABI functions as ordinary Rust functions through the
+`ffi_core.rs` wrapper: `rc_start`, `rc_request`, `rc_reload`, `rc_stop`, event and log
+callbacks, `rc_set_protect` (Android), `rc_set_lock_dir` (Windows). The
 config is sing-box/Xray JSON; the VLESS link is turned into it through a private
 temporary file (`link_file`) so the secret never lands in process arguments.
 
 The core version is pinned by a commit hash in `third_party/vpn-core.rev`; the
 build scripts (`scripts/fetch-core.sh`, `scripts/fetch-core.ps1`) fetch exactly that
-commit from the vpn-core repository. A commit hash fixes the content by itself, so
-no separate checksum or local patches are needed.
+commit from the vpn-core repository into `third_party/vpn-core/` (outside git); fetch it
+before any `cargo` command. A commit hash fixes the content by itself, so no separate
+checksum or local patches are needed. The core's dependency patches (`rustls` for
+REALITY, `smoltcp`) are repeated in `[patch.crates-io]` of `rust-client/Cargo.toml` and
+change only together with vpn-core. The core's command-line program `reality-client`
+is still built separately: the GUI runs it for config checks, system-proxy recovery
+and TUN cleanup.
 
 > [!NOTE]
-> Target design (stage 4 in [PLAN.en.md](../PLAN.en.md)): `reality-core` as a
-> plain Cargo dependency, with no C ABI or `unsafe` wrappers on desktop. The C ABI
-> stays only where the core is loaded into a process with a Kotlin layer (Android).
+> Next step for the core: drop the C ABI shell on desktop and call `reality-core`
+> directly (no `unsafe`). For now the client calls the same `rc_*` functions Kotlin uses on Android.
 
 ## 5. Threads
 
@@ -166,7 +172,9 @@ capped at 2 MiB and links at 16 KiB.
 
 - The `install` functions in `ui/` are still large (handlers are closures sharing `Arc`s);
   they can be split further, but behaviour is already grouped by topic (stage 5 done).
-- The core is loaded dynamically (`libloading`); a direct Cargo dependency is planned
-  (stage 4, part 2).
+- The core is called through C ABI functions (`ffi_core.rs`, `unsafe`); calling
+  `reality-core` directly without the C ABI is a separate step.
+- The client's `Cargo.lock` holds the whole core dependency graph, and `[patch.crates-io]`
+  duplicates vpn-core's root `Cargo.toml`: when the core commit changes, compare both.
 - Binary files are tracked in git (`dist/`, `third_party/reality-client.exe` for C#, `wintun.dll`).
 - Android TUN policy lives in Kotlin; it should move to Rust (stage 7).

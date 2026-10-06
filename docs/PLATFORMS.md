@@ -36,11 +36,15 @@ cd rust-client
 ```
 
 Скрипт сборки скачивает vpn-core ровно по хешу коммита из `third_party/vpn-core.rev`
-(`scripts/fetch-core.sh`), запускает регрессионный тест закрытия TUN-дескриптора из
-ядра и собирает ядро, CLI и интерфейс во временный каталог. Чтобы собрать с локальной
-копией ядра: `REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh`.
+в `third_party/vpn-core/` (`scripts/fetch-core.sh`), собирает консольную программу ядра
+и интерфейс; само ядро линкуется в `RealityClient` как зависимость Cargo (отдельной
+`libreality.so` нет). Чтобы собрать с локальной копией ядра:
+`REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh` (каталог `third_party/vpn-core` при
+этом должен быть пуст или отсутствовать).
 
-**Только тесты клиента** (без сборки ядра): `cargo test --locked` в `rust-client/`.
+**Только тесты клиента:** сначала `scripts/fetch-core.sh third_party/vpn-core`, затем
+`cargo test --locked` в `rust-client/` (ядро компилируется вместе с клиентом; нужны `cmake`
+и `nasm`, как для `aws-lc`).
 
 **TUN** требует `root` или `CAP_NET_ADMIN`:
 
@@ -62,12 +66,12 @@ sudo setcap cap_net_admin+ep "$HOME/.local/opt/reality-client/RealityClient"
 `REALITY_MINGW_BIN`).
 
 ```powershell
-.\build_rust_core.ps1                    # скачивает ядро по хешу коммита → rust-client\third_party\reality.dll и reality-client.exe
+.\build_rust_core.ps1                    # скачивает ядро по хешу коммита в third_party\vpn-core и собирает rust-client\third_party\reality-client.exe
 .\rust-client\build-windows.ps1          # rust-client\dist\windows-x64\RealityClient-Rust.exe
 .\rust-client\tests\windows-test.ps1     # тесты на GNU-тулчейне, без MSVC link.exe
 ```
 
-Пакет содержит `RealityClient-Rust.exe`, `reality.dll`, `third_party\reality-client.exe`
+Пакет содержит `RealityClient-Rust.exe` (ядро внутри него) и `third_party\reality-client.exe`
 (обе части собраны из одного коммита ядра), `wintun.dll` (официальный, проверяется по
 SHA-256), лицензии и `CORE-SOURCE.txt` — адрес и коммит исходников ядра (GPL).
 

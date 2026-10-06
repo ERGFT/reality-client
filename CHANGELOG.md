@@ -37,6 +37,15 @@
   `reality-client.exe` из той же версии и содержит `CORE-SOURCE.txt` (адрес и коммит
   исходников ядра).
 
+- Ядро — зависимость Cargo клиента (`reality-ffi` по пути `third_party/vpn-core/ffi`,
+  каталог скачивается `scripts/fetch-core.*` и лежит вне git): линкуется в само
+  приложение, `libloading` и отдельные `reality.dll`/`libreality.so` убраны (Android:
+  `libreality.so` из APK пропала, JNI-вызов `nativeStart` без пути к библиотекам).
+  `[patch.crates-io]` ядра (патченный `rustls`, `smoltcp`) повторён в `Cargo.toml`
+  клиента. Отдельно по-прежнему собирается консольная программа ядра `reality-client`.
+  Тест запуска ядра в процессе теперь идёт и на Linux. `fetch-core.*` не трогает
+  уже скачанную чистую копию нужной версии.
+
 ### Подготовка к публикации
 - Проверена история (97 коммитов) и дерево на секреты и личные данные: настоящих ссылок, ключей и токенов нет, только тестовые заглушки.
 - Добавлены `CODE_OF_CONDUCT.md`, `SUPPORT.md`, шаблоны issue и pull request, `CODEOWNERS`, Dependabot; в `Cargo.toml` — лицензия и метаданные.
@@ -87,6 +96,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   ([#28](https://github.com/ERGFT/vpn-core/pull/28)). The Windows package also builds
   `reality-client.exe` from the same version and carries `CORE-SOURCE.txt` (the core's
   source repository and commit).
+
+- The core is a Cargo dependency of the client (`reality-ffi` at `third_party/vpn-core/ffi`,
+  the directory is fetched by `scripts/fetch-core.*` and kept out of git): it is linked into
+  the application itself, `libloading` and the separate `reality.dll`/`libreality.so` are
+  gone (Android: `libreality.so` is no longer in the APK, the `nativeStart` JNI call has no
+  library-directory argument). The core's `[patch.crates-io]` (patched `rustls`, `smoltcp`)
+  is repeated in the client's `Cargo.toml`. The core's command-line program `reality-client`
+  is still built separately. The in-process core start-up test now runs on Linux too.
+  `fetch-core.*` leaves an already fetched clean copy of the right version alone.
 
 ### Preparing for publication
 - The history (97 commits) and the tree were scanned for secrets and personal data: no real links, keys or tokens, only test placeholders.
