@@ -214,11 +214,24 @@ impl ProxySnapshot {
         if self.matches(current)? {
             return Ok(RecoveryDecision::AlreadyRestored);
         }
+
         if current.server_is_local()? {
-            Ok(RecoveryDecision::RestoreClientOwnedProxy)
-        } else {
-            Ok(RecoveryDecision::PreserveForeignProxy)
+            // The backup belongs to this client only while the proxy settings
+            // still match either the state we installed or a partial restore
+            // toward the saved state. A local endpoint by itself is not enough:
+            // the user may have changed ProxyEnable or ProxyOverride while the
+            // session was active, and recovery must not overwrite that choice.
+            let enable_is_owned =
+                current.is_enabled_at(LOCAL_PROXY)? || values_match(&self.enable, &current.enable)?;
+            let bypass_is_owned = values_match(&self.bypass, &current.bypass)?
+                || (current.bypass.exists
+                    && decode_registry_text(&current.bypass)?.eq_ignore_ascii_case(BYPASS));
+            if enable_is_owned && bypass_is_owned {
+                return Ok(RecoveryDecision::RestoreClientOwnedProxy);
+            }
         }
+
+        Ok(RecoveryDecision::PreserveForeignProxy)
     }
 }
 
@@ -815,6 +828,27 @@ mod tests {
         assert!(!backup.restore_with_backend(&mut backend).unwrap());
         assert!(backend.writes.is_empty());
         assert_eq!(backend.notifications, 0);
+    }
+
+    #[test]
+    fn recovery_preserves_user_changes_to_proxy_enable_or_bypass() {
+        let original_enabled = memory_backend("proxy.example:3128", 1).current;
+        let backup = ProxySnapshot {
+            enable: original_enabled.enable.clone(),
+            server: original_enabled.server.clone(),
+            bypass: original_enabled.bypass.clone(),
+        };
+
+        let mut changed_bypass = memory_backend(LOCAL_PROXY, 1);
+        changed_bypass.current.bypass = string_registry_value("localhost;*.example.org");
+        assert!(!backup.restore_with_backend(&mut changed_bypass).unwrap());
+        assert!(changed_bypass.writes.is_empty());
+        assert_eq!(changed_bypass.notifications, 0);
+
+        let mut disabled_by_user = memory_backend(LOCAL_PROXY, 0);
+        assert!(!backup.restore_with_backend(&mut disabled_by_user).unwrap());
+        assert!(disabled_by_user.writes.is_empty());
+        assert_eq!(disabled_by_user.notifications, 0);
     }
 
     #[test]
