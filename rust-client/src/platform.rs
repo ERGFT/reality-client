@@ -163,56 +163,6 @@ fn is_linux_absolute(path: &std::path::Path) -> bool {
     path.as_os_str().to_string_lossy().starts_with('/')
 }
 
-#[cfg(test)]
-mod linux_data_dir_tests {
-    use super::linux_data_dir;
-    use std::ffi::OsStr;
-    use std::path::Path;
-
-    #[test]
-    fn prefers_absolute_xdg_data_home() {
-        assert_eq!(
-            linux_data_dir(
-                Some(OsStr::new("/data/user")),
-                Some(OsStr::new("/home/user"))
-            )
-            .unwrap(),
-            Path::new("/data/user/reality-client")
-        );
-    }
-
-    #[test]
-    fn falls_back_to_absolute_home_when_xdg_path_is_relative() {
-        assert_eq!(
-            linux_data_dir(
-                Some(OsStr::new("relative/data")),
-                Some(OsStr::new("/home/user"))
-            )
-            .unwrap(),
-            Path::new("/home/user/.local/share/reality-client")
-        );
-    }
-
-    #[test]
-    fn rejects_missing_empty_and_relative_home_paths() {
-        for home in [
-            None,
-            Some(OsStr::new("")),
-            Some(OsStr::new("relative/home")),
-        ] {
-            assert!(linux_data_dir(None, home).is_err());
-        }
-    }
-
-    #[test]
-    fn absolute_xdg_path_does_not_require_home() {
-        assert_eq!(
-            linux_data_dir(Some(OsStr::new("/data/user")), None).unwrap(),
-            Path::new("/data/user/reality-client")
-        );
-    }
-}
-
 #[cfg(target_os = "android")]
 pub fn initialize_android_data_dir(app: &slint::android::AndroidApp) -> Result<(), String> {
     let (path, android_activity) =
@@ -931,5 +881,55 @@ mod windows_acl_tests {
         std::fs::write(&probe, b"ok").unwrap();
         assert_eq!(std::fs::read(&probe).unwrap(), b"ok");
         std::fs::remove_dir_all(path).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod linux_data_dir_tests {
+    use super::linux_data_dir;
+    use std::ffi::OsStr;
+    use std::path::Path;
+
+    #[test]
+    fn prefers_absolute_xdg_data_home() {
+        assert_eq!(
+            linux_data_dir(
+                Some(OsStr::new("/data/user")),
+                Some(OsStr::new("/home/user"))
+            )
+            .unwrap(),
+            Path::new("/data/user/reality-client")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_absolute_home_when_xdg_path_is_relative() {
+        assert_eq!(
+            linux_data_dir(
+                Some(OsStr::new("relative/data")),
+                Some(OsStr::new("/home/user"))
+            )
+            .unwrap(),
+            Path::new("/home/user/.local/share/reality-client")
+        );
+    }
+
+    #[test]
+    fn rejects_missing_empty_and_relative_home_paths() {
+        for home in [
+            None,
+            Some(OsStr::new("")),
+            Some(OsStr::new("relative/home")),
+        ] {
+            assert!(linux_data_dir(None, home).is_err());
+        }
+    }
+
+    #[test]
+    fn absolute_xdg_path_does_not_require_home() {
+        assert_eq!(
+            linux_data_dir(Some(OsStr::new("/data/user")), None).unwrap(),
+            Path::new("/data/user/reality-client")
+        );
     }
 }
