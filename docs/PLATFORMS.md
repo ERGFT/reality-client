@@ -53,6 +53,9 @@ sudo setcap cap_net_admin+ep "$HOME/.local/opt/reality-client/RealityClient"
 
 ## 2. Windows
 
+**Кросс-сборка с Linux** (проверка компиляции без Windows): `rustup target add x86_64-pc-windows-gnu`, `apt install gcc-mingw-w64-x86-64`, затем
+`CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc cargo build --locked --release --target x86_64-pc-windows-gnu`.
+
 **Зависимости:** Rust (`stable-x86_64-pc-windows-gnu`), MSYS2 MinGW-w64 GCC
 (путь по умолчанию `%LOCALAPPDATA%\Programs\msys64\mingw64\bin`, переопределяется
 `REALITY_MINGW_BIN`).

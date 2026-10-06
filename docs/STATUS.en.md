@@ -20,6 +20,7 @@ Contents:
 | `cargo fmt --check`, Clippy | clean (`-D warnings -A dead_code`) | Claude, 2026-10-06 |
 | JNI bridge type-checks on the host | `cargo check --features android-bridge-check` | Claude, 2026-10-06 |
 | Window startup on Linux | under Xvfb: the window renders and every page opens | Claude, 2026-10-06 |
+| Windows x64 cross-build from Linux | `cargo build --locked --release --target x86_64-pc-windows-gnu` + `mingw-w64`: `reality-client-rs.exe` built; not run | Claude, 2026-10-06 |
 | Linux installer | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | UI layout | `slint-viewer` screenshots: 5 pages, phone (380 px, M3) and desktop (1080 px), both themes | Claude, 2026-10-06 |
 | Windows build and tests (66 + 69), DPAPI compatibility with C# | developer machine | previous author ([log](BUILD-LOG.md), Russian); not re-run |
@@ -28,14 +29,14 @@ Contents:
 ## 2. Not verified
 
 - End-to-end traffic "client → real VLESS/REALITY server → website" on **any** platform.
-- Windows: system proxy and TUN (Wintun) on a clean machine; a build after the UI changes.
+- Windows: running the built `.exe`, system proxy and TUN (Wintun) on a clean machine; the full `build-windows.ps1` package (core, `wintun.dll`).
 - Linux: TUN and routes, Secret Service on a real desktop, `setcap`.
 - Android: an APK build after the changes (Material 3, Kotlin `readSystemPalette` and its
   JNI call), `VpnService` and TUN on a device, `protect(fd)`, network changes,
   permission revocation, dynamic colours on Android 12+.
 - The Linux regression test for closing the TUN descriptor (part of the build script, not run separately).
 - CI: GitHub Actions jobs start and end at once with no steps — an account billing
-  block; there are no hosted build results.
+  block; there are no hosted build results. Linux and Windows (cross-build) can be checked locally without CI; Android cannot: it needs the Android SDK (`dl.google.com` is unreachable in Claude's environment).
 
 ## 3. Known limitations
 

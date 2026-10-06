@@ -53,6 +53,9 @@ core's `reality-client --tun-cleanup` as root.
 
 ## 2. Windows
 
+**Cross-build from Linux** (a compile check without Windows): `rustup target add x86_64-pc-windows-gnu`, `apt install gcc-mingw-w64-x86-64`, then
+`CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc cargo build --locked --release --target x86_64-pc-windows-gnu`.
+
 **Dependencies:** Rust (`stable-x86_64-pc-windows-gnu`), MSYS2 MinGW-w64 GCC (default
 path `%LOCALAPPDATA%\Programs\msys64\mingw64\bin`, overridable with `REALITY_MINGW_BIN`).
 
