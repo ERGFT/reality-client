@@ -46,6 +46,13 @@
   Тест запуска ядра в процессе теперь идёт и на Linux. `fetch-core.*` не трогает
   уже скачанную чистую копию нужной версии.
 
+- Политика Android-TUN перенесена из Kotlin в Rust (`android_tun.rs`): проверка
+  параметров, фильтр приложений, адреса, адрес DNS и маршруты считаются в Rust с
+  20 тестами на хосте; `RealityVpnService` вызывает `nativePlanTun` и только применяет
+  план к `VpnService.Builder`. `AndroidTunPolicy.kt`, `TunAddress.kt` и их тесты удалены.
+  Строже прежнего: логические флаги и MTU не приводятся молчаливо из строк, числа и
+  адреса разбираются стандартным разбором Rust (например, `010.0.0.1` отклоняется).
+
 ### Подготовка к публикации
 - Проверена история (97 коммитов) и дерево на секреты и личные данные: настоящих ссылок, ключей и токенов нет, только тестовые заглушки.
 - Добавлены `CODE_OF_CONDUCT.md`, `SUPPORT.md`, шаблоны issue и pull request, `CODEOWNERS`, Dependabot; в `Cargo.toml` — лицензия и метаданные.
@@ -105,6 +112,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   is repeated in the client's `Cargo.toml`. The core's command-line program `reality-client`
   is still built separately. The in-process core start-up test now runs on Linux too.
   `fetch-core.*` leaves an already fetched clean copy of the right version alone.
+
+- The Android TUN policy moved from Kotlin to Rust (`android_tun.rs`): option validation,
+  the app filter, addresses, the DNS address and routes are computed in Rust with 20 host
+  tests; `RealityVpnService` calls `nativePlanTun` and only applies the plan to
+  `VpnService.Builder`. `AndroidTunPolicy.kt`, `TunAddress.kt` and their tests are removed.
+  Stricter than before: boolean flags and MTU are not silently coerced from strings, and
+  numbers and addresses use Rust's standard parsing (for example `010.0.0.1` is rejected).
 
 ### Preparing for publication
 - The history (97 commits) and the tree were scanned for secrets and personal data: no real links, keys or tokens, only test placeholders.

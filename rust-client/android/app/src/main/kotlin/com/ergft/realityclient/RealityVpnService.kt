@@ -10,6 +10,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import org.json.JSONObject
+import java.net.InetAddress
 
 class RealityVpnService : VpnService() {
     companion object {
@@ -36,6 +37,7 @@ class RealityVpnService : VpnService() {
         removeProfileSecret: Boolean,
     ): String
 
+    private external fun nativePlanTun(config: String): String
     private external fun nativeStop(): String
     private external fun nativeVpnStartFailed(removeProfileSecret: Boolean, error: String)
 
@@ -98,93 +100,47 @@ class RealityVpnService : VpnService() {
         if (otherVpnIsActive) {
             throw IllegalStateException("Уже работает другое VPN-приложение. Reality Client остановлен, действующий VPN не затронут.")
         }
-        val root = JSONObject(config)
-        val inbounds = root.optJSONArray("inbounds")
-            ?: throw IllegalArgumentException("В конфигурации отсутствуют inbounds")
-        val inboundObjects = (0 until inbounds.length()).map { inbounds.getJSONObject(it) }
-        val tunIndex = singleTunInboundIndex(inboundObjects.map {
-            it.optString("type").ifBlank { it.optString("protocol") }
-        })
-        val tun = inboundObjects[tunIndex]
-        if (!tun.optBoolean("dns_hijack", true) || root.optJSONObject("dns") == null) {
-            throw IllegalArgumentException("Android требует DNS-модуль и перехват DNS-запросов в TUN")
-        }
+        // Вся политика TUN (проверка параметров, адреса, DNS, маршруты, фильтр приложений)
+        // считается в Rust (android_tun.rs); здесь план только применяется к Builder.
+        val plan = JSONObject(nativePlanTun(config))
+        if (plan.has("error")) throw IllegalArgumentException(plan.getString("error"))
 
-        // The core receives a ready descriptor, so it cannot configure Android routes itself.
-        val tunFields = buildSet {
-            val keys = tun.keys()
-            while (keys.hasNext()) add(keys.next())
-        }
-        validateAndroidTunOptions(
-            tunFields,
-            autoRoute = tun.optBoolean("auto_route", true),
-            strictRoute = tun.optBoolean("strict_route", false),
-        )
         val builder = Builder()
             .setSession("Reality Client")
-            .setMtu(tun.optInt("mtu", 1500))
-
-        val packageFilterConfigured = tun.has("include_package")
-        val packageFilterValue = tun.opt("include_package")
-        val packageFilter = if (packageFilterValue is org.json.JSONArray) {
-            (0 until packageFilterValue.length()).map(packageFilterValue::opt)
-        } else {
-            packageFilterValue
-        }
-        val includedPackages = validateIncludedAndroidPackages(
-            packageFilterConfigured,
-            packageFilter,
-        )
-        // This UI-only property is not accepted by the pinned core. Strip it only
-        // after validating the full filter; malformed filters must fail closed.
-        if (packageFilterConfigured) tun.remove("include_package")
-        includedPackages?.forEach { packageName ->
-            try {
-                builder.addAllowedApplication(packageName)
-            } catch (problem: Exception) {
-                throw IllegalArgumentException("Не удалось добавить приложение $packageName: ${problem.localizedMessage}", problem)
-            }
-        }
-
-        val addressValues = mutableListOf<String>()
-        for (field in listOf("address", "inet4_address", "inet6_address")) {
-            when (val value = tun.opt(field)) {
-                null -> Unit
-                is String -> addressValues += value
-                is org.json.JSONArray -> for (index in 0 until value.length()) {
-                    addressValues += value.getString(index)
+            .setMtu(plan.getInt("mtu"))
+        val packages = plan.optJSONArray("packages")
+        if (packages != null) {
+            for (index in 0 until packages.length()) {
+                val packageName = packages.getString(index)
+                try {
+                    builder.addAllowedApplication(packageName)
+                } catch (problem: Exception) {
+                    throw IllegalArgumentException("Не удалось добавить приложение $packageName: ${problem.localizedMessage}", problem)
                 }
-                else -> throw IllegalArgumentException("Поле $field TUN должно быть строкой или массивом строк")
             }
         }
-        val addresses = effectiveTunAddressCidrs(addressValues).map(TunAddress::parseCidr)
-        var hasIpv4 = false
-        var hasIpv6 = false
-        var hasDnsAddress = false
-        for ((address, prefix) in addresses.map { it.address to it.prefix }) {
-            builder.addAddress(address, prefix)
-            if (address.address.size == 4) {
-                hasIpv4 = true
-            } else {
-                hasIpv6 = true
-            }
-            val maxPrefix = if (address.address.size == 4) 32 else 128
-            if (prefix < maxPrefix) {
-                builder.addDnsServer(TunAddress.dnsPeerAddress(address, prefix))
-                hasDnsAddress = true
-            }
+        // Адреса числовые (Rust уже проверил), поэтому getByName не обращается к DNS.
+        val addresses = plan.getJSONArray("addresses")
+        for (index in 0 until addresses.length()) {
+            val item = addresses.getJSONObject(index)
+            builder.addAddress(InetAddress.getByName(item.getString("ip")), item.getInt("prefix"))
         }
-        require(hasIpv4 || hasIpv6) { "В TUN-конфигурации нет IP-адресов" }
-        require(hasDnsAddress) { "Для Android DNS требуется адрес TUN с доступным адресом DNS внутри подсети" }
-        if (hasIpv4) builder.addRoute("0.0.0.0", 0)
-        if (hasIpv6) builder.addRoute("::", 0)
+        val dns = plan.getJSONArray("dns")
+        for (index in 0 until dns.length()) {
+            builder.addDnsServer(InetAddress.getByName(dns.getString(index)))
+        }
+        val routes = plan.getJSONArray("routes")
+        for (index in 0 until routes.length()) {
+            val item = routes.getJSONObject(index)
+            builder.addRoute(InetAddress.getByName(item.getString("ip")), item.getInt("prefix"))
+        }
 
         val established = builder.establish()
             ?: throw IllegalStateException("Android не выдал TUN-дескриптор")
         tunnel = established
         val fd = established.detachFd()
         val error = nativeStart(
-            root.toString(),
+            plan.getString("config"),
             baseDir,
             fd,
             removeProfileSecret,

@@ -155,6 +155,28 @@ pub extern "system" fn Java_com_ergft_realityclient_RealityVpnService_nativeStar
         .resolve::<ThrowRuntimeExAndDefault>()
 }
 
+/// Проверяет конфигурацию и считает, что отдать `VpnService.Builder`
+/// (адреса, DNS, маршруты, приложения). Возвращает JSON: поля плана или `{"error": …}`.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_ergft_realityclient_RealityVpnService_nativePlanTun<'local>(
+    mut unowned_env: EnvUnowned<'local>,
+    _service: JObject<'local>,
+    config: JString<'local>,
+) -> jstring {
+    unowned_env
+        .with_env(|env| -> jni::errors::Result<_> {
+            let plan = match config.try_to_string(env) {
+                Ok(config) => crate::android_tun::plan_json(&config),
+                Err(problem) => serde_json::json!({
+                    "error": format!("Не удалось прочитать JSON Android-клиента: {problem}")
+                })
+                .to_string(),
+            };
+            Ok(env.new_string(plan)?.into_raw())
+        })
+        .resolve::<ThrowRuntimeExAndDefault>()
+}
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_ergft_realityclient_RealityVpnService_nativeStop<'local>(
     mut unowned_env: EnvUnowned<'local>,

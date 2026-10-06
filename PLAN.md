@@ -22,7 +22,7 @@
 | 4 | Ядро без zip-архива и Python-патча: исправление TUN-дескриптора — в сам vpn-core ([#28](https://github.com/ERGFT/vpn-core/pull/28)), сборка скачивает ядро по хешу коммита; ядро — зависимость Cargo клиента (`reality-ffi`, линкуется в приложение, без `libloading` и отдельной `.dll`/`.so`) | ✅ Linux проверен, Windows/Android — в CI |
 | 5 | `rust-client/src/lib.rs` (3600 строк) разнесён по модулям: `ui/` (обработчики по темам, `UiState`) и чистые модули с тестами; поведение и тесты те же | ✅ |
 | 6 | Сквозные проверки: настоящий сервер REALITY → Windows, Linux, Android | ⏳ нужны сервер и устройства |
-| 7 | Android: политика TUN из Kotlin в Rust, минимальный `VpnService`-шим | ⏳ |
+| 7 | Android: политика TUN из Kotlin в Rust (`android_tun.rs`, тесты на хосте), `VpnService` — тонкая оболочка | ✅ на устройстве не проверено |
 | 8 | Убрать C# и PowerShell-скрипты после паритета, заменить на `cargo xtask` | ⏳ |
 | 9 | Первый релиз: подписанные сборки, SHA-256, инструкция установки и обновления | ⏳ |
 | 10 | Apple: macOS, затем iOS/tvOS (Network Extension) | 💤 отложено |

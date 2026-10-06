@@ -39,7 +39,7 @@
 |---|---|---|---|
 | **Windows x64** | `rust-client/build-windows.ps1` | сборка и тесты на машине разработчика ([журнал](docs/BUILD-LOG.md)) | системный прокси и TUN на чистой машине, трафик через сервер |
 | **Android arm64** | `rust-client/build-android.sh` | отладочный APK собирается, запускается в эмуляторе | `VpnService`/TUN на устройстве, трафик через сервер, динамические цвета на устройстве |
-| **Linux x86_64** | `rust-client/build-linux.sh` | сборка, 51 тест и запуск окна на Ubuntu 24.04 | трафик через сервер, TUN, Secret Service на реальном рабочем столе |
+| **Linux x86_64** | `rust-client/build-linux.sh` | сборка, 72 теста и запуск окна на Ubuntu 24.04 | трафик через сервер, TUN, Secret Service на реальном рабочем столе |
 | macOS, iOS, tvOS | — | — | отложено, см. [PLAN.md](PLAN.md) |
 
 > [!WARNING]
