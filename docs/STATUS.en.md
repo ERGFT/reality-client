@@ -21,6 +21,7 @@ Contents:
 | JNI bridge type-checks on the host | `cargo check --features android-bridge-check` | Claude, 2026-10-06 |
 | Window startup on Linux | under Xvfb: the window renders and every page opens | Claude, 2026-10-06 |
 | Windows x64 cross-build from Linux | `cargo build --locked --release --target x86_64-pc-windows-gnu` + `mingw-w64`: `reality-client-rs.exe` built; not run | Claude, 2026-10-06 |
+| CI on GitHub Actions: Linux, Windows, Android | green on `main` and PR #8: formatting, Clippy, tests (Windows: 75), Linux/Windows package build and content check, APK build | GitHub Actions, 2026-10-06 |
 | Linux installer | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | UI layout | `slint-viewer` screenshots: 5 pages, phone (380 px, M3) and desktop (1080 px), both themes | Claude, 2026-10-06 |
 | Windows build and tests (66 + 69), DPAPI compatibility with C# | developer machine | previous author ([log](BUILD-LOG.md), Russian); not re-run |
@@ -35,13 +36,13 @@ Contents:
   JNI call), `VpnService` and TUN on a device, `protect(fd)`, network changes,
   permission revocation, dynamic colours on Android 12+.
 - The Linux regression test for closing the TUN descriptor (part of the build script, not run separately).
-- CI: GitHub Actions jobs start and end at once with no steps — an account billing
-  block; there are no hosted build results. Linux and Windows (cross-build) can be checked locally without CI; Android cannot: it needs the Android SDK (`dl.google.com` is unreachable in Claude's environment).
+- Running the built `.exe` and APK: CI only builds them and checks the package contents; they are not launched and no network scenarios run.
 
 ## 3. Known limitations
 
-- The core is pinned to commit `ee68039` and built with a local patch (TUN descriptor
-  ownership); vpn-core's main branch has moved on.
+- The core is pinned by a commit hash in `third_party/vpn-core.rev` and fetched at
+  build time (no patches). The pin is the merge commit of the TUN-descriptor ownership
+  fix ([vpn-core#28](https://github.com/ERGFT/vpn-core/pull/28)).
 - `rust-client/src/lib.rs` is a ~3600-line monolith.
 - Binary files are tracked in git (`dist/RealityClient.exe`, `third_party/*.exe`, `*.zip`, `wintun.dll`).
 - The desktop layout assumes a window at least 760 px wide; width-based adaptation is

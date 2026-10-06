@@ -3,21 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
-archive="$repo_root/third_party/vpn-core-source.zip"
-revision_file="$repo_root/third_party/vpn-core-source.commit"
-expected_commit='ee68039943ebb2aaf3287bf622ae34c18bfa0cae'
-expected_sha256='DF789EABC39029A403D72BA78367637E4347D372626A5FC79F35EC901AF1317D'
-
-[[ -f "$archive" ]] || { echo "Missing pinned core source archive: $archive" >&2; exit 1; }
-[[ "$(tr -d '\r\n' < "$revision_file")" == "$expected_commit" ]] || {
-    echo 'Pinned core revision does not match the expected commit.' >&2
-    exit 1
-}
-actual_sha256="$(sha256sum "$archive" | cut -d ' ' -f 1 | tr '[:lower:]' '[:upper:]')"
-[[ "$actual_sha256" == "$expected_sha256" ]] || {
-    echo 'Pinned core source archive SHA-256 check failed.' >&2
-    exit 1
-}
+core_revision="$(tr -d '[:space:]' < "$repo_root/third_party/vpn-core.rev")"
 
 tmp_parent="$(cd -- "${TMPDIR:-/tmp}" && pwd)"
 build_root="$(mktemp -d "$tmp_parent/reality-client-linux.XXXXXXXX")"
@@ -30,13 +16,7 @@ cleanup() {
 trap cleanup EXIT
 
 source_dir="$build_root/core-source"
-mkdir -p "$source_dir"
-unzip -q "$archive" -d "$source_dir"
-[[ -f "$source_dir/Cargo.toml" ]] || {
-    echo 'Pinned archive does not contain the expected workspace Cargo.toml.' >&2
-    exit 1
-}
-python3 "$script_dir/patches/apply_core_tun_fd_ownership.py" "$source_dir"
+bash "$repo_root/scripts/fetch-core.sh" "$source_dir"
 
 export CARGO_TARGET_DIR="$build_root/target"
 (
@@ -76,4 +56,4 @@ chmod 0755 "$package_dir/reality-client.desktop"
 
 echo 'RUST_CLIENT_LINUX_BUILD=PASS'
 echo "PACKAGE=$package_dir"
-echo "CORE_SOURCE_COMMIT=$expected_commit"
+echo "CORE_SOURCE_COMMIT=$core_revision"

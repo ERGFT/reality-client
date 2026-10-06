@@ -4,14 +4,14 @@ on:
   push:
     paths:
       - "rust-client/**"
-      - "third_party/vpn-core-source.zip"
-      - "third_party/vpn-core-source.commit"
+      - "third_party/vpn-core.rev"
+      - "scripts/fetch-core.*"
       - ".github/workflows/rust-android.yml"
   pull_request:
     paths:
       - "rust-client/**"
-      - "third_party/vpn-core-source.zip"
-      - "third_party/vpn-core-source.commit"
+      - "third_party/vpn-core.rev"
+      - "scripts/fetch-core.*"
       - ".github/workflows/rust-android.yml"
   workflow_dispatch:
 

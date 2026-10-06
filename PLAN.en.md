@@ -17,8 +17,8 @@ Stage status (updated as work goes on):
 | 0 | Skeleton: profiles, starting the core over the C ABI, logs, builds for three platforms | ✅ in place, preliminary |
 | 1 | UI: one theme, adaptive layout, a power-button home screen; Android in Material 3 Expressive with dynamic colours | ✅ layout verified by screenshots; dynamic colours not verified on a device |
 | 2 | Repository polish after vpn-core: README, docs, bilingual pages, status | ✅ |
-| 3 | CI: resolve the GitHub Actions billing block, get green builds on three OSes | ⏳ blocked by the GitHub account |
-| 4 | The core as a Cargo dependency (`reality-core`) instead of a zip archive and a Python patch; the TUN-descriptor patch goes into vpn-core itself | ⏳ |
+| 3 | CI: green builds and checks on three OSes (the repository is public, Actions are free) | ✅ |
+| 4 | The core without a zip archive and a Python patch: the TUN-descriptor fix goes into vpn-core itself ([#28](https://github.com/ERGFT/vpn-core/pull/28)), the build fetches the core by commit hash; then a Cargo dependency (`reality-core`) | ⏳ first part in progress |
 | 5 | Split `rust-client/src/lib.rs` (~3600 lines) into modules: state, handlers, UI bindings | ⏳ |
 | 6 | End-to-end checks: a real REALITY server → Windows, Linux, Android | ⏳ needs a server and devices |
 | 7 | Android: move the TUN policy from Kotlin to Rust, keep a minimal `VpnService` shim | ⏳ |
@@ -39,8 +39,6 @@ Stage status (updated as work goes on):
 
 ## Dependencies on the project owner
 
-- **Stage 3:** the GitHub account has a payment or spending-limit error, so Actions
-  jobs do not run at all.
 - **Stage 6:** a test VLESS/REALITY server and real devices; without them "it works"
   cannot be claimed.
 - **Licence:** the core is GPL-3.0-or-later, so the client is too; the repository is

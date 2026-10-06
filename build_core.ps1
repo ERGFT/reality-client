@@ -1,17 +1,9 @@
 ﻿# SPDX-License-Identifier: GPL-3.0-or-later
 $ErrorActionPreference = 'Stop'
-$sourceArchive = Join-Path $PSScriptRoot 'third_party\vpn-core-source.zip'
-$sourceRevisionFile = Join-Path $PSScriptRoot 'third_party\vpn-core-source.commit'
-$expectedCommit = 'ee68039943ebb2aaf3287bf622ae34c18bfa0cae'
-$expectedArchiveSha256 = 'DF789EABC39029A403D72BA78367637E4347D372626A5FC79F35EC901AF1317D'
-if (-not (Test-Path -LiteralPath $sourceArchive)) { throw "Не найден архив исходников ядра: $sourceArchive" }
-if ((Get-Content -LiteralPath $sourceRevisionFile -Raw).Trim() -ne $expectedCommit) { throw 'Файл фиксации исходников ядра не совпадает с ожидаемой ревизией.' }
-if ((Get-FileHash -LiteralPath $sourceArchive -Algorithm SHA256).Hash -ne $expectedArchiveSha256) { throw 'SHA-256 архива исходников ядра не совпадает с ожидаемым.' }
+$expectedCommit = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'third_party\vpn-core.rev') -Raw).Trim()
 $sourceRoot = Join-Path $env:TEMP ('reality-client-source-' + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $sourceRoot | Out-Null
-Expand-Archive -LiteralPath $sourceArchive -DestinationPath $sourceRoot
+& (Join-Path $PSScriptRoot 'scripts\fetch-core.ps1') -Destination $sourceRoot
 $source = $sourceRoot
-if (-not (Test-Path -LiteralPath (Join-Path $source 'Cargo.toml'))) { throw 'В архиве не найдена корневая Cargo.toml ядра.' }
 
 $msys = Join-Path $env:LOCALAPPDATA 'Programs\msys64'
 $mingwBin = Join-Path $msys 'mingw64\bin'
@@ -28,7 +20,7 @@ $env:CMAKE_GENERATOR = 'Ninja'
 $env:RUSTFLAGS = '-C link-arg=-static'
 $env:RUSTUP_TOOLCHAIN = 'stable-x86_64-pc-windows-gnu'
 
-$env:CARGO_TARGET_DIR = Join-Path $env:TEMP 'reality-client-target-ee680399'
+$env:CARGO_TARGET_DIR = Join-Path $env:TEMP ('reality-client-target-' + $expectedCommit.Substring(0, 8))
 Push-Location $source
 try {
     & cargo build --locked --release -p reality-client

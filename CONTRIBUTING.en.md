@@ -49,5 +49,4 @@ and a screenshot comes from `import -window root shot.png` (ImageMagick).
 ## 4. Pull requests
 
 - Description: what changed, how it was checked, what was not.
-- CI may be red because of the billing block: you can tell by jobs that end within
-  seconds with no steps. The local checks from section 1 are still required.
+- CI (GitHub Actions) has to be green on all three platforms; the local checks from section 1 come before you push.

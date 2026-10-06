@@ -12,8 +12,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $msysGcc 'gcc.exe'))) {
 $env:PATH = "$msysGcc;$env:PATH"
 
 $repo = Split-Path -Parent $PSScriptRoot
-$core = Join-Path $repo 'third_party\reality-client.exe'
-if (-not (Test-Path -LiteralPath $core)) { throw "Не найден закреплённый файл ядра: $core" }
+$core = Join-Path $PSScriptRoot 'third_party\reality-client.exe'
+if (-not (Test-Path -LiteralPath $core)) { throw "Не найден собранный файл ядра: $core. Сначала выполните ..\build_rust_core.ps1" }
 $ffi = Join-Path $PSScriptRoot 'third_party\reality.dll'
 if (-not (Test-Path -LiteralPath $ffi)) { throw "Не найдена библиотека Rust-ядра: $ffi. Сначала выполните ..\build_rust_core.ps1." }
 $wintun = Join-Path $repo 'third_party\wintun\wintun.dll'
@@ -41,8 +41,9 @@ Copy-Item -LiteralPath $wintunLicense -Destination (Join-Path $package 'WINTUN-L
 Copy-Item -LiteralPath (Join-Path $repo 'LICENSE.txt') -Destination (Join-Path $package 'LICENSE.txt') -Force
 Copy-Item -LiteralPath (Join-Path $repo 'THIRD_PARTY.md') -Destination (Join-Path $package 'THIRD_PARTY.md') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'PACKAGE-README.md') -Destination (Join-Path $package 'README.md') -Force
-Copy-Item -LiteralPath (Join-Path $repo 'third_party\vpn-core-source.zip') -Destination (Join-Path $thirdParty 'vpn-core-source.zip') -Force
-Copy-Item -LiteralPath (Join-Path $repo 'third_party\vpn-core-source.commit') -Destination (Join-Path $thirdParty 'vpn-core-source.commit') -Force
+$coreRevision = (Get-Content -LiteralPath (Join-Path $repo 'third_party\vpn-core.rev') -Raw).Trim()
+# Исходники ядра (GPL): репозиторий и точный коммит, из которого собраны reality.dll и reality-client.exe.
+[IO.File]::WriteAllText((Join-Path $package 'CORE-SOURCE.txt'), ("Reality Core source: https://github.com/ERGFT/vpn-core`n" + "Commit: $coreRevision`n" + "Archive: https://github.com/ERGFT/vpn-core/archive/$coreRevision.zip`n"), [Text.Encoding]::UTF8)
 
 # WScript.Shell does not expose IShellLink::SetRelativePath, so its shortcuts
 # keep an absolute target and break when the package folder is moved. Create a

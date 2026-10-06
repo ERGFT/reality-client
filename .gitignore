@@ -12,6 +12,7 @@ obj/
 rust-client/target/
 rust-client/dist/
 rust-client/third_party/reality.dll
+rust-client/third_party/reality-client.exe
 rust-client/android/.gradle/
 rust-client/android/local.properties
 rust-client/android/app/build/

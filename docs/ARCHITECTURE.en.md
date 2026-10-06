@@ -98,9 +98,10 @@ vpn-core is used as a library through its C ABI: `rc_start`, `rc_request`,
 config is sing-box/Xray JSON; the VLESS link is turned into it through a private
 temporary file (`link_file`) so the secret never lands in process arguments.
 
-The core version is pinned by commit (`third_party/vpn-core-source.commit`) and
-checked by SHA-256. A local patch for TUN descriptor ownership is applied
-(`rust-client/patches/`).
+The core version is pinned by a commit hash in `third_party/vpn-core.rev`; the
+build scripts (`scripts/fetch-core.sh`, `scripts/fetch-core.ps1`) fetch exactly that
+commit from the vpn-core repository. A commit hash fixes the content by itself, so
+no separate checksum or local patches are needed.
 
 > [!NOTE]
 > Target design (stage 4 in [PLAN.en.md](../PLAN.en.md)): `reality-core` as a

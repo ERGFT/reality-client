@@ -5,10 +5,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 android_dir="$script_dir/android"
 app_dir="$android_dir/app"
-archive="$repo_root/third_party/vpn-core-source.zip"
-revision_file="$repo_root/third_party/vpn-core-source.commit"
-expected_commit='ee68039943ebb2aaf3287bf622ae34c18bfa0cae'
-expected_sha256='DF789EABC39029A403D72BA78367637E4347D372626A5FC79F35EC901AF1317D'
+core_revision="$(tr -d '[:space:]' < "$repo_root/third_party/vpn-core.rev")"
 abi="${ANDROID_ABI:-arm64-v8a}"
 case "$abi" in
     arm64-v8a) target='aarch64-linux-android' ;;
@@ -52,16 +49,6 @@ fi
 }
 export ANDROID_NDK_HOME="$ndk_root"
 
-[[ -f "$archive" ]] || { echo "Missing pinned core source archive: $archive" >&2; exit 1; }
-[[ "$(tr -d '\r\n' < "$revision_file")" == "$expected_commit" ]] || {
-    echo 'Pinned core revision does not match the expected commit.' >&2
-    exit 1
-}
-actual_sha256="$(sha256sum "$archive" | cut -d ' ' -f 1 | tr '[:lower:]' '[:upper:]')"
-[[ "$actual_sha256" == "$expected_sha256" ]] || {
-    echo 'Pinned core source archive SHA-256 check failed.' >&2
-    exit 1
-}
 rustup target list --installed | grep -Fxq "$target" || {
     echo "Install the Rust target first: rustup target add $target" >&2
     exit 1
@@ -81,26 +68,7 @@ cleanup() {
 trap cleanup EXIT
 
 source_dir="$build_root/core-source"
-mkdir -p "$source_dir"
-python3 - "$archive" "$source_dir" <<'PY'
-import pathlib
-import sys
-import zipfile
-
-archive = pathlib.Path(sys.argv[1])
-destination = pathlib.Path(sys.argv[2]).resolve()
-with zipfile.ZipFile(archive) as bundle:
-    for member in bundle.infolist():
-        target = (destination / member.filename).resolve()
-        if target != destination and destination not in target.parents:
-            raise SystemExit(f"Refusing archive path outside extraction root: {member.filename}")
-    bundle.extractall(destination)
-PY
-[[ -f "$source_dir/Cargo.toml" ]] || {
-    echo 'Pinned archive does not contain the expected workspace Cargo.toml.' >&2
-    exit 1
-}
-python3 "$script_dir/patches/apply_core_tun_fd_ownership.py" "$source_dir"
+bash "$repo_root/scripts/fetch-core.sh" "$source_dir"
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$build_root/target}"
 if [[ "$(uname -s)" == Linux* ]]; then
@@ -147,4 +115,4 @@ PY
 echo 'ANDROID_APK_BUILD=PASS'
 echo "ABI=$abi"
 echo "APK=$apk"
-echo "CORE_SOURCE_COMMIT=$expected_commit"
+echo "CORE_SOURCE_COMMIT=$core_revision"

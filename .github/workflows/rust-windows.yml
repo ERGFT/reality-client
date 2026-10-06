@@ -4,18 +4,16 @@ on:
   push:
     paths:
       - "rust-client/**"
-      - "third_party/vpn-core-source.zip"
-      - "third_party/vpn-core-source.commit"
-      - "third_party/reality-client.exe"
+      - "third_party/vpn-core.rev"
+      - "scripts/fetch-core.*"
       - "third_party/wintun/**"
       - "build_rust_core.ps1"
       - ".github/workflows/rust-windows.yml"
   pull_request:
     paths:
       - "rust-client/**"
-      - "third_party/vpn-core-source.zip"
-      - "third_party/vpn-core-source.commit"
-      - "third_party/reality-client.exe"
+      - "third_party/vpn-core.rev"
+      - "scripts/fetch-core.*"
       - "third_party/wintun/**"
       - "build_rust_core.ps1"
       - ".github/workflows/rust-windows.yml"
@@ -73,7 +71,7 @@ jobs:
         shell: pwsh
         run: |
           $package = 'rust-client\dist\windows-x64'
-          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'reality.dll', 'wintun.dll', 'WINTUN-LICENSE.txt', 'LICENSE.txt', 'THIRD_PARTY.md', 'README.md', 'third_party\reality-client.exe', 'third_party\vpn-core-source.zip', 'third_party\vpn-core-source.commit')) {
+          foreach ($file in @('RealityClient-Rust.exe', 'Reality Client Rust.lnk', 'reality.dll', 'wintun.dll', 'WINTUN-LICENSE.txt', 'LICENSE.txt', 'THIRD_PARTY.md', 'README.md', 'third_party\reality-client.exe', 'CORE-SOURCE.txt')) {
             if (-not (Test-Path -LiteralPath (Join-Path $package $file))) {
               throw "Missing packaged file: $file"
             }
