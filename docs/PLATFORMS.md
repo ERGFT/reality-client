@@ -19,7 +19,7 @@
 **Зависимости** (Debian/Ubuntu):
 
 ```sh
-sudo apt install build-essential cmake nasm pkg-config unzip python3 \
+sudo apt install build-essential cmake nasm pkg-config git python3 \
     libdbus-1-dev libfontconfig1-dev libfreetype6-dev \
     libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libgl1-mesa-dev
 ```
@@ -35,9 +35,10 @@ cd rust-client
 ./install-linux.sh        # ~/.local/opt/reality-client, ярлык и иконка пользователя
 ```
 
-Скрипт сборки проверяет коммит и SHA-256 закреплённого ядра, применяет патч
-владения TUN-дескриптором, запускает регрессионный тест закрытия дескриптора и
-собирает ядро, CLI и интерфейс во временный каталог.
+Скрипт сборки скачивает vpn-core ровно по хешу коммита из `third_party/vpn-core.rev`
+(`scripts/fetch-core.sh`), запускает регрессионный тест закрытия TUN-дескриптора из
+ядра и собирает ядро, CLI и интерфейс во временный каталог. Чтобы собрать с локальной
+копией ядра: `REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh`.
 
 **Только тесты клиента** (без сборки ядра): `cargo test --locked` в `rust-client/`.
 
@@ -61,13 +62,14 @@ sudo setcap cap_net_admin+ep "$HOME/.local/opt/reality-client/RealityClient"
 `REALITY_MINGW_BIN`).
 
 ```powershell
-.\build_rust_core.ps1                    # закреплённое ядро → rust-client\third_party\reality.dll
+.\build_rust_core.ps1                    # скачивает ядро по хешу коммита → rust-client\third_party\reality.dll и reality-client.exe
 .\rust-client\build-windows.ps1          # rust-client\dist\windows-x64\RealityClient-Rust.exe
 .\rust-client\tests\windows-test.ps1     # тесты на GNU-тулчейне, без MSVC link.exe
 ```
 
-Пакет содержит `RealityClient-Rust.exe`, `reality.dll`, `wintun.dll` (официальный,
-проверяется по SHA-256) и лицензии.
+Пакет содержит `RealityClient-Rust.exe`, `reality.dll`, `third_party\reality-client.exe`
+(обе части собраны из одного коммита ядра), `wintun.dll` (официальный, проверяется по
+SHA-256), лицензии и `CORE-SOURCE.txt` — адрес и коммит исходников ядра (GPL).
 
 **Системный прокси** включается только в режиме профиля и возвращает прежние
 значения при отключении. Резервная копия хранится на диске; после аварийного

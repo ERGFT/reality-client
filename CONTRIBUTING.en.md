@@ -41,6 +41,9 @@ and a screenshot comes from `import -window root shot.png` (ImageMagick).
   error messages.
 - **Checks.** Everything you ran is recorded in [docs/STATUS.en.md](docs/STATUS.en.md)
   (and the Russian page). Anything not run is called "not verified".
+- **Docs right away.** If you change code, the build or behaviour, update the docs in the
+  same PR: README, `docs/`, `docs/STATUS.en.md`, `PLAN.en.md`, `CHANGELOG.md`.
+  Docs left for later count as unfinished work.
 - **Two languages.** When a document changes, so does its `.en.md`.
 - **Colours and sizes** in the UI come from `Theme`, not written inline.
 - **Binary files** are not added to git (except small assets such as the icon and screenshots).

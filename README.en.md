@@ -68,7 +68,7 @@ device, and shows speed, traffic, connections and logs.
 ### Linux
 
 ```sh
-sudo apt install build-essential cmake nasm pkg-config unzip python3 \
+sudo apt install build-essential cmake nasm pkg-config git python3 \
     libdbus-1-dev libfontconfig1-dev libfreetype6-dev \
     libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libgl1-mesa-dev
 cd rust-client
@@ -99,8 +99,8 @@ flowchart LR
 
 - **`rust-client/`**: the app: shared Rust code, Slint UI, platform adapters and a
   thin Kotlin layer for `VpnService`.
-- **vpn-core** is pinned in `third_party/`. A move to a Cargo dependency is
-  planned: [PLAN.en.md](PLAN.en.md).
+- **vpn-core** is pinned by a commit hash (`third_party/vpn-core.rev`) and fetched by the
+  build scripts. A move to a Cargo dependency is planned: [PLAN.en.md](PLAN.en.md).
 - **`src/`**: the previous C# version (archive): [docs/LEGACY-CSHARP.md](docs/LEGACY-CSHARP.md).
 
 More: [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md).
