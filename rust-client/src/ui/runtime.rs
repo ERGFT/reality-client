@@ -13,10 +13,12 @@ use slint::CloseRequestResponse;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 use super::UiState;
+#[cfg(any(windows, target_os = "linux"))]
+use crate::core;
 #[cfg(target_os = "android")]
 use crate::platform;
 use crate::{
-    MainWindow, core,
+    MainWindow,
     runtime_stats::{fetch_runtime_snapshot, format_bytes},
 };
 

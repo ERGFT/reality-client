@@ -5,6 +5,9 @@ use std::time::Duration;
 
 use zeroize::Zeroizing;
 
+#[cfg(target_os = "android")]
+use crate::platform;
+
 #[cfg(windows)]
 pub(crate) fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String> {
     use windows::Win32::{

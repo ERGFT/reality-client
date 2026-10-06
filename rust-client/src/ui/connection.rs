@@ -9,9 +9,11 @@ use super::{
 };
 #[cfg(target_os = "android")]
 use crate::ffi_session;
+#[cfg(not(target_os = "android"))]
+use crate::ffi_session::CoreSession;
 #[cfg(target_os = "android")]
 use crate::platform;
-use crate::{MainWindow, core, ffi_session::CoreSession};
+use crate::{MainWindow, core};
 
 pub(super) fn install(window: &MainWindow, state: &UiState) {
     window.on_recover_proxy_requested({
