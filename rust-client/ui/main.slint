@@ -7,16 +7,16 @@ component NavTab inherits Rectangle {
     in property <bool> dark-theme: true;
     callback activated();
 
-    height: 44px;
-    border-radius: 9px;
-    background: selected ? (dark-theme ? #173a42 : #d8f2ed) : transparent;
+    height: 48px;
+    border-radius: 24px;
+    background: selected ? (dark-theme ? #26443f : #cce8e0) : transparent;
     animate background { duration: 120ms; }
 
     Text {
         x: 14px;
         width: parent.width - 28px;
         text: root.icon + "   " + root.label;
-        color: root.selected ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #b2bfd0 : #52616d);
+        color: root.selected ? (root.dark-theme ? #b0d9cf : #00382f) : (root.dark-theme ? #c8c5d0 : #49454f);
         font-size: 13px;
         font-weight: root.selected ? 700 : 500;
         horizontal-alignment: left;
@@ -34,16 +34,16 @@ component InfoCard inherits Rectangle {
     in property <string> action-label;
     callback action-requested();
 
-    background: root.dark-theme ? #111b2c : #ffffff;
+    background: root.dark-theme ? #211f26 : #f3eff6;
     border-width: 1px;
-    border-color: root.dark-theme ? #24324a : #e1e6ee;
-    border-radius: 12px;
+    border-color: root.dark-theme ? #49454f : #cac4d0;
+    border-radius: 20px;
     VerticalLayout {
         padding: 14px;
         spacing: 5px;
-        Text { text: root.title; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; }
-        Text { text: root.value; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 19px; font-weight: 700; }
-        Text { text: root.caption; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
+        Text { text: root.title; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; }
+        Text { text: root.value; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 19px; font-weight: 700; }
+        Text { text: root.caption; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; wrap: word-wrap; }
         if root.action-label != "": Button { text: root.action-label; clicked => { root.action-requested(); } }
     }
 }
@@ -70,13 +70,13 @@ component ThemeCheckBox inherits Rectangle {
         Rectangle {
             width: 20px;
             height: 20px;
-            border-radius: 4px;
+            border-radius: 6px;
             border-width: root.checked ? 0px : 1px;
-            border-color: root.dark-theme ? #718796 : #788791;
-            background: root.checked ? (root.dark-theme ? #187f73 : #087f70) : transparent;
+            border-color: root.dark-theme ? #938f99 : #79757f;
+            background: root.checked ? (root.dark-theme ? #b0d9cf : #006a60) : transparent;
             Text {
                 text: root.checked ? "✓" : "";
-                color: #ffffff;
+                color: root.dark-theme ? #00382f : #ffffff;
                 font-size: 14px;
                 font-weight: 700;
                 horizontal-alignment: center;
@@ -85,7 +85,7 @@ component ThemeCheckBox inherits Rectangle {
         }
         label := Text {
             text: root.text;
-            color: !root.enabled ? (root.dark-theme ? #637582 : #9aa3a8) : (root.dark-theme ? #dce8ed : #263640);
+            color: !root.enabled ? (root.dark-theme ? #79757f : #c4c0c9) : (root.dark-theme ? #e6e1e9 : #1d1b20);
             font-size: 13px;
             vertical-alignment: center;
             wrap: word-wrap;
@@ -103,7 +103,7 @@ export component MainWindow inherits Window {
     in property <string> app-version;
     preferred-width: mobile-layout ? 360px : 1080px;
     preferred-height: mobile-layout ? 720px : 760px;
-    background: dark-theme ? #0a0f19 : #f3f5f9;
+    background: dark-theme ? #141318 : #faf7fc;
 
     in-out property <bool> dark-theme: true;
     in-out property <int> active-tab: 0;
@@ -213,18 +213,18 @@ export component MainWindow inherits Window {
             VerticalLayout {
                 alignment: center;
                 spacing: 1px;
-                Text { text: "REALITY"; color: root.dark-theme ? #55ddc2 : #087f70; font-size: root.mobile-layout ? 20px : 24px; font-weight: 800; }
-                if !root.mobile-layout: Text { text: "SECURE CONNECTION CLIENT"; color: root.dark-theme ? #718796 : #7b8992; font-size: 9px; letter-spacing: 1.2px; }
+                Text { text: "REALITY"; color: root.dark-theme ? #b0d9cf : #006a60; font-size: root.mobile-layout ? 20px : 24px; font-weight: 800; }
+                if !root.mobile-layout: Text { text: "SECURE CONNECTION CLIENT"; color: root.dark-theme ? #938f99 : #79757f; font-size: 9px; letter-spacing: 1.2px; }
             }
             Rectangle { horizontal-stretch: 1; background: transparent; }
             Rectangle {
                 width: 150px;
                 height: 34px;
                 border-radius: 17px;
-                background: root.status-text == "VPN подключён" || root.status-text == "Прокси запущен" || root.status-text == "Полный конфиг запущен" ? (root.dark-theme ? #123a31 : #dff5ed) : (root.dark-theme ? #18232c : #e6ecef);
+                background: root.status-text == "VPN подключён" || root.status-text == "Прокси запущен" || root.status-text == "Полный конфиг запущен" ? (root.dark-theme ? #26443f : #cce8e0) : (root.dark-theme ? #211f26 : #f3eff6);
                 Text {
                     text: root.status-text;
-                    color: root.status-text == "VPN подключён" || root.status-text == "Прокси запущен" || root.status-text == "Полный конфиг запущен" ? (root.dark-theme ? #65e0be : #137d60) : (root.dark-theme ? #a9bac6 : #66747d);
+                    color: root.status-text == "VPN подключён" || root.status-text == "Прокси запущен" || root.status-text == "Полный конфиг запущен" ? (root.dark-theme ? #b0d9cf : #00382f) : (root.dark-theme ? #e6e1e9 : #1d1b20);
                     font-size: 12px;
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -246,10 +246,10 @@ export component MainWindow inherits Window {
             spacing: root.mobile-layout ? 0px : 12px;
             if !root.mobile-layout: Rectangle {
                 width: 212px;
-                background: root.dark-theme ? #0e1725 : #ffffff;
+                background: root.dark-theme ? #1d1b20 : #f3eff6;
                 border-width: 1px;
-                border-color: root.dark-theme ? #202c40 : #e1e6ee;
-                border-radius: 14px;
+                border-color: root.dark-theme ? #49454f : #cac4d0;
+                border-radius: 24px;
                 VerticalLayout {
                 spacing: 8px;
                 padding: 12px;
@@ -262,10 +262,10 @@ export component MainWindow inherits Window {
                 Rectangle { vertical-stretch: 1; background: transparent; }
                 Rectangle {
                     height: 82px;
-                    background: root.dark-theme ? #111b2c : #f6f8fb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #24324a : #e1e6ee;
-                    border-radius: 10px;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
+                    border-radius: 16px;
                     VerticalLayout {
                         padding: 10px;
                         spacing: 5px;
@@ -280,10 +280,10 @@ export component MainWindow inherits Window {
         Rectangle {
             horizontal-stretch: 1;
             vertical-stretch: 1;
-            background: root.dark-theme ? #0e1725 : #ffffff;
+            background: root.dark-theme ? #1d1b20 : #f3eff6;
             border-width: 1px;
-            border-color: root.dark-theme ? #202c40 : #e1e6ee;
-            border-radius: 14px;
+            border-color: root.dark-theme ? #49454f : #cac4d0;
+            border-radius: 24px;
 
             ScrollView {
                 mouse-drag-pan-enabled: root.mobile-layout;
@@ -378,12 +378,12 @@ export component MainWindow inherits Window {
                             if root.profile-count == "Профили: 0": Text { text: "Сохранённых серверов пока нет"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; vertical-alignment: center; }
                             for profile[index] in root.profile-model: Rectangle {
                                 height: 42px;
-                                background: index == root.selected-profile-index ? (root.dark-theme ? #173a42 : #d8f2ed) : (root.dark-theme ? #0e171e : #ffffff);
-                                border-radius: 7px;
+                                background: index == root.selected-profile-index ? (root.dark-theme ? #26443f : #cce8e0) : (root.dark-theme ? #211f26 : #f3eff6);
+                                border-radius: 14px;
                                 HorizontalLayout {
                                     padding-left: 12px;
                                     padding-right: 12px;
-                                    Text { text: profile; color: index == root.selected-profile-index ? (root.dark-theme ? #5ce0c4 : #087f70) : (root.dark-theme ? #edf5f7 : #17232b); font-size: 13px; font-weight: index == root.selected-profile-index ? 700 : 500; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                                    Text { text: profile; color: index == root.selected-profile-index ? (root.dark-theme ? #b0d9cf : #00382f) : (root.dark-theme ? #e6e1e9 : #1d1b20); font-size: 13px; font-weight: index == root.selected-profile-index ? 700 : 500; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                                     Rectangle { horizontal-stretch: 1; background: transparent; }
                                     Text { text: index == root.selected-profile-index ? "Выбран" : "Выбрать"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; vertical-alignment: center; }
                                 }
@@ -702,7 +702,7 @@ export component MainWindow inherits Window {
                 padding: 20px;
                 spacing: 14px;
                 Text { text: "О приложении"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                Text { text: "Reality Client"; color: root.dark-theme ? #55ddc2 : #087f70; font-size: 28px; font-weight: 800; }
+                Text { text: "Reality Client"; color: root.dark-theme ? #b0d9cf : #006a60; font-size: 28px; font-weight: 800; }
                 Text { text: "Версия " + root.app-version + " · Rust / Slint"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 14px; }
                 Rectangle {
                     background: root.dark-theme ? #121f28 : #f7fafb;
