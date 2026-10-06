@@ -16,7 +16,7 @@
 | Что | Где и как | Кем |
 |---|---|---|
 | Сборка клиента на Linux x86_64 | Ubuntu 24.04, `cargo build --locked` | Claude, 2026-10-06 |
-| 51 модульный тест | `cargo test --locked` в `rust-client/`, все прошли (включая маппинг динамических цветов) | Claude, 2026-10-06 |
+| 72 модульных теста | `cargo test --locked` в `rust-client/`, все прошли (включая маппинг динамических цветов) | Claude, 2026-10-06 |
 | `cargo fmt --check`, Clippy | без замечаний (`-D warnings -A dead_code`) | Claude, 2026-10-06 |
 | JNI-мост типизируется на хосте | `cargo check --features android-bridge-check` | Claude, 2026-10-06 |
 | Запуск окна на Linux | под Xvfb: окно рисуется, все страницы открываются | Claude, 2026-10-06 |
@@ -24,6 +24,7 @@
 | CI на GitHub Actions: Linux, Windows, Android | зелёные на `main` и PR #8: форматирование, Clippy, тесты (Windows — 75), сборка и проверка пакетов Linux/Windows, сборка APK | GitHub Actions, 2026-10-06 |
 | Разнесение `lib.rs` по модулям | Linux: `fmt`, Clippy, 51 тест, `android-bridge-check`, окно запускается; Windows: Clippy кросс-сборкой (`x86_64-pc-windows-gnu`, оба набора функций); Android-код компилирует только CI | Claude, 2026-10-06 |
 | Ядро как зависимость Cargo (Linux) | `reality-ffi` линкуется в приложение; 52 теста, среди них запуск ядра в процессе: SOCKS-слушатель на loopback, `/groups`, `/stats`, перезагрузка, остановка; Windows: Clippy кросс-сборкой; Android-код компилирует только CI | Claude, 2026-10-06 |
+| Политика Android-TUN в Rust | `android_tun.rs`: 20 тестов на хосте (адреса, DNS-сосед, фильтр приложений, неподдерживаемые параметры, MTU); `nativePlanTun` и Kotlin-оболочку проверяет только CI (сборка APK и Kotlin-тесты), на устройстве не запускалось | Claude, 2026-10-06 |
 | Установщик Linux | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | Вёрстка интерфейса | скриншоты `slint-viewer`: 5 страниц, телефон (380 px, M3) и компьютер (1080 px), обе темы | Claude, 2026-10-06 |
 | Сборка и тесты на Windows (66 + 69), DPAPI-совместимость с C# | машина разработчика | предыдущий автор ([журнал](BUILD-LOG.md)); повторно не запускалось |

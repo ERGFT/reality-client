@@ -16,7 +16,7 @@ Contents:
 | What | Where and how | By |
 |---|---|---|
 | Client build on Linux x86_64 | Ubuntu 24.04, `cargo build --locked` | Claude, 2026-10-06 |
-| 51 unit tests | `cargo test --locked` in `rust-client/`, all pass (including the dynamic-colour mapping) | Claude, 2026-10-06 |
+| 72 unit tests | `cargo test --locked` in `rust-client/`, all pass (including the dynamic-colour mapping) | Claude, 2026-10-06 |
 | `cargo fmt --check`, Clippy | clean (`-D warnings -A dead_code`) | Claude, 2026-10-06 |
 | JNI bridge type-checks on the host | `cargo check --features android-bridge-check` | Claude, 2026-10-06 |
 | Window startup on Linux | under Xvfb: the window renders and every page opens | Claude, 2026-10-06 |
@@ -24,6 +24,7 @@ Contents:
 | CI on GitHub Actions: Linux, Windows, Android | green on `main` and PR #8: formatting, Clippy, tests (Windows: 75), Linux/Windows package build and content check, APK build | GitHub Actions, 2026-10-06 |
 | Splitting `lib.rs` into modules | Linux: `fmt`, Clippy, 51 tests, `android-bridge-check`, the window starts; Windows: Clippy via cross-build (`x86_64-pc-windows-gnu`, both feature sets); Android code is compiled only by CI | Claude, 2026-10-06 |
 | The core as a Cargo dependency (Linux) | `reality-ffi` is linked into the app; 52 tests, including starting the core in-process: loopback SOCKS listener, `/groups`, `/stats`, reload, stop; Windows: Clippy via cross-build; Android code is compiled by CI only | Claude, 2026-10-06 |
+| Android TUN policy in Rust | `android_tun.rs`: 20 host tests (addresses, DNS neighbour, app filter, unsupported options, MTU); `nativePlanTun` and the Kotlin shell are checked by CI only (APK build and Kotlin tests), not run on a device | Claude, 2026-10-06 |
 | Linux installer | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | UI layout | `slint-viewer` screenshots: 5 pages, phone (380 px, M3) and desktop (1080 px), both themes | Claude, 2026-10-06 |
 | Windows build and tests (66 + 69), DPAPI compatibility with C# | developer machine | previous author ([log](BUILD-LOG.md), Russian); not re-run |

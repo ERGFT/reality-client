@@ -31,6 +31,7 @@ flowchart TB
     SEC[security.rs<br/>secret redaction]
     CORE[core.rs, ffi_core.rs, ffi_session.rs<br/>start and control the core]
     MAT[material.rs<br/>dynamic colours]
+    TUNP[android_tun.rs<br/>Android TUN policy]
   end
   subgraph PLAT[Platform adapters]
     WP[windows_proxy.rs<br/>system proxy]
@@ -135,9 +136,14 @@ core. UI, profiles and logic are Rust (`slint` + `android-activity`).
 - The config reaches the service through a temporary file in the app-private
   directory, not an `Intent` (Binder size limit). The file is erased after it is
   read, cancelled or fails.
-- Before `establish()` the service validates the config: exactly one `tun`
-  inbound, supported routes and app filter. Anything unsupported is rejected
-  before the interface exists.
+- The TUN policy lives entirely in Rust (`android_tun.rs`, tested on the host): before
+  `establish()` the service calls `nativePlanTun`, and Rust validates the config (exactly
+  one `tun` inbound, supported options, app filter, MTU, boolean flags without silent
+  coercion), computes the addresses, the in-subnet DNS address and the routes, and strips
+  `include_package` from the config handed to the core. Kotlin only applies the plan to
+  `VpnService.Builder`. Anything unsupported is rejected before the interface exists.
+- Kotlin keeps what needs Android APIs: the check for another active VPN, the
+  permission, the notification, `establish()` and handing over the descriptor.
 - Colours: `MainActivity.readSystemPalette()` reads the Material You palette;
   `material.rs` maps it to tokens ([DESIGN.en.md](DESIGN.en.md#dynamic-colours-android)).
 
@@ -160,7 +166,7 @@ capped at 2 MiB and links at 16 KiB.
 | `rust-client/src/ui/` | window handlers by topic: `appearance`, `diagnostics`, `config_editor`, `profiles`, `connection`, `groups`, `runtime` (timers); shared state `UiState` in `mod.rs` |
 | `rust-client/src/*.rs` | pure logic with tests (`config_json`, `server_info`, `clipboard`, `runtime_stats`, `profiles`, `security`), starting the core (`core`, `ffi_*`) and platform adapters |
 | `rust-client/ui/main.slint` | the UI |
-| `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService`, TUN policy, JVM tests |
+| `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService` (thin shell), JVM tests for the staged config file |
 | `rust-client/assets/` | app icon |
 | `rust-client/build-*.{sh,ps1}` | per-platform package builds |
 | `scripts/` | `fetch-core.sh` / `fetch-core.ps1`: fetch the core by commit hash |
@@ -177,4 +183,4 @@ capped at 2 MiB and links at 16 KiB.
 - The client's `Cargo.lock` holds the whole core dependency graph, and `[patch.crates-io]`
   duplicates vpn-core's root `Cargo.toml`: when the core commit changes, compare both.
 - Binary files are tracked in git (`dist/`, `third_party/reality-client.exe` for C#, `wintun.dll`).
-- Android TUN policy lives in Kotlin; it should move to Rust (stage 7).
+- The Kotlin part of Android is now minimal (stage 7 done) but not checked on a device: the TUN policy is in Rust and covered by host tests only.

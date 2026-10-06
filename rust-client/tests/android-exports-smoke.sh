@@ -22,6 +22,7 @@ for symbol in \
     Java_com_ergft_realityclient_MainActivity_nativeVpnPermissionDenied \
     Java_com_ergft_realityclient_MainActivity_nativeActivityDestroyed \
     Java_com_ergft_realityclient_RealityVpnService_nativeStart \
+    Java_com_ergft_realityclient_RealityVpnService_nativePlanTun \
     Java_com_ergft_realityclient_RealityVpnService_nativeStop \
     Java_com_ergft_realityclient_RealityVpnService_nativeVpnStartFailed; do
     [[ "${ANDROID_EXPORTS_MISSING:-}" == "$symbol" ]] && continue

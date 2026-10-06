@@ -31,6 +31,7 @@ flowchart TB
     SEC[security.rs<br/>очистка секретов]
     CORE[core.rs, ffi_core.rs, ffi_session.rs<br/>запуск и управление ядром]
     MAT[material.rs<br/>динамические цвета]
+    TUNP[android_tun.rs<br/>политика Android-TUN]
   end
   subgraph PLAT[Платформенные адаптеры]
     WP[windows_proxy.rs<br/>системный прокси]
@@ -135,9 +136,14 @@ vpn-core — зависимость Cargo (`reality-ffi`, путь `third_party/
 - Конфигурация передаётся через временный файл в приватном каталоге
   приложения, а не через `Intent` (ограничение Binder). Файл стирается после
   чтения, отмены или ошибки.
-- Перед `establish()` служба проверяет конфиг: ровно один `tun`-вход,
-  поддерживаемые маршруты и фильтр приложений. Неподдерживаемое — отказ до
-  создания интерфейса.
+- Политика TUN целиком в Rust (`android_tun.rs`, тесты идут на хосте): перед
+  `establish()` служба вызывает `nativePlanTun`, и Rust проверяет конфиг (ровно
+  один `tun`-вход, поддерживаемые параметры, фильтр приложений, MTU, логические
+  флаги без молчаливых приведений), считает адреса, адрес DNS в подсети и маршруты и
+  убирает `include_package` из конфигурации для ядра. Kotlin только применяет план
+  к `VpnService.Builder`. Неподдерживаемое — отказ до создания интерфейса.
+- В Kotlin остаётся то, что требует Android API: проверка чужого активного VPN,
+  разрешение, уведомление, `establish()`, передача дескриптора.
 - Цвета: `MainActivity.readSystemPalette()` читает палитру Material You;
   `material.rs` переводит её в токены ([DESIGN.md](DESIGN.md#динамические-цвета-android)).
 
@@ -160,7 +166,7 @@ vpn-core — зависимость Cargo (`reality-ffi`, путь `third_party/
 | `rust-client/src/ui/` | обработчики окна по темам: `appearance`, `diagnostics`, `config_editor`, `profiles`, `connection`, `groups`, `runtime` (таймеры), общее состояние `UiState` в `mod.rs` |
 | `rust-client/src/*.rs` | чистая логика с тестами (`config_json`, `server_info`, `clipboard`, `runtime_stats`, `profiles`, `security`), запуск ядра (`core`, `ffi_*`) и платформенные адаптеры |
 | `rust-client/ui/main.slint` | интерфейс |
-| `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService`, политика TUN, JVM-тесты |
+| `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService` (тонкая оболочка), JVM-тесты временного файла конфигурации |
 | `rust-client/assets/` | иконка приложения |
 | `rust-client/build-*.{sh,ps1}` | сборка пакетов под платформы |
 | `scripts/` | `fetch-core.sh` / `fetch-core.ps1` — скачивание ядра по хешу коммита |
@@ -177,4 +183,4 @@ vpn-core — зависимость Cargo (`reality-ffi`, путь `third_party/
 - `Cargo.lock` клиента содержит весь граф зависимостей ядра, а `[patch.crates-io]`
   дублирует корневой `Cargo.toml` vpn-core: при смене коммита ядра сверять оба.
 - В git лежат бинарные файлы (`dist/`, `third_party/reality-client.exe` для C#, `wintun.dll`).
-- Политика Android-TUN живёт в Kotlin; её стоит перенести в Rust (этап 7).
+- Kotlin-часть Android осталась минимальной (этап 7 выполнен), но не проверена на устройстве: политика TUN теперь в Rust и покрыта тестами только на хосте.

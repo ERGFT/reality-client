@@ -1,5 +1,7 @@
 #[cfg(any(target_os = "android", feature = "android-bridge-check"))]
 mod android_bridge;
+#[cfg(any(target_os = "android", feature = "android-bridge-check", test))]
+mod android_tun;
 mod clipboard;
 mod config_json;
 mod core;

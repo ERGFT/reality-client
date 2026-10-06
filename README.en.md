@@ -39,7 +39,7 @@ device, and shows speed, traffic, connections and logs.
 |---|---|---|---|
 | **Windows x64** | `rust-client/build-windows.ps1` | build and tests on the developer machine ([log](docs/BUILD-LOG.md), Russian) | system proxy and TUN on a clean machine, real traffic |
 | **Android arm64** | `rust-client/build-android.sh` | debug APK builds and starts in an emulator | `VpnService`/TUN on a device, real traffic, dynamic colours on a device |
-| **Linux x86_64** | `rust-client/build-linux.sh` | build, 51 tests and window startup on Ubuntu 24.04 | real traffic, TUN, Secret Service on a real desktop |
+| **Linux x86_64** | `rust-client/build-linux.sh` | build, 72 tests and window startup on Ubuntu 24.04 | real traffic, TUN, Secret Service on a real desktop |
 | macOS, iOS, tvOS | — | — | postponed, see [PLAN.en.md](PLAN.en.md) |
 
 > [!WARNING]
