@@ -1,7 +1,8 @@
 # rust-client
 
-Приложение Reality Client: Rust + Slint. Общее описание — в [корневом README](../README.md),
-устройство — [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
+Приложение Reality Client: Rust + Slint. Общее описание — в [корневом README](../README.md) ([English](../README.en.md)),
+устройство — [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md), сборка под платформы —
+[docs/PLATFORMS.md](../docs/PLATFORMS.md).
 
 ## Проверки (любой хост)
 

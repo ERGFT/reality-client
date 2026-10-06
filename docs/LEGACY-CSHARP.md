@@ -4,7 +4,7 @@
 
 # Reality Client
 
-> **Основная версия в разработке:** Rust/Slint-клиент находится в `rust-client/`; опубликован предварительный релиз [v0.1.0-preview.8](https://github.com/ERGFT/reality-client/releases/tag/v0.1.0-preview.8). C# WinForms в `src/` и `dist/RealityClient.exe` сохранён как эталон для проверки паритета. Rust-версия включает защищённые профили (Windows DPAPI, Linux Secret Service, Android Keystore-backed encryption), закреплённое Rust-ядро через FFI, многораздельный интерфейс, полный JSON-редактор, системный прокси Windows и платформенные интеграции TUN. По пожеланию пользователя визуальное направление — Material You: тональные поверхности, скруглённые карточки и навигация; Android wallpaper-derived dynamic color пока не заявлен. Windows host-тесты проверяют логику и сборку, но не доказывают изменение системного прокси, работу Windows TUN или подключение к удалённому серверу. Нативная Linux-сборка/runtime и Android VPN runtime также не проверены; полной поддержки платформ пока не заявляется. Текущие сведения и ограничения — в [`rust-client/README.md`](rust-client/README.md).
+> **Основная версия в разработке:** Rust/Slint-клиент находится в `rust-client/`; опубликован предварительный релиз [v0.1.0-preview.8](https://github.com/ERGFT/reality-client/releases/tag/v0.1.0-preview.8). C# WinForms в `src/` и `dist/RealityClient.exe` сохранён как эталон для проверки паритета. Rust-версия включает защищённые профили (Windows DPAPI, Linux Secret Service, Android Keystore-backed encryption), закреплённое Rust-ядро через FFI, многораздельный интерфейс, полный JSON-редактор, системный прокси Windows и платформенные интеграции TUN. По пожеланию пользователя визуальное направление — Material You: тональные поверхности, скруглённые карточки и навигация; Android wallpaper-derived dynamic color пока не заявлен. Windows host-тесты проверяют логику и сборку, но не доказывают изменение системного прокси, работу Windows TUN или подключение к удалённому серверу. Нативная Linux-сборка/runtime и Android VPN runtime также не проверены; полной поддержки платформ пока не заявляется. Текущие сведения и ограничения — в [`rust-client/README.md`](../rust-client/README.md).
 
 Этот README ниже описывает сохранённую C# WinForms-версию как эталон паритета. Её Windows-сборка предназначена для Windows 10/11 x64. Главный артефакт — `dist/RealityClient.exe`: Windows Forms-интерфейс и ядро находятся в одном EXE; при первом запуске ядро извлекается в закрытую пользовательскую папку `%LOCALAPPDATA%\RealityClient`.
 
@@ -92,7 +92,7 @@ rustup toolchain install stable-x86_64-pc-windows-gnu --profile minimal
 
 Скрипт создаёт отдельный `rust-client/dist/windows-x64/` пакет с Rust EXE, ярлыком, FFI-DLL и CLI-проверяющим файлом ядра; он не перезаписывает текущую C#-сборку.
 
-Исторические заметки ниже относятся к состояниям на даты записей. Актуальный статус сборок, проверок и ограничений Rust-клиента ведётся в [rust-client/README.md](rust-client/README.md).
+Исторические заметки ниже относятся к состояниям на даты записей. Актуальный статус сборок, проверок и ограничений Rust-клиента ведётся в [rust-client/README.md](../rust-client/README.md).
 
 Требуется Windows с .NET Framework 4.5+ (есть в поддерживаемых Windows 10/11) и `csc.exe`. `build.ps1` собирает GUI и встраивает бинарник ядра из `third_party/reality-client.exe`. Текущий исходник ядра лицензирован GPL-3.0-or-later; условия распространения GUI и вложенного ядра описаны в `THIRD_PARTY.md`.
 
