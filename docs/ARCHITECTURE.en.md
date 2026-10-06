@@ -103,7 +103,7 @@ config is sing-box/Xray JSON; the VLESS link is turned into it through a private
 temporary file (`link_file`) so the secret never lands in process arguments.
 
 The core version is pinned by a commit hash in `third_party/vpn-core.rev`; the
-build scripts (`scripts/fetch-core.sh`, `scripts/fetch-core.ps1`) fetch exactly that
+build tasks (`cargo xtask fetch-core`) fetch exactly that
 commit from the vpn-core repository into `third_party/vpn-core/` (outside git); fetch it
 before any `cargo` command. A commit hash fixes the content by itself, so no separate
 checksum or local patches are needed. The core's dependency patches (`rustls` for
@@ -169,7 +169,7 @@ capped at 2 MiB and links at 16 KiB.
 | `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService` (thin shell), JVM tests for the staged config file |
 | `rust-client/assets/` | app icon |
 | `rust-client/build-*.{sh,ps1}` | per-platform package builds |
-| `scripts/` | `fetch-core.sh` / `fetch-core.ps1`: fetch the core by commit hash |
+| `xtask/` | `cargo xtask`: `fetch-core` (the core by commit hash), `core-cli`, `package-windows`, `test-windows` |
 | `third_party/` | `vpn-core.rev` (core commit), `wintun.dll` |
 | `src/`, `build.ps1`, `dist/` | previous C# version (archive) |
 | `.github/workflows/` | CI: Linux, Windows, Android |

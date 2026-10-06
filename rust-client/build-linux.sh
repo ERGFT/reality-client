@@ -18,7 +18,7 @@ trap cleanup EXIT
 # Ядро — Cargo-зависимость клиента (path-зависимость на third_party/vpn-core);
 # отдельно собирается только его консольная программа reality-client.
 source_dir="$repo_root/third_party/vpn-core"
-bash "$repo_root/scripts/fetch-core.sh" "$source_dir"
+(cd "$repo_root" && cargo xtask fetch-core "$source_dir")
 
 export CARGO_TARGET_DIR="$build_root/target"
 cargo build --locked --release --manifest-path "$source_dir/Cargo.toml" -p reality-client

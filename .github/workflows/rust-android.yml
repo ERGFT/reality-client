@@ -5,13 +5,15 @@ on:
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
-      - "scripts/fetch-core.*"
+      - "xtask/**"
+      - ".cargo/**"
       - ".github/workflows/rust-android.yml"
   pull_request:
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
-      - "scripts/fetch-core.*"
+      - "xtask/**"
+      - ".cargo/**"
       - ".github/workflows/rust-android.yml"
   workflow_dispatch:
 
@@ -56,7 +58,7 @@ jobs:
         run: cargo install cargo-ndk --locked
 
       - name: Fetch pinned vpn-core (Cargo dependency of the client)
-        run: bash scripts/fetch-core.sh third_party/vpn-core
+        run: cargo xtask fetch-core
 
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-client/Cargo.toml --check

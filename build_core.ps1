@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $expectedCommit = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'third_party\vpn-core.rev') -Raw).Trim()
 $sourceRoot = Join-Path $env:TEMP ('reality-client-source-' + [Guid]::NewGuid().ToString('N'))
-& (Join-Path $PSScriptRoot 'scripts\fetch-core.ps1') -Destination $sourceRoot
+& cargo xtask fetch-core $sourceRoot
 $source = $sourceRoot
 
 $msys = Join-Path $env:LOCALAPPDATA 'Programs\msys64'

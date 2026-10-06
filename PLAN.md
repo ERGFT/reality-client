@@ -23,7 +23,7 @@
 | 5 | `rust-client/src/lib.rs` (3600 строк) разнесён по модулям: `ui/` (обработчики по темам, `UiState`) и чистые модули с тестами; поведение и тесты те же | ✅ |
 | 6 | Сквозные проверки: настоящий сервер REALITY → Windows, Linux, Android | ⏳ нужны сервер и устройства |
 | 7 | Android: политика TUN из Kotlin в Rust (`android_tun.rs`, тесты на хосте), `VpnService` — тонкая оболочка | ✅ на устройстве не проверено |
-| 8 | Убрать C# и PowerShell-скрипты после паритета, заменить на `cargo xtask` | ⏳ |
+| 8 | PowerShell-скрипты заменены на `cargo xtask` (`fetch-core`, `core-cli`, `package-windows`, `test-windows`); C# и его скрипты уберём после паритета и этапа 6 | 🔶 xtask готов (Windows-команды проверит CI); C# остаётся |
 | 9 | Первый релиз: подписанные сборки, SHA-256, инструкция установки и обновления | ⏳ |
 | 10 | Apple: macOS, затем iOS/tvOS (Network Extension) | 💤 отложено |
 

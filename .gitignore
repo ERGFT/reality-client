@@ -12,6 +12,7 @@ third_party/vpn-core/
 bin/
 obj/
 rust-client/target/
+xtask/target/
 rust-client/dist/
 rust-client/third_party/reality-client.exe
 rust-client/android/.gradle/

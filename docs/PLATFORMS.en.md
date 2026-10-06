@@ -36,13 +36,13 @@ cd rust-client
 ```
 
 The build script fetches vpn-core by exactly the commit hash in `third_party/vpn-core.rev`
-into `third_party/vpn-core/` (`scripts/fetch-core.sh`), builds the core's command-line
+into `third_party/vpn-core/` (`cargo xtask fetch-core`), builds the core's command-line
 program and the UI; the core itself is linked into `RealityClient` as a Cargo dependency
 (there is no separate `libreality.so`). To build against a local copy of the core:
 `REALITY_CORE_URL=/path/to/vpn-core ./build-linux.sh` (`third_party/vpn-core` must be
 empty or absent).
 
-**Client tests only:** first `scripts/fetch-core.sh third_party/vpn-core`, then
+**Client tests only:** first `cargo xtask fetch-core`, then
 `cargo test --locked` in `rust-client/` (the core compiles together with the client;
 `cmake` and `nasm` are needed, as for `aws-lc`).
 
@@ -65,9 +65,9 @@ core's `reality-client --tun-cleanup` as root.
 path `%LOCALAPPDATA%\Programs\msys64\mingw64\bin`, overridable with `REALITY_MINGW_BIN`).
 
 ```powershell
-.\build_rust_core.ps1                    # fetches the core by commit hash into third_party\vpn-core and builds rust-client\third_party\reality-client.exe
-.\rust-client\build-windows.ps1          # rust-client\dist\windows-x64\RealityClient-Rust.exe
-.\rust-client\tests\windows-test.ps1     # tests on the GNU toolchain, no MSVC link.exe
+cargo xtask core-cli                     # fetches the core by commit hash into third_party\vpn-core and builds rust-client\third_party\reality-client.exe
+cargo xtask package-windows              # core + client + package: rust-client\dist\windows-x64\RealityClient-Rust.exe
+cargo xtask test-windows                 # tests and Clippy on the GNU toolchain, no MSVC link.exe
 ```
 
 The package holds `RealityClient-Rust.exe` (the core is inside it) and `third_party\reality-client.exe`

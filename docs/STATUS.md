@@ -25,6 +25,7 @@
 | Разнесение `lib.rs` по модулям | Linux: `fmt`, Clippy, 51 тест, `android-bridge-check`, окно запускается; Windows: Clippy кросс-сборкой (`x86_64-pc-windows-gnu`, оба набора функций); Android-код компилирует только CI | Claude, 2026-10-06 |
 | Ядро как зависимость Cargo (Linux) | `reality-ffi` линкуется в приложение; 52 теста, среди них запуск ядра в процессе: SOCKS-слушатель на loopback, `/groups`, `/stats`, перезагрузка, остановка; Windows: Clippy кросс-сборкой; Android-код компилирует только CI | Claude, 2026-10-06 |
 | Политика Android-TUN в Rust | `android_tun.rs`: 20 тестов на хосте (адреса, DNS-сосед, фильтр приложений, неподдерживаемые параметры, MTU); `nativePlanTun` и Kotlin-оболочку проверяет только CI (сборка APK и Kotlin-тесты), на устройстве не запускалось | Claude, 2026-10-06 |
+| `cargo xtask` | Linux: `fetch-core` (скачивание, повторный запуск ничего не меняет, неверная команда — код 2), `fmt`, Clippy; Windows: Clippy кросс-сборкой (включая COM-ярлык). Команды `core-cli`, `package-windows`, `test-windows` не запускались на Windows — их выполнит CI | Claude, 2026-10-06 |
 | Установщик Linux | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | Вёрстка интерфейса | скриншоты `slint-viewer`: 5 страниц, телефон (380 px, M3) и компьютер (1080 px), обе темы | Claude, 2026-10-06 |
 | Сборка и тесты на Windows (66 + 69), DPAPI-совместимость с C# | машина разработчика | предыдущий автор ([журнал](BUILD-LOG.md)); повторно не запускалось |
@@ -33,7 +34,7 @@
 ## 2. Не проверено
 
 - Сквозной трафик «клиент → настоящий сервер VLESS/REALITY → сайт» на **любой** платформе.
-- Windows: запуск собранного `.exe`, системный прокси и TUN (Wintun) на чистой машине; пакет `build-windows.ps1` целиком (ядро, `wintun.dll`).
+- Windows: запуск собранного `.exe`, системный прокси и TUN (Wintun) на чистой машине; пакет `cargo xtask package-windows` целиком (ядро, `wintun.dll`).
 - Linux: TUN и маршруты, Secret Service на реальном рабочем столе, `setcap`.
 - Android: сборка APK после изменений (Material 3, `readSystemPalette` на Kotlin и JNI),
   `VpnService` и TUN на устройстве, `protect(fd)`, смена сети, отзыв разрешения,

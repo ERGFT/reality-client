@@ -5,13 +5,15 @@ on:
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
-      - "scripts/fetch-core.*"
+      - "xtask/**"
+      - ".cargo/**"
       - ".github/workflows/rust-linux.yml"
   pull_request:
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
-      - "scripts/fetch-core.*"
+      - "xtask/**"
+      - ".cargo/**"
       - ".github/workflows/rust-linux.yml"
   release:
     types: [published]
@@ -46,9 +48,13 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Fetch pinned vpn-core (Cargo dependency of the client)
-        run: bash scripts/fetch-core.sh third_party/vpn-core
+        run: cargo xtask fetch-core
       - name: Check Rust formatting
-        run: cargo fmt --manifest-path rust-client/Cargo.toml --check
+        run: |
+          cargo fmt --manifest-path rust-client/Cargo.toml --check
+          cargo fmt --manifest-path xtask/Cargo.toml --check
+      - name: Run xtask static analysis
+        run: cargo clippy --manifest-path xtask/Cargo.toml --locked -- -D warnings
       - name: Run Rust static analysis
         run: cargo clippy --manifest-path rust-client/Cargo.toml --locked --all-targets -- -D warnings -A dead_code
       - name: Run client unit and local FFI tests

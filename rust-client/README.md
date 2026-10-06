@@ -29,8 +29,8 @@ cargo test --locked
 ## Windows
 
 ```powershell
-./build-windows.ps1                 # dist\windows-x64\RealityClient-Rust.exe
-./tests/windows-test.ps1            # тесты на GNU-тулчейне без MSVC link.exe
+cargo xtask package-windows         # rust-client\dist\windows-x64\RealityClient-Rust.exe
+cargo xtask test-windows            # тесты на GNU-тулчейне без MSVC link.exe
 ```
 
 Для TUN нужен `wintun.dll` рядом с приложением и запуск от администратора.
@@ -51,10 +51,10 @@ rustup target add aarch64-linux-android
 ## Закреплённое ядро
 
 `../third_party/vpn-core.rev` — хеш коммита vpn-core, из которого собираются
-скрипты. `../scripts/fetch-core.sh` (`.ps1` на Windows) скачивает ровно этот
+скрипты. `cargo xtask fetch-core` скачивает ровно этот
 коммит из публичного репозитория в `../third_party/vpn-core/` (вне git); патчей и
 архивов в git больше нет. Ядро — зависимость Cargo клиента (`reality-ffi`), поэтому
-перед `cargo build`/`cargo test` каталог нужно скачать: `../scripts/fetch-core.sh ../third_party/vpn-core`.
+перед `cargo build`/`cargo test` каталог нужно скачать: `cargo xtask fetch-core` (из корня репозитория).
 Чтобы собрать с локальной копией ядра: `REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh`.
 
 Архив журнала проверок предварительных сборок — [docs/BUILD-LOG.md](../docs/BUILD-LOG.md).

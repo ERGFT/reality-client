@@ -36,13 +36,13 @@ cd rust-client
 ```
 
 Скрипт сборки скачивает vpn-core ровно по хешу коммита из `third_party/vpn-core.rev`
-в `third_party/vpn-core/` (`scripts/fetch-core.sh`), собирает консольную программу ядра
+в `third_party/vpn-core/` (`cargo xtask fetch-core`), собирает консольную программу ядра
 и интерфейс; само ядро линкуется в `RealityClient` как зависимость Cargo (отдельной
 `libreality.so` нет). Чтобы собрать с локальной копией ядра:
 `REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh` (каталог `third_party/vpn-core` при
 этом должен быть пуст или отсутствовать).
 
-**Только тесты клиента:** сначала `scripts/fetch-core.sh third_party/vpn-core`, затем
+**Только тесты клиента:** сначала `cargo xtask fetch-core`, затем
 `cargo test --locked` в `rust-client/` (ядро компилируется вместе с клиентом; нужны `cmake`
 и `nasm`, как для `aws-lc`).
 
@@ -66,9 +66,9 @@ sudo setcap cap_net_admin+ep "$HOME/.local/opt/reality-client/RealityClient"
 `REALITY_MINGW_BIN`).
 
 ```powershell
-.\build_rust_core.ps1                    # скачивает ядро по хешу коммита в third_party\vpn-core и собирает rust-client\third_party\reality-client.exe
-.\rust-client\build-windows.ps1          # rust-client\dist\windows-x64\RealityClient-Rust.exe
-.\rust-client\tests\windows-test.ps1     # тесты на GNU-тулчейне, без MSVC link.exe
+cargo xtask core-cli                     # скачивает ядро по хешу коммита в third_party\vpn-core и собирает rust-client\third_party\reality-client.exe
+cargo xtask package-windows              # ядро + клиент + пакет: rust-client\dist\windows-x64\RealityClient-Rust.exe
+cargo xtask test-windows                 # тесты и Clippy на GNU-тулчейне, без MSVC link.exe
 ```
 
 Пакет содержит `RealityClient-Rust.exe` (ядро внутри него) и `third_party\reality-client.exe`
