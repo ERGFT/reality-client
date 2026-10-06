@@ -25,7 +25,8 @@ flowchart TB
     S[ui/main.slint<br/>Theme + components + pages]
   end
   subgraph APP[Client logic — rust-client/src]
-    LIB[lib.rs<br/>state and UI bindings]
+    UIM[ui/<br/>window handlers by topic, UiState]
+    PURE[config_json.rs, server_info.rs,<br/>clipboard.rs, runtime_stats.rs<br/>pure functions with tests]
     PR[profiles.rs<br/>profiles and storage]
     SEC[security.rs<br/>secret redaction]
     CORE[core.rs, ffi_core.rs, ffi_session.rs<br/>start and control the core]
@@ -39,9 +40,9 @@ flowchart TB
   K[Kotlin: MainActivity, RealityVpnService]
   LR[libreality — vpn-core, C ABI]
 
-  S <--> LIB
-  LIB --> PR & SEC & CORE & MAT
-  LIB --> WP & PF & AB
+  S <--> UIM
+  UIM --> PURE & PR & SEC & CORE & MAT
+  UIM --> WP & PF & AB
   CORE --> LR
   AB <--> K
   K -- TUN fd, protect --> LR
@@ -150,7 +151,8 @@ capped at 2 MiB and links at 16 KiB.
 
 | Path | What |
 |---|---|
-| `rust-client/src/` | client logic and platform adapters |
+| `rust-client/src/ui/` | window handlers by topic: `appearance`, `diagnostics`, `config_editor`, `profiles`, `connection`, `groups`, `runtime` (timers); shared state `UiState` in `mod.rs` |
+| `rust-client/src/*.rs` | pure logic with tests (`config_json`, `server_info`, `clipboard`, `runtime_stats`, `profiles`, `security`), starting the core (`core`, `ffi_*`) and platform adapters |
 | `rust-client/ui/main.slint` | the UI |
 | `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService`, TUN policy, JVM tests |
 | `rust-client/assets/` | app icon |
@@ -162,8 +164,8 @@ capped at 2 MiB and links at 16 KiB.
 
 ## 9. Known technical debt
 
-- `rust-client/src/lib.rs` is a ~3600-line monolith: state, handlers and UI
-  bindings should be split into modules (stage 5).
+- The `install` functions in `ui/` are still large (handlers are closures sharing `Arc`s);
+  they can be split further, but behaviour is already grouped by topic (stage 5 done).
 - The core is loaded dynamically (`libloading`); a direct Cargo dependency is planned
   (stage 4, part 2).
 - Binary files are tracked in git (`dist/`, `third_party/reality-client.exe` for C#, `wintun.dll`).

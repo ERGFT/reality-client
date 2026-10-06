@@ -22,6 +22,7 @@
 | Запуск окна на Linux | под Xvfb: окно рисуется, все страницы открываются | Claude, 2026-10-06 |
 | Сборка Windows x64 кросс-компиляцией с Linux | `cargo build --locked --release --target x86_64-pc-windows-gnu` + `mingw-w64`: `reality-client-rs.exe` собран; не запускался | Claude, 2026-10-06 |
 | CI на GitHub Actions: Linux, Windows, Android | зелёные на `main` и PR #8: форматирование, Clippy, тесты (Windows — 75), сборка и проверка пакетов Linux/Windows, сборка APK | GitHub Actions, 2026-10-06 |
+| Разнесение `lib.rs` по модулям | Linux: `fmt`, Clippy, 51 тест, `android-bridge-check`, окно запускается; Windows: Clippy кросс-сборкой (`x86_64-pc-windows-gnu`, оба набора функций); Android-код компилирует только CI | Claude, 2026-10-06 |
 | Установщик Linux | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | Вёрстка интерфейса | скриншоты `slint-viewer`: 5 страниц, телефон (380 px, M3) и компьютер (1080 px), обе темы | Claude, 2026-10-06 |
 | Сборка и тесты на Windows (66 + 69), DPAPI-совместимость с C# | машина разработчика | предыдущий автор ([журнал](BUILD-LOG.md)); повторно не запускалось |
@@ -43,7 +44,6 @@
 - Ядро закреплено хешем коммита в `third_party/vpn-core.rev` и скачивается при
   сборке (патчей нет). Закреплён коммит слияния исправления владения
   TUN-дескриптором ([vpn-core#28](https://github.com/ERGFT/vpn-core/pull/28)).
-- `rust-client/src/lib.rs` — монолит около 3600 строк.
 - В git лежат бинарные файлы (`dist/RealityClient.exe`, `third_party/reality-client.exe` — для C#, `wintun.dll`).
 - Раскладка десктопа рассчитана на окно не уже 760 px; адаптация по ширине окна
   отключена, чтобы избежать цикла размеров ([DESIGN.md](DESIGN.md#4-раскладка)).

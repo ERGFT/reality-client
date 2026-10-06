@@ -22,6 +22,7 @@ Contents:
 | Window startup on Linux | under Xvfb: the window renders and every page opens | Claude, 2026-10-06 |
 | Windows x64 cross-build from Linux | `cargo build --locked --release --target x86_64-pc-windows-gnu` + `mingw-w64`: `reality-client-rs.exe` built; not run | Claude, 2026-10-06 |
 | CI on GitHub Actions: Linux, Windows, Android | green on `main` and PR #8: formatting, Clippy, tests (Windows: 75), Linux/Windows package build and content check, APK build | GitHub Actions, 2026-10-06 |
+| Splitting `lib.rs` into modules | Linux: `fmt`, Clippy, 51 tests, `android-bridge-check`, the window starts; Windows: Clippy via cross-build (`x86_64-pc-windows-gnu`, both feature sets); Android code is compiled only by CI | Claude, 2026-10-06 |
 | Linux installer | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | UI layout | `slint-viewer` screenshots: 5 pages, phone (380 px, M3) and desktop (1080 px), both themes | Claude, 2026-10-06 |
 | Windows build and tests (66 + 69), DPAPI compatibility with C# | developer machine | previous author ([log](BUILD-LOG.md), Russian); not re-run |
@@ -43,7 +44,6 @@ Contents:
 - The core is pinned by a commit hash in `third_party/vpn-core.rev` and fetched at
   build time (no patches). The pin is the merge commit of the TUN-descriptor ownership
   fix ([vpn-core#28](https://github.com/ERGFT/vpn-core/pull/28)).
-- `rust-client/src/lib.rs` is a ~3600-line monolith.
 - Binary files are tracked in git (`dist/RealityClient.exe`, `third_party/reality-client.exe` for C#, `wintun.dll`).
 - The desktop layout assumes a window at least 760 px wide; width-based adaptation is
   off to avoid a size loop ([DESIGN.en.md](DESIGN.en.md#4-layout)).
