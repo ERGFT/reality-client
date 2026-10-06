@@ -55,6 +55,7 @@ install -m 0644 "$CARGO_TARGET_DIR/release/libreality.so" "$package_dir/libreali
 install -m 0644 "$repo_root/LICENSE.txt" "$package_dir/LICENSE.txt"
 install -m 0644 "$script_dir/PACKAGE-README.md" "$package_dir/README.md"
 install -m 0755 "$script_dir/install-linux.sh" "$package_dir/install-linux.sh"
+install -m 0644 "$script_dir/assets/icon.png" "$package_dir/reality-client.png"
 
 cat > "$package_dir/reality-client.desktop" <<'DESKTOP'
 [Desktop Entry]
@@ -62,6 +63,8 @@ Type=Application
 Name=Reality Client
 Comment=VLESS/REALITY client
 Terminal=false
+Icon=reality-client
+StartupWMClass=reality-client
 Categories=Network;Security;
 DESKTOP
 desktop_exec="$package_dir/RealityClient"

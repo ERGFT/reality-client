@@ -1,0 +1,53 @@
+[Русский](CONTRIBUTING.md) | [English](CONTRIBUTING.en.md)
+
+# Участие в разработке
+
+Содержание:
+
+1. [Сборка и проверки](#1-сборка-и-проверки)
+2. [Интерфейс без ядра](#2-интерфейс-без-ядра)
+3. [Правила](#3-правила)
+4. [Pull request](#4-pull-request)
+
+## 1. Сборка и проверки
+
+```sh
+cd rust-client
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings -A dead_code
+cargo test --locked
+cargo check --locked --features android-bridge-check   # JNI-мост без Android SDK
+```
+
+Зависимости Linux — в [README](README.md#быстрый-старт), пакеты под платформы —
+в [docs/PLATFORMS.md](docs/PLATFORMS.md).
+
+## 2. Интерфейс без ядра
+
+```sh
+cargo install slint-viewer --version 1.18.1 --locked
+slint-viewer rust-client/ui/main.slint --component MainWindow --load-data demo.json
+```
+
+В `demo.json` — значения свойств `MainWindow` (например, `"active-tab": 1`,
+`"mobile-layout": true`, `"dark-theme": false`). Подробнее — [docs/DESIGN.md](docs/DESIGN.md).
+
+Приложение можно запустить без дисплея: `xvfb-run -a rust-client/target/debug/reality-client-rs`,
+снимок — `import -window root shot.png` (ImageMagick).
+
+## 3. Правила
+
+- **Секреты** (VLESS-ссылки, UUID, токены) не пишем в журнал, аргументы процесса
+  и сообщения об ошибках.
+- **Проверки.** Всё, что вы запускали, записывается в [docs/STATUS.md](docs/STATUS.md)
+  (и в английскую версию). То, что не запускалось, называется «не проверено».
+- **Двуязычие.** Документ меняется — меняется и его `.en.md`.
+- **Цвета и размеры** в интерфейсе берём из `Theme`, а не пишем по месту.
+- **Бинарные файлы** в git не добавляем (кроме небольших ресурсов вроде иконки и скриншотов).
+- Сообщения коммитов — по существу изменения.
+
+## 4. Pull request
+
+- Описание: что изменено, как проверено, что не проверено.
+- CI может быть красным из-за блокировки биллинга — это видно по заданиям, которые
+  завершаются за секунды без шагов; локальные проверки из раздела 1 при этом обязательны.

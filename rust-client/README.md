@@ -1,159 +1,58 @@
-# Reality Client Rust
+# rust-client
 
-The Rust/Slint GUI is an in-progress rewrite of the Windows C# reference client and remains a preview. The Windows x64 package is built by `build-windows.ps1` and includes the GPL license, third-party notice, pinned core source archive, source revision marker, and the signed Wintun x64 DLL with its license. The build verifies the bundled Wintun DLL SHA-256 before packaging. The Linux x86_64 package requires a native Linux host and is built by `build-linux.sh`. Release and pinned-core build commands use `--locked` so they fail if `Cargo.lock` does not match the manifests instead of silently selecting different dependencies.
+Приложение Reality Client: Rust + Slint. Общее описание — в [корневом README](../README.md) ([English](../README.en.md)),
+устройство — [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md), сборка под платформы —
+[docs/PLATFORMS.md](../docs/PLATFORMS.md).
 
-The Rust app reads and writes the Windows-compatible `settings.txt` selection for the full JSON config, so a path selected by the C# client carries over and remains selected after restarting Rust. Desktop startup falls back to `advanced-config.json` if the saved path is missing. An isolated temp-directory regression test covers missing settings and round-tripping a path containing spaces. Current build and verification details, including hashes, platform limits, and test commands, are maintained in the status section below. No remote VPN traffic is claimed as verified.
-
-## Windows host-side tests
-
-The Windows test suites run on Windows without starting a VPN connection or changing the system proxy. They use local temporary files, an in-memory proxy backend, and a loopback SOCKS listener. With the Windows GNU Rust toolchain and MinGW-w64 installed, run from PowerShell:
-
-```powershell
-.\tests\windows-test.ps1
-```
-
-The helper builds a temporary `shlwapi` import library from `tests/windows/shlwapi.def`, then runs both release-profile suites and strict Clippy for both configurations. The temporary library is removed after the run. Current source passes 66 default tests and 69 with the Android bridge host-check, including the main binary target. The profile tests decode and re-encode a golden vault emitted by the C# reference's `.NET BinaryWriter`; tests also cover moving the decrypted link buffer without making an uncleared plaintext copy. A Windows-only cross-runtime test verifies that Rust can decrypt a C# `.NET ProtectedData` blob and C# can decrypt a Rust DPAPI blob using the current Windows user scope. Android host-check Clippy allows expected `dead_code` warnings for Android-only code. This Windows host has no Visual Studio MSVC linker, so the GNU Rust target is explicit. The tests do not enable the system proxy, alter routes, or connect to a remote server.
-
-## Linux build prerequisites
-
-Use a native Linux machine with Rust stable, Python 3, `unzip`, `pkg-config`, CMake, NASM, and the development packages required by Slint and libdbus. On Debian/Ubuntu, the expected packages include `python3`, `libdbus-1-dev`, `libxkbcommon-dev`, `libxkbcommon-x11-dev`, `libwayland-dev`, `libx11-xcb-dev`, `libxcb-xkb-dev`, `libfontconfig1-dev`, and `libfreetype6-dev`.
-
-Run from this directory:
+## Проверки (любой хост)
 
 ```sh
-chmod +x build-linux.sh
-./build-linux.sh
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings -A dead_code
+cargo test --locked
 ```
 
-The script verifies the pinned core source revision and SHA-256, applies the version-checked TUN-FD ownership overlay, runs the Linux descriptor-cleanup regression test, builds the core FFI library, CLI config checker, and GUI, then creates `dist/linux-x86_64/` with the files needed to launch the app. It builds into a temporary directory and removes that directory when finished. After building, run `./dist/linux-x86_64/install-linux.sh` to install the program under `~/.local/opt/reality-client` and register a launcher in the user's applications menu. This installer uses no administrator privileges and keeps profile data in the separate XDG data directory. It now rejects an unset or relative `HOME` before writing any files. Its smoke check passed under MSYS using a temporary HOME and XDG data directory containing spaces, plus empty/relative HOME rejection cases; MSYS `/tmp` is not used for this check because Windows utilities cannot reliably access its virtual paths. This does not verify Unix executable permissions or native Linux build/install/runtime behavior.
+## Linux
 
-For Linux full-JSON TUN configs, the pinned core creates the TUN device and owns its marked route rules; normal core Stop removes those routes. The GUI process needs root or `CAP_NET_ADMIN`. To grant only the network capability to the installed GUI binary, an administrator can run `sudo setcap cap_net_admin+ep "$HOME/.local/opt/reality-client/RealityClient"`; reapply it after replacing that binary during updates. Do not enable `strict_route` until you understand the kill-switch behavior: after a crash, remove only the core's marked leftovers with `sudo "$HOME/.local/opt/reality-client/reality-client" --tun-cleanup`. The core refuses to remove routes while an active instance owns its lock and leaves unmarked routes untouched. This client integration is not yet natively built or runtime-verified on Linux.
+Зависимости и сборка пакета — в [корневом README](../README.md#linux).
 
-## Android APK build
+```sh
+./build-linux.sh      # dist/linux-x86_64/
+./install-linux.sh    # ~/.local/opt/reality-client
+```
 
-The published Android package currently targets `arm64-v8a`. `build-android.sh` also accepts `ANDROID_ABI=x86_64` for Android x86-64 devices and emulator testing; ARM64 remains the default. Install Rust stable and the selected Rust target (`aarch64-linux-android` or `x86_64-linux-android`), `cargo-ndk`, JDK 17, Gradle 8.9, Android SDK platform 35, Android Build-Tools 35.0.0, and Android NDK r25 or newer. Set `ANDROID_SDK_ROOT` and `ANDROID_NDK_HOME`, then run from this directory:
+Для TUN нужны root или `CAP_NET_ADMIN`:
+`sudo setcap cap_net_admin+ep "$HOME/.local/opt/reality-client/RealityClient"`.
+Не включайте `strict_route`, не понимая поведения kill switch: после аварии
+остатки убираются командой ядра `reality-client --tun-cleanup` от root.
+
+## Windows
+
+```powershell
+./build-windows.ps1                 # dist\windows-x64\RealityClient-Rust.exe
+./tests/windows-test.ps1            # тесты на GNU-тулчейне без MSVC link.exe
+```
+
+Для TUN нужен `wintun.dll` рядом с приложением и запуск от администратора.
+
+## Android
+
+Нужны Rust target `aarch64-linux-android`, `cargo-ndk`, JDK 17, Gradle 8.9,
+Android SDK platform 35, Build-Tools 35.0.0 и NDK r25+.
 
 ```sh
 cargo install cargo-ndk
 rustup target add aarch64-linux-android
-chmod +x build-android.sh
-./build-android.sh
+./build-android.sh                  # отладочный APK, arm64-v8a
 ```
 
-To build for an x86-64 Android device or emulator, install `x86_64-linux-android` and run `ANDROID_ABI=x86_64 ./build-android.sh` instead. On PowerShell, set `$env:ANDROID_ABI = 'x86_64'` before invoking the script through Bash. The emulator system image must also be x86_64; this option changes the packaged native libraries, not the APK's Android UI or VPN-service behavior.
+Лицензии Android SDK принимаются вручную. Тесты Kotlin-слоя: `gradle test` в `android/`.
 
-The script checks the pinned core source revision and SHA-256, applies the local TUN ownership overlay, runs the Linux-host regression test for descriptor cleanup after a config-parse failure, builds both `libreality.so` and `libreality_client_rs.so` for the selected ABI, checks that `android_main` and all Kotlin-called JNI methods are exported from the Rust library, runs JVM unit tests for IPv4/IPv6 TUN CIDR parsing, derived DNS peer addresses (including subnet boundaries), and preservation of the pending permission request across Activity recreation, packages the libraries into the Gradle APK, and confirms both shared libraries are present. The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. A GitHub Actions workflow installs Android SDK/NDK, builds this APK, and uploads it as a short-lived artifact for device testing. The current local package was built directly on Windows using SDK 35, NDK 27.2.12479018, JDK 17 and Gradle 8.9. The manifest smoke check, all 22 Android JVM tests, ARM64 pinned-core and Rust/Slint cross-compilation, JNI export check and Gradle APK assembly passed. The current ARM64 APK installed and launched on an Android 15 / API 35 emulator; APK Signature Scheme v2 verification passed. Touch scrolling and the complete full-config settings page were visually checked at the top and bottom. The Linux-only TUN-FD regression test was skipped because this build ran on Windows. Android VPN/TUN operation, physical-device behavior, and remote VPN traffic remain unverified. GitHub Actions PR jobs were blocked before runner startup by account billing/spending-limit status.
+## Закреплённое ядро
 
-Before building, the script applies `patches/apply_core_tun_fd_ownership.py` to the extracted, hash-verified core source. The overlay keeps the supplied TUN descriptor under RAII ownership through config parsing and startup failures, and gives the live TUN device its own descriptor. For a system-provided TUN descriptor (Android/iOS), it also leaves routes to the platform VPN API rather than calling the core's desktop-only `auto_route` setup; the core DNS resolver remains enabled for the tunnel. The Windows FFI DLL and Android ARM64 APK were rebuilt from this overlay on 2026-10-06. A Windows-host core regression test covers the route-ownership decision; the Linux-only descriptor-cleanup regression test remains unrun on Linux.
+`../third_party/vpn-core-source.zip` + `.commit` — версия vpn-core, из которой
+собираются скрипты. Скрипты проверяют коммит и SHA-256 и применяют
+`patches/apply_core_tun_fd_ownership.py` (владение TUN-дескриптором).
+Переход на зависимость Cargo — этап 4 в [PLAN.md](../PLAN.md).
 
-The Android manifest declares the VPN foreground service as `systemExempted` and includes its corresponding Android permission, which is the platform category listed for VPN apps configured through system VPN settings. `tests/android-manifest-smoke.py` checks that declaration and the `BIND_VPN_SERVICE` protection; this static check does not replace an APK build or device runtime test.
-
-### Clipboard import update (2026-10-05)
-
-The Rust/Slint profile form now exposes the paste action on Android as well as Windows. On Android, the action reads the foreground app's clipboard through `MainActivity.readClipboardText()` only after the user taps Paste; the shared sanitizer trims surrounding whitespace and rejects multiline clipboard contents before the link reaches the profile field. Verification on this Windows host: Rust ARM64 Android library cross-compilation passed, required JNI exports passed, the 13 Android JVM tests passed, and Gradle assembled a debug APK containing the updated Rust library. After the JSON editor diagnostic UI update, the latest APK SHA-256 is `790109A673941A85333C8B39B47A5BB7E1AEFC39084BCAE317C2DD89348952C4`. No Android device was available, so the GUI paste action and VPN runtime have not been exercised on-device.
-
-The full-JSON checker now captures bounded stdout/stderr while preserving its 20-second timeout, drains excess output to avoid child-process pipe deadlocks, redacts links and credential-like fields, and presents a bounded diagnostic to the user. The JSON editor displays the diagnostic below its buttons; a disconnected GUI smoke confirmed a core error is visible with its specific reason. Windows tests cover output capping and redaction. Android ARM64 cross-compilation and APK packaging also passed after this shared Rust/UI change; latest APK SHA-256: `790109A673941A85333C8B39B47A5BB7E1AEFC39084BCAE317C2DD89348952C4`.
-
-## Current status
-
-- **Interface:** desktop uses a five-section sidebar with a selected-profile summary; Android uses compact top tabs. At startup, the first saved profile is selected automatically, matching the C# reference behavior. The dashboard shows server endpoint/IP resolution, direct and proxied public-IP checks, speed and traffic counters. The Connections panel polls the pinned core's local `/connections` endpoint and shows active destination, network, inbound, outbound chain, and per-flow traffic. The routing form loads outbound tags from the active JSON config into a selector, reducing invalid hand-typed targets. For sing-box configs, enabling Fake-IP adds the required server and a catch-all DNS rule after existing specific rules, leaving `dns.final` intact. For Xray configs, FakeDNS is put before existing DNS servers so a catch-all upstream does not shadow it. The pinned core's config checker validates generated sing-box and Xray DNS configurations. About now has a repository button wired to the Windows shell, Linux `xdg-open`, and Android `ACTION_VIEW`, plus developer attribution.
-- **Profile secret storage:** Windows protects VLESS links with the current user's DPAPI and has a passing two-way C# compatibility check. Linux stores links in Secret Service and keeps only a credential reference in `profiles.dat`. Android stores links in the keyring's encrypted app-private SharedPreferences using AES-GCM keys from Android Keystore. The Linux Secret Service and Android credential-store paths still need native runtime checks; Windows system-proxy state and C# compatibility are tested separately.
-- **Visual direction:** the light and dark palettes now use Material You-inspired tonal surfaces, pill-shaped navigation selection, rounded cards, and clearer contrast for selected and connected states. This is a design direction rather than a claim of native Android dynamic-color integration.
-- **Website routing:** domain entries accept hostnames or HTTP/HTTPS URLs. A URL path is discarded because the network routing rule applies to the entire hostname. IPv4 and IPv6 ranges use CIDR notation. Android package filtering is exposed when editing a TUN config.
-- **Windows:** the published Preview 8 x64 package was built from client commit `de35c9d`: `dist/RealityClient-Windows-x64-de35c9d-package.zip`, SHA-256 `1C318F7AAC595BC1B6B050AC850B48B7B559407EF66BE6AA1FE4231BCCE4CE27`. It contains the GUI, shortcut, pinned core, source archive, Wintun DLL, and license. The build verifies the Wintun DLL hash. The client binds the pinned core's `rc_set_lock_dir`, prepares a protected `%ProgramData%\RealityClient` directory for TUN, requires the packaged DLL, and offers a confirmed manual `--tun-cleanup` action. TUN requires an elevated client. The package includes the proxy-recovery fix that preserves user changes to `ProxyEnable` and `ProxyOverride`. Release checks included 66 default tests, 69 Android-bridge host-check tests, and strict Clippy in both configurations. Shortcut relocation, real interface/routes/WFP behavior, system-proxy changes, and remote VPN traffic remain unverified.
-- **Linux:** full-JSON TUN and marked-route cleanup are wired to the pinned core. VLESS links can be pasted from the desktop clipboard through the X11 or Wayland backend. The client uses absolute `XDG_DATA_HOME`, falling back to absolute `HOME`; it refuses to create profile data relative to the launch working directory when both are invalid. Cross-platform tests cover that path selection, but native Linux compilation, clipboard runtime, Secret Service integration, route lifecycle, and runtime operation remain unverified.
-- **Android:** `build-android.sh` defaults to ARM64 and also supports `ANDROID_ABI=x86_64`; it clears generated native libraries between ABI builds to prevent stale architectures from entering the APK. The published Preview 8 ARM64 debug APK was built from client commit `de35c9d` and pinned core commit `ee68039943ebb2aaf3287bf622ae34c18bfa0cae`: `dist/RealityClient-Android-ARM64-de35c9d-debug.apk`, SHA-256 `4779BB39A7443F946D19B97AA91907504B35AFBC9F805E29DC848F1ECDCC520C`. Manifest validation, 22 Android JVM tests (up-to-date), ARM64 core and Rust/Slint builds, JNI exports, Gradle assembly, and APK v2 signature verification passed. The APK installed and launched on an Android 15 / API 35 emulator without starting VpnService. Android VPN/TUN operation, physical-device behavior, and remote traffic remain unverified. Android releases are debug previews, not production-signed.
-- **Current Windows checks:** 66 default tests, 69 Android bridge host-check tests, and strict Clippy for both configurations pass with the C#-format golden vault fixture, secret-buffer regression cases, and a proxy-recovery regression proving that user changes to `ProxyEnable` or `ProxyOverride` are preserved. `cargo fmt --check` and a separate pinned-core route-ownership unit test also passed on Windows. These checks do not start TUN, alter routes, change the system proxy, or contact a remote VPN server.
-- **Geolocation:** the dashboard does not display a country flag. The core does not supply GeoIP metadata; an online lookup would disclose the server IP to an outside service, while a local GeoIP database would need to be selected and packaged.
-- **Release status:** [Preview `v0.1.0-preview.8`](https://github.com/ERGFT/reality-client/releases/tag/v0.1.0-preview.8) is published from client commit `de35c9d` on the open [PR #2](https://github.com/ERGFT/reality-client/pull/2). It contains the Windows x64 ZIP, Android ARM64 debug APK, and `SHA256SUMS-de35c9d.txt`; the GitHub asset digests match the local SHA-256 manifest. Android debug APKs are not production-signed. No Linux package is available because native Linux compilation has not been performed. GitHub Actions jobs have been blocked from starting by the account billing/spending limit; local checks do not replace hosted CI.
-The Rust JNI bridge can be type-checked on a desktop host without Android SDK files using `cargo check --features android-bridge-check`. This does not compile the Android-only Slint entry point, Kotlin app, APK, or native Android core.
-
-
-The Windows GitHub Actions workflow rebuilds the pinned core FFI DLL, runs the Windows feature test suite, packages the x64 app, and checks the expected package files.
-
-## Implementation history
-
-The dated entries below describe the state at the time of each change. For current build status, platform limitations, and artifact hashes, use the **Current status** section above.
-
-### Material You-inspired palette (2026-10-06)
-
-Updated the light and dark surfaces, navigation selection, profile selection, status pill, cards, and checkbox accent colors toward Material You's tonal palette and rounded geometry. On narrow Android screens the five navigation labels are centered and sized to fit without clipping. The styling uses Slint palette values and does not yet read Android wallpaper-derived dynamic colors. Both Windows host test configurations passed: 65 default tests and 68 Android-bridge host-check tests; strict Clippy passed for both. The ARM64 APK rebuilt, its v2 signature verified, and it installed and launched on the Android 15 / API 35 emulator. The Home and Settings screens were visually reviewed for the tonal surfaces and tab labels. APK SHA-256: `812FA409854DB1BFB508D3048A107ECEACC96BED3294ED1DC9080AF497754E6B`. No VPN permission was requested, no TUN was started, and no remote VPN traffic was tested.
-
-### About page and package instructions (2026-10-06)
-
-The About page now opens the public repository through the Windows shell, Linux `xdg-open`, or Android `ACTION_VIEW`, and credits developer ERGFT. Platform handlers are compiled for Windows and Android; no Linux native build or GUI runtime check was performed. Build packages now receive a concise `README.md` from `PACKAGE-README.md`, separate from the repository status document, so package instructions do not inherit source-branch artifact hashes. Verification: Windows release package built; 62 standard and 65 Android-bridge host tests passed; `cargo fmt --check` passed. Android ARM64 APK assembly and JNI export checks passed, APK v2 signature verified, and the packaged Rust library hash matches the build output. The Android UI has not been run on a device.
-
-### Linux data-directory validation (2026-10-05)
-
-Linux now ignores a relative `XDG_DATA_HOME`, falls back only to an absolute `HOME`, and returns a clear error if neither can identify an absolute location. This prevents a desktop launcher with an empty or relative `HOME` from placing profile metadata under an arbitrary working directory. Four host-side regression tests cover the precedence and invalid-environment cases. Windows verification: 58 default tests, 61 Android bridge host-check tests, formatting, and strict Clippy passed. Native Linux execution remains unverified.
-
-### Xray FakeDNS priority (2026-10-05)
-
-Enabling FakeDNS in an Xray configuration now puts the `fakedns` server before catch-all DNS entries; an existing custom FakeDNS server is moved without duplicating it. The change is covered by order, idempotence, and toggle-off tests, and the generated config passes the pinned core's checker. Verification: 62 default tests, 65 Android bridge host-check tests, formatting, and strict Clippy passed. This validates configuration only, not DNS traffic through a live VPN.
-
-### Sing-box Fake-IP config generation (2026-10-05)
-
-The Fake-IP toggle now adds the required `type: "fakeip"` DNS server, selects a real tagged outbound for the upstream DNS detour, and adds a catch-all DNS rule after existing specific rules so Fake-IP is actually selected without changing `dns.final`. Disabling it removes its server and rules. Before this change, the pinned core rejected generated configurations because the Fake-IP pool had no DNS server attached; adding only the server still would not have routed queries to it. A generated TUN + Fake-IP configuration now passes the pinned core's local config checker. Windows verification: 54 and 57 host tests, strict Clippy for both, and formatting. The Android ARM64 Rust/Slint library was cross-compiled, JNI exports checked, and the debug APK reassembled and v2-signature verified. No Android device or remote VPN traffic was used.
-
-### Android TUN config guard (2026-10-05)
-
-The Android VPN service now rejects full JSON configs unless they contain exactly one `tun` inbound. The service establishes one Android TUN descriptor and hands one descriptor to the core; previously, multiple TUN inbounds silently selected the first for Android setup. The selector has JVM regression coverage for zero, one, and multiple TUN inbounds. Verification: all 14 Android JVM tests passed; Gradle assembled the debug APK and `apksigner` verified its v2 signature. APK SHA-256: `F274DD3004A132381EAEFEF0431471CE9896CAA214D3CC2686B1799FB3B8476D`. This is not an Android device or VPN runtime test.
-
-### Android TUN address parity (2026-10-05)
-
-Android now derives its VPN interface addresses from the same `address`, `inet4_address`, and `inet6_address` fields and defaults used by the pinned core. It passes one effective IPv4 and IPv6 address to `VpnService.Builder`, matching the core's first-per-family selection, and validates IPv4 prefixes against the core's `/30` limit. Verification: all 17 Android JVM tests passed, Gradle assembled the debug APK, and `apksigner` verified its v2 signature. APK SHA-256: `3A5016A9BB1811BBBE8B39A67069872E98C9C6FDFA846956CFD589C08C6FEB40`. No Android device or VPN runtime test was performed.
-### Profile operation parity (2026-10-05)
-
-Rust now blocks profile deletion during another operation or an active session, matching the C# reference. Android also treats a pending VPN permission request as an active session; the state guard is covered by the Windows host Rust suites. Current Windows verification: 38 default tests and 41 Android bridge host-check tests, strict Clippy for both, and rebuilt Windows x64 package (SHA-256 `E82EFFB471762B265A3289315D71972CC5FB545F9F586A9FE49ED2D27BD50AFE`). Android ARM64 core and Rust/Slint JNI library cross-compiled, JNI exports passed, all 17 Android JVM tests passed, APK v2 signature verified (SHA-256 `1ACA619E479A55877E54108EDEE1353F933986111BF8142A94B634DA9EF84DC7`). Android device runtime and VPN traffic remain unverified.
-
-### Android route-policy guard (2026-10-05)
-`RealityVpnService` now rejects every TUN routing option that the pinned core marks unsupported on Android, plus `inet4_route_exclude_address` and `inet6_route_exclude_address`, which the Android VPN builder could not represent. This check runs before `Builder.establish()`, so unsupported full-JSON settings do not briefly install the Android VPN interface before failing in core startup. Gradle JVM tests: 19 passed, 0 failures/errors; `:app:assembleDebug` succeeded; APK v2 signature verified. APK SHA-256: `4DBCBD056E54B7CCDAD4325D8284E835FC2A1E4C4A0A1F8310A1636A81C51654`. No device installation or VPN runtime was performed.
-
-### Tabbed GUI and Android app selection (2026-10-05)
-The Rust/Slint UI has Home, Servers, Connections, Settings, and About tabs, dark/light themes, a mobile layout, traffic/rate cards, managed domain/IP routing rules, TUN/Fake-IP controls, and an About panel with version and repository. The Connections tab reads the core's local `/connections` API and shows active destination, network, inbound, outbound chain, and per-flow byte counters. Android lists launchable apps through `PackageManager`; selected packages are applied with `VpnService.Builder.addAllowedApplication`. Because the pinned core rejects `include_package`, the Android service removes that field from the JSON passed to the core after applying the app filter. The dashboard has opt-in public-IP checks through the regular OS route and through a local core SOCKS/mixed inbound. Both call `api.ipify.org`; the provider sees the request IP. The regular OS route may still use an active VPN on Android, while full-config rules may send the proxied check directly. Linux TUN remains without a native build or runtime check.
-
-### External IP status check (2026-10-05)
-The Home tab offers explicit external-IP checks through the regular OS route and through a loopback SOCKS or mixed inbound in the running core. Requests go to `api.ipify.org`; the provider sees the request IP. The regular OS route may still use an active VPN on Android, and full-config rules may send the proxied check directly. The proxied check refuses to run while disconnected or when a full config has no local SOCKS-capable inbound. Each request uses a 10-second timeout and accepts a response body up to 128 bytes, then validates it as an IP. A separate action resolves the selected server endpoint through system DNS and displays up to four results; the DNS resolver sees the domain, and these records may not match a load-balanced connection address. The current dashboard also shows the selected profile's configured endpoint and core traffic counters. Verification: 44 Windows Rust tests and 47 Android-bridge host-check tests passed; strict Clippy passed for both. Android ARM64 Rust compilation, Gradle assembly, APK v2 signature verification, and equality of the packaged JNI library hash passed. The 19 Android JVM tests were up-to-date and passed earlier. No live VPN server request or Android device runtime was tested. Current Windows EXE SHA-256: `F298CA3A1E6E2EABD6184DDF8053E5A1BFFE857D79FDCC9FE5555E65FB0A9EEA`; ZIP SHA-256: `02CB1CFDED232A0316C1FC9FFB246CBF31C76022FCADED61CA5F0CE8F382A056`; Android APK SHA-256: `5418660C6C454105A8F57B3293831B735EE2DCF68A56CA9173800B3018DCDE8D`.
-
-### Active connection list and current packages (2026-10-05)
-The Connections tab polls the pinned core's `GET /connections` endpoint and displays each active flow's destination, transport, inbound, outbound chain, and upload/download counters. The list and traffic totals refresh together on the existing one-second runtime poll. Windows x64 release build completed; EXE SHA-256: `B8FD9E86605BACF01EB3CE811FF62692973236AF3B8CE61CE82A85181796AE5F`; ZIP SHA-256: `65ACD16593CB9F2624B8E64124378419B050DAF04F7A45887B57CFA84A3A2442`. Android ARM64 pinned core and Rust/Slint libraries cross-compiled; JNI exports passed; Gradle assembled and v2-signed the debug APK. APK SHA-256: `EEFB9C76CAA2ED13B253D3E7BE20680337AF6470A448118D4E3A3506C395118E`. Verification: 47 standard Rust tests and 50 Android-bridge host-check tests passed; all 19 Android JVM tests were up-to-date and passed; strict Clippy and formatting passed. The mobile navigation uses compact tab labels so all five sections fit on phone width. Linux native build and Linux-only TUN-FD regression, Android device VPN operation, Windows TUN, system proxy changes, and remote VPN traffic remain unverified.
-
-### Android mobile layout and x86_64 emulator (2026-10-06)
-The Servers and Settings tabs now stack their controls on narrow screens; Android checkboxes use theme-aware colors. The Connections tab stacks its heading, description, and copy-log action so the button no longer overlaps the title. The x86_64 Android build passed the manifest smoke check, the 19 Gradle JVM tests were up-to-date, Rust core/UI compilation and JNI export checks passed, and Gradle assembled the debug APK. APK v2 signature verification passed; the package contains the x86_64 JNI library. The APK installed and launched in an Android 15/API 35 x86_64 emulator, where the Servers, Settings, and Connections layouts were visually inspected. APK SHA-256: `949C9DBDCB486EF410A4ED04FDEC764C5985C557FECF9236D3ABEC37EE879B78`. No VPN was started; Android VpnService/TUN traffic, Linux native runtime, Windows TUN, and live-server traffic remain unverified.
-
-### Windows host checks after mobile UI changes (2026-10-06)
-The offline Windows GNU-target release suites passed with 62 standard tests and 65 tests with `android-bridge-check`; strict Clippy passed for both configurations. The suite includes only a loopback SOCKS lifecycle check and did not start the GUI, enable the Windows system proxy, change routes, or connect to a remote VPN server.
-
-### Android network-state permission (2026-10-06)
-`RealityVpnService` checks existing VPN transports with `ConnectivityManager.getAllNetworks()` and `getNetworkCapabilities()`. The manifest now requests `ACCESS_NETWORK_STATE`, and the manifest smoke check fails if that permission is missing. The check passed, Gradle JVM tests were up-to-date, debug APK assembly succeeded, the packaged manifest contains the permission, and APK v2 signature verification passed. The x86_64 APK installed on the Android 15 emulator, where `dumpsys package` confirmed the permission was granted and the app launched. APK SHA-256: `D54CAA27A34B35F791EEC4D46BF6A51771DA3BF162167D2DAEF50F09A4CC5D4B`. Android VPN consent and TUN startup were not exercised.
-
-### System-owned Android TUN routes (2026-10-06)
-The pinned core previously acquired its desktop `auto_route` lock and called `route::setup` whenever `auto_route` was enabled, even when Android supplied a TUN descriptor. On Android that route setup returns an error because only Linux and Windows are supported. The core overlay now skips desktop route management when a system-provided descriptor is present, while retaining the core DNS resolver for TUN traffic. A pinned-core regression test passed on the Windows GNU host; the ARM64 core and APK rebuilt successfully, APK v2 signature/ABI/manifest checks passed, and the APK's packaged core hash matched the newly built library. Windows FFI and package rebuilt from the same overlay. No VpnService permission prompt was accepted, no TUN was started, and Android runtime traffic remains unverified.
-
-### C# profile vault golden fixture (2026-10-06)
-Replaced the self-roundtrip-only vault format check with literal bytes generated by the reference's `.NET System.IO.BinaryWriter` for `RCLIENT1`, a Cyrillic profile name, and a protected-data byte blob. Rust decodes and re-encodes those exact bytes. The Windows suite passed 63 default and 66 Android bridge host-check tests, including bidirectional DPAPI interoperability with the C# `.NET ProtectedData` API under the current Windows user scope; strict Clippy passed for both. The fixture contains only non-secret test bytes and uses temporary files.
-
-### ARM64 Android package rebuild (2026-10-06)
-Rebuilt the debug APK for `arm64-v8a` from client commit `51e7d5f` and pinned core commit `ee68039943ebb2aaf3287bf622ae34c18bfa0cae`. The APK v2 signature verified, and package inspection confirmed the ARM64 native library and `ACCESS_NETWORK_STATE` permission. The artifact is `dist/RealityClient-Android-ARM64-51e7d5f-debug.apk`, SHA-256 `2DEE8B6ED15CB277551440536DE73858C9D4A961A05DAC3506E08888C42720DF`. It was not installed or launched; Android VpnService/TUN and remote traffic remain unverified.
-
-### Windows package with relative shortcut metadata (2026-10-06)
-The Windows x64 package was built from application source commit `ab63d5e` after fixing secret-buffer handling. The shortcut stores a relative resolution hint using `IShellLinkW::SetRelativePath`; relocation itself was not runtime-tested. `dist/RealityClient-Windows-x64-ab63d5e.zip` has SHA-256 `d4b415bc95dd40960916e2767c9c74da219cce93ce0cb000ddf0f6bdea6b9436`. The included GUI EXE hash is `AECE8374A367525B0369BA7B4B2EEBA1B74F7A27AC1ED3AB244EBF06CD3B1247`; its FFI DLL hash is `8816CD9E3C0034B1CAC72F94E1ACDB09CE628B169479276313DDE8CAA47EEFD7`. ZIP contents and component checksums passed inspection. The pinned core source is commit `ee68039943ebb2aaf3287bf622ae34c18bfa0cae`. Neither Windows package was connected to a VPN server. Windows TUN/system-proxy changes and live traffic remain unverified.
-
-### Android ARM64 package rebuilt after secret-buffer hardening (2026-10-06)
-Built `dist/RealityClient-Android-ARM64-ab63d5e-debug.apk` from client commit `ab63d5e` and pinned core commit `ee68039943ebb2aaf3287bf622ae34c18bfa0cae`. Manifest validation, the 22 JVM tests (Gradle reported up-to-date), ARM64 core/UI builds, JNI exports, Gradle assembly and APK v2 signature verification passed. SHA-256: `b80132ca407b4a01d368bd0b10b412a764ba3930c290cccd603956b551675fde`. It installed and launched on the Android 15/API 35 x86_64 emulator, which supports ARM64; Home, Servers, Connections and Settings screens were visually checked. The VPN service was not started and no permission prompt was accepted. Remote traffic and physical-device VPN behavior remain unverified.
-
-### Preview 5 release publication (2026-10-06)
-Published GitHub prerelease [`v0.1.0-preview.5`](https://github.com/ERGFT/reality-client/releases/tag/v0.1.0-preview.5), tagging commit `1125319` on the PR branch. The release contains the Windows x64 ZIP, Android ARM64 debug APK and SHA-256 manifest; GitHub's displayed binary digests match the local manifest.
-
-### Android application-filter validation update (2026-10-06)
-The Android VPN service now rejects a malformed `include_package` value, an empty list, blank IDs, or non-string list members before establishing the TUN. Previously, `optJSONArray` treated a wrong field type as if no app filter had been configured, which could route every app instead of the selected apps. Valid IDs are trimmed, passed to Android's `VpnService.Builder`, and the UI-only field is removed before the pinned core receives its config. Verification: all 22 Android JVM tests passed; Kotlin compilation, debug APK assembly, and APK v2 signature verification passed. The local ARM64 APK is `dist/RealityClient-Android-ARM64-dda7852-debug.apk`, SHA-256 `804DDC94EEA5BE7EF008B90351327246B88F77BF9DFAA7E7D0093E69D3067167`; its packaged `libreality_client_rs.so` hash matches the generated library. It was not installed or launched; no VPN consent or TUN session was started. GitHub checks for `dda7852` were queued at the last observation, so hosted CI is not yet confirmed.
-
-### Android dark-theme palette and build portability (2026-10-06)
-
-The Slint built-in widget palette now follows the app's light/dark theme selection, including on Android. Android's core/UI ARM64 cross-build and Gradle debug APK assembly succeeded; JNI export validation passed. The 22 Android JVM tests had passed in the prior validation and were up-to-date during this build. The APK (`dist/RealityClient-Android-ARM64-2ce8ea8-debug.apk`, SHA-256 `664D2FE6106821A4576B2622FF770F4A6DE1FB02A167D946FF75F711ACC84FB9`) installed and launched in an Android 15/API 35 emulator exposing `x86_64,arm64-v8a`; the dark palette was visually inspected. `apksigner` v2 verification was not completed in this run because `JAVA_HOME` was unavailable to that verification invocation. No VPN permission was requested and no TUN or server traffic was started. The Android build script now uses Python's standard-library ZIP support for safe extraction and APK library membership checks, removing its dependency on `unzip`. Linux native runtime and live VPN traffic remain unverified.
-
-### Preview packages rebuilt from `2ce8ea8` (2026-10-06)
-
-The Windows x64 release target built successfully with the pinned core and GNU toolchain. `dist/RealityClient-Windows-x64-2ce8ea8.zip` SHA-256: `3A8563F8CF8B60FB59453B4CC817152EB0A80749A2D3CDC0850507956DC6EE9E`; packaged GUI executable SHA-256: `393341B7CEB91E5C474123CC082E5E88C58B90E1FD2FBDD2B599880F22BEBD13`; packaged FFI DLL SHA-256: `8816CD9E3C0034B1CAC72F94E1ACDB09CE628B169479276313DDE8CAA47EEFD7`. ZIP inspection confirmed the GUI, core executable/source, Wintun license, and README are present. Starting the GUI with `--help` opens the application window rather than printing command-line help; the test window was closed without connecting.
-
-The Android ARM64 preview package from the same client commit is `dist/RealityClient-Android-ARM64-2ce8ea8-debug.apk`, SHA-256 `664D2FE6106821A4576B2622FF770F4A6DE1FB02A167D946FF75F711ACC84FB9`. It installed and launched on the Android 15/API 35 emulator, and the dark widget palette was visually inspected. `apksigner` v2 verification was not completed in this run because the verifier invocation had no `JAVA_HOME`. Neither platform was connected to a VPN server; Windows TUN/system-proxy changes, Android VPN consent/TUN, Linux runtime, and live traffic remain unverified. These new packages are local; their publication to a GitHub Release has not been verified.
+Архив журнала проверок предварительных сборок — [docs/BUILD-LOG.md](../docs/BUILD-LOG.md).

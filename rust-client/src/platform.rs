@@ -356,6 +356,33 @@ pub fn read_android_clipboard_text() -> Result<String, String> {
 }
 
 #[cfg(target_os = "android")]
+pub fn read_android_system_palette() -> Result<String, String> {
+    use jni::objects::JString;
+
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let state_guard = lock_recover(slot);
+    let state = state_guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    state
+        .vm
+        .attach_current_thread(|env| -> jni::errors::Result<String> {
+            let value = env
+                .call_method(
+                    state.activity.as_ref(),
+                    jni::jni_str!("readSystemPalette"),
+                    jni::jni_sig!("()Ljava/lang/String;"),
+                    &[],
+                )?
+                .l()?;
+            env.cast_local::<JString>(value)?.try_to_string(env)
+        })
+        .map_err(|e| format!("Не удалось прочитать системную палитру Android: {e}"))
+}
+
+#[cfg(target_os = "android")]
 pub fn list_android_launchable_apps() -> Result<Vec<(String, String)>, String> {
     use jni::objects::JString;
 
