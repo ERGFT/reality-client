@@ -46,6 +46,39 @@ class MainActivity : NativeActivity() {
         return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
     }
 
+    /**
+     * Системная тональная палитра Material You (Android 12+) строкой
+     * `ключ=AARRGGBB,…`. На более старых версиях — пустая строка, и интерфейс
+     * использует встроенную тональную тему.
+     */
+    fun readSystemPalette(): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return ""
+        val shades = mapOf(
+            "a1_0" to android.R.color.system_accent1_0,
+            "a1_100" to android.R.color.system_accent1_100,
+            "a1_200" to android.R.color.system_accent1_200,
+            "a1_600" to android.R.color.system_accent1_600,
+            "a1_700" to android.R.color.system_accent1_700,
+            "a1_800" to android.R.color.system_accent1_800,
+            "a1_900" to android.R.color.system_accent1_900,
+            "n1_10" to android.R.color.system_neutral1_10,
+            "n1_50" to android.R.color.system_neutral1_50,
+            "n1_100" to android.R.color.system_neutral1_100,
+            "n1_200" to android.R.color.system_neutral1_200,
+            "n1_700" to android.R.color.system_neutral1_700,
+            "n1_800" to android.R.color.system_neutral1_800,
+            "n1_900" to android.R.color.system_neutral1_900,
+            "n2_200" to android.R.color.system_neutral2_200,
+            "n2_700" to android.R.color.system_neutral2_700,
+            "n2_900" to android.R.color.system_neutral2_900,
+        )
+        return runCatching {
+            shades.entries.joinToString(",") { (key, id) ->
+                "%s=%08x".format(key, getColor(id))
+            }
+        }.getOrDefault("")
+    }
+
     fun openRepository(): Boolean = runCatching {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ERGFT/reality-client")))
     }.isSuccess

@@ -3,6 +3,8 @@ mod android_bridge;
 mod core;
 mod ffi_core;
 mod ffi_session;
+#[cfg(any(target_os = "android", feature = "android-bridge-check", test))]
+mod material;
 mod platform;
 mod profiles;
 mod security;
@@ -191,6 +193,31 @@ const STARTER_CONFIG: &str = r#"{
   "route": { "final": "proxy" }
 }"#;
 
+/// Применяет системную палитру Material You к теме интерфейса. Без палитры
+/// (Android ниже 12, ошибка чтения) остаётся встроенная тональная тема.
+#[cfg(any(target_os = "android", feature = "android-bridge-check"))]
+fn apply_material_theme(window: &MainWindow, palette_text: &str, dark: bool) {
+    let theme = window.global::<Theme>();
+    let Some(palette) = material::Palette::parse(palette_text) else {
+        theme.set_dynamic(false);
+        return;
+    };
+    let tokens = palette.tokens(dark);
+    let color = |argb: u32| slint::Color::from_argb_encoded(argb);
+    theme.set_dyn_bg(color(tokens.bg));
+    theme.set_dyn_surface(color(tokens.surface));
+    theme.set_dyn_surface_2(color(tokens.surface_2));
+    theme.set_dyn_surface_3(color(tokens.surface_3));
+    theme.set_dyn_outline(color(tokens.outline));
+    theme.set_dyn_text(color(tokens.text));
+    theme.set_dyn_dim(color(tokens.dim));
+    theme.set_dyn_accent(color(tokens.accent));
+    theme.set_dyn_accent_soft(color(tokens.accent_soft));
+    theme.set_dyn_on_accent(color(tokens.on_accent));
+    theme.set_dyn_on_accent_soft(color(tokens.on_accent_soft));
+    theme.set_dynamic(true);
+}
+
 pub fn run_ui() -> Result<(), slint::PlatformError> {
     #[cfg(windows)]
     let _single_instance = match platform::acquire_single_instance() {
@@ -206,6 +233,10 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
     #[cfg(target_os = "android")]
     window.set_mobile_layout(true);
+    // Палитра читается один раз; смена светлой/тёмной темы пересчитывает токены.
+    #[cfg(target_os = "android")]
+    let system_palette: Arc<String> =
+        Arc::new(platform::read_android_system_palette().unwrap_or_default());
     let theme_path = platform::app_data_dir()
         .ok()
         .map(|dir| dir.join("theme.txt"));
@@ -215,6 +246,8 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         window.set_theme_index(1);
         window.set_dark_theme(false);
     }
+    #[cfg(target_os = "android")]
+    apply_material_theme(&window, &system_palette, window.get_dark_theme());
     let profile_store = Arc::new(Mutex::new(ProfileStore::open_default().ok()));
     let selected_profile_link = Arc::new(Mutex::new(None::<(usize, Zeroizing<String>)>));
     let core_session: Arc<Mutex<Option<CoreSession>>> = Arc::new(Mutex::new(None));
@@ -346,6 +379,8 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     window.on_theme_selected({
         let window = window.as_weak();
         let theme_path = theme_path.clone();
+        #[cfg(target_os = "android")]
+        let system_palette = system_palette.clone();
         move |index| {
             let Some(window) = window.upgrade() else {
                 return;
@@ -353,6 +388,8 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
             let index = index.clamp(0, 1);
             window.set_theme_index(index);
             window.set_dark_theme(index == 0);
+            #[cfg(target_os = "android")]
+            apply_material_theme(&window, &system_palette, index == 0);
             if let Some(path) = &theme_path
                 && let Some(parent) = path.parent()
                 && let Err(problem) = platform::ensure_private_dir(parent).and_then(|()| {
