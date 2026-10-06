@@ -212,6 +212,13 @@ fn find_core() -> Result<PathBuf, String> {
         candidates.push(root.join("third_party").join(file_name));
         candidates.push(root.join("../third_party").join(file_name));
     }
+    // Тесты на чистой машине (CI) берут закреплённое ядро из репозитория.
+    #[cfg(test)]
+    candidates.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../third_party")
+            .join(file_name),
+    );
     candidates
         .into_iter()
         .find(|path| path.is_file())

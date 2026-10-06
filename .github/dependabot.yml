@@ -31,3 +31,8 @@ updates:
       gradle-patch:
         patterns: ["*"]
         update-types: [patch]
+    ignore:
+      # Android Gradle Plugin и Kotlin обновляются вручную вместе с compileSdk,
+      # Gradle и проверкой сборки APK.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
