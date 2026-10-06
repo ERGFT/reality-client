@@ -41,9 +41,8 @@ Contents:
 ## 3. Known limitations
 
 - The core is pinned by a commit hash in `third_party/vpn-core.rev` and fetched at
-  build time (no patches); until the TUN-descriptor ownership fix
-  ([vpn-core#28](https://github.com/ERGFT/vpn-core/pull/28)) is merged, the commit from its
-  branch is pinned.
+  build time (no patches). The pin is the merge commit of the TUN-descriptor ownership
+  fix ([vpn-core#28](https://github.com/ERGFT/vpn-core/pull/28)).
 - `rust-client/src/lib.rs` is a ~3600-line monolith.
 - Binary files are tracked in git (`dist/RealityClient.exe`, `third_party/*.exe`, `*.zip`, `wintun.dll`).
 - The desktop layout assumes a window at least 760 px wide; width-based adaptation is
