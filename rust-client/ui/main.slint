@@ -5,6 +5,7 @@ component NavTab inherits Rectangle {
     in property <string> icon: "";
     in property <bool> selected: false;
     in property <bool> dark-theme: true;
+    in property <bool> mobile-layout: false;
     callback activated();
 
     height: 48px;
@@ -13,13 +14,13 @@ component NavTab inherits Rectangle {
     animate background { duration: 120ms; }
 
     Text {
-        x: 14px;
-        width: parent.width - 28px;
+        x: root.mobile-layout ? 2px : 14px;
+        width: parent.width - (root.mobile-layout ? 4px : 28px);
         text: root.icon + "   " + root.label;
         color: root.selected ? (root.dark-theme ? #b0d9cf : #00382f) : (root.dark-theme ? #c8c5d0 : #49454f);
-        font-size: 13px;
+        font-size: root.mobile-layout ? 11px : 13px;
         font-weight: root.selected ? 700 : 500;
-        horizontal-alignment: left;
+        horizontal-alignment: root.mobile-layout ? center : left;
         vertical-alignment: center;
     }
 
@@ -234,11 +235,11 @@ export component MainWindow inherits Window {
 
         if root.mobile-layout: HorizontalLayout {
             spacing: 1px;
-            NavTab { horizontal-stretch: 1; label: "Домой"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
-            NavTab { horizontal-stretch: 1; label: "Узлы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
-            NavTab { horizontal-stretch: 1; label: "Связи"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
-            NavTab { horizontal-stretch: 1; label: "Настр."; selected: root.active-tab == 3; dark-theme: root.dark-theme; activated => { root.active-tab = 3; } }
-            NavTab { horizontal-stretch: 1; label: "О нас"; selected: root.active-tab == 4; dark-theme: root.dark-theme; activated => { root.active-tab = 4; } }
+            NavTab { horizontal-stretch: 1; label: "Домой"; selected: root.active-tab == 0; dark-theme: root.dark-theme; mobile-layout: true; activated => { root.active-tab = 0; } }
+            NavTab { horizontal-stretch: 1; label: "Узлы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; mobile-layout: true; activated => { root.active-tab = 1; } }
+            NavTab { horizontal-stretch: 1; label: "Связи"; selected: root.active-tab == 2; dark-theme: root.dark-theme; mobile-layout: true; activated => { root.active-tab = 2; } }
+            NavTab { horizontal-stretch: 1; label: "Настр."; selected: root.active-tab == 3; dark-theme: root.dark-theme; mobile-layout: true; activated => { root.active-tab = 3; } }
+            NavTab { horizontal-stretch: 1; label: "О нас"; selected: root.active-tab == 4; dark-theme: root.dark-theme; mobile-layout: true; activated => { root.active-tab = 4; } }
         }
 
         HorizontalLayout {
@@ -253,7 +254,7 @@ export component MainWindow inherits Window {
                 VerticalLayout {
                 spacing: 8px;
                 padding: 12px;
-                Text { text: "РАЗДЕЛЫ"; color: root.dark-theme ? #72829b : #8390a1; font-size: 10px; letter-spacing: 1.3px; }
+                Text { text: "РАЗДЕЛЫ"; color: root.dark-theme ? #938f99 : #79757f; font-size: 10px; letter-spacing: 1.3px; }
                 NavTab { icon: "⌂"; label: "Главная"; selected: root.active-tab == 0; dark-theme: root.dark-theme; activated => { root.active-tab = 0; } }
                 NavTab { icon: "◈"; label: "Серверы"; selected: root.active-tab == 1; dark-theme: root.dark-theme; activated => { root.active-tab = 1; } }
                 NavTab { icon: "⇄"; label: "Соединения"; selected: root.active-tab == 2; dark-theme: root.dark-theme; activated => { root.active-tab = 2; } }
@@ -269,9 +270,9 @@ export component MainWindow inherits Window {
                     VerticalLayout {
                         padding: 10px;
                         spacing: 5px;
-                        Text { text: "ТЕКУЩИЙ ПРОФИЛЬ"; color: root.dark-theme ? #72829b : #8390a1; font-size: 9px; letter-spacing: 0.8px; }
-                        Text { text: root.profile-name == "" ? "Сервер не выбран" : root.profile-name; color: root.dark-theme ? #edf2fb : #17232b; font-size: 13px; font-weight: 700; overflow: elide; }
-                        Text { text: root.profile-count; color: root.dark-theme ? #9aa9bd : #687789; font-size: 11px; }
+                        Text { text: "ТЕКУЩИЙ ПРОФИЛЬ"; color: root.dark-theme ? #938f99 : #79757f; font-size: 9px; letter-spacing: 0.8px; }
+                        Text { text: root.profile-name == "" ? "Сервер не выбран" : root.profile-name; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 13px; font-weight: 700; overflow: elide; }
+                        Text { text: root.profile-count; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 11px; }
                     }
                 }
                 }
@@ -294,8 +295,8 @@ export component MainWindow inherits Window {
                 HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Подключение"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                        Text { text: root.status-text; color: root.dark-theme ? #98adba : #6c7d87; font-size: 13px; }
+                        Text { text: "Подключение"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                        Text { text: root.status-text; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; }
                     }
                     Rectangle { horizontal-stretch: 1; background: transparent; }
                     Button {
@@ -307,7 +308,7 @@ export component MainWindow inherits Window {
                 }
                 Rectangle {
                     height: 1px;
-                    background: root.dark-theme ? #253843 : #e3e9ed;
+                    background: root.dark-theme ? #49454f : #e3e9ed;
                 }
                 if root.mobile-layout: VerticalLayout {
                     spacing: 8px;
@@ -329,16 +330,16 @@ export component MainWindow inherits Window {
                     InfoCard { horizontal-stretch: 1; title: "ТРАФИК"; value: "↑ " + root.uploaded-total-text; caption: "↓ " + root.downloaded-total-text + " · Активных соединений: " + root.active-connection-count-text; dark-theme: root.dark-theme; }
                 }
                 if root.group-controls-visible: Rectangle {
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     HorizontalLayout {
                         padding: 12px;
                         spacing: 10px;
-                        Text { text: "Группа"; color: root.dark-theme ? #a8bdca : #53636d; vertical-alignment: center; }
+                        Text { text: "Группа"; color: root.dark-theme ? #c8c5d0 : #49454f; vertical-alignment: center; }
                         ComboBox { horizontal-stretch: 1; model: root.group-model; current-index <=> root.selected-group-index; selected => { root.group-selected(root.selected-group-index); } }
-                        Text { text: "Узел"; color: root.dark-theme ? #a8bdca : #53636d; vertical-alignment: center; }
+                        Text { text: "Узел"; color: root.dark-theme ? #c8c5d0 : #49454f; vertical-alignment: center; }
                         ComboBox { horizontal-stretch: 1; model: root.member-model; current-index <=> root.selected-member-index; selected => { root.member-selected(root.selected-member-index); } }
                     }
                 }
@@ -351,31 +352,31 @@ export component MainWindow inherits Window {
                 spacing: root.mobile-layout ? 8px : 12px;
                 if root.mobile-layout: VerticalLayout {
                     spacing: 4px;
-                    Text { text: "Серверы"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                    Text { text: "Импортируйте ссылку или выберите сохранённый профиль."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
-                    Text { text: root.profile-count; color: root.dark-theme ? #91a8b7 : #687985; }
+                    Text { text: "Серверы"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                    Text { text: "Импортируйте ссылку или выберите сохранённый профиль."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; wrap: word-wrap; }
+                    Text { text: root.profile-count; color: root.dark-theme ? #c8c5d0 : #49454f; }
                 }
                 if !root.mobile-layout: HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Серверы"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                        Text { text: "Импортируйте ссылку или выберите сохранённый профиль."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; }
+                        Text { text: "Серверы"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                        Text { text: "Импортируйте ссылку или выберите сохранённый профиль."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; }
                     }
                     Rectangle { horizontal-stretch: 1; background: transparent; }
-                    Text { text: root.profile-count; color: root.dark-theme ? #91a8b7 : #687985; vertical-alignment: center; }
+                    Text { text: root.profile-count; color: root.dark-theme ? #c8c5d0 : #49454f; vertical-alignment: center; }
                 }
                 Rectangle {
                     height: 178px;
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     ScrollView {
                         mouse-drag-pan-enabled: root.mobile-layout;
                         VerticalLayout {
                             padding: 7px;
                             spacing: 5px;
-                            if root.profile-count == "Профили: 0": Text { text: "Сохранённых серверов пока нет"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; vertical-alignment: center; }
+                            if root.profile-count == "Профили: 0": Text { text: "Сохранённых серверов пока нет"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; vertical-alignment: center; }
                             for profile[index] in root.profile-model: Rectangle {
                                 height: 42px;
                                 background: index == root.selected-profile-index ? (root.dark-theme ? #26443f : #cce8e0) : (root.dark-theme ? #211f26 : #f3eff6);
@@ -385,7 +386,7 @@ export component MainWindow inherits Window {
                                     padding-right: 12px;
                                     Text { text: profile; color: index == root.selected-profile-index ? (root.dark-theme ? #b0d9cf : #00382f) : (root.dark-theme ? #e6e1e9 : #1d1b20); font-size: 13px; font-weight: index == root.selected-profile-index ? 700 : 500; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                                     Rectangle { horizontal-stretch: 1; background: transparent; }
-                                    Text { text: index == root.selected-profile-index ? "Выбран" : "Выбрать"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; vertical-alignment: center; }
+                                    Text { text: index == root.selected-profile-index ? "Выбран" : "Выбрать"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 11px; vertical-alignment: center; }
                                 }
                                 TouchArea { clicked => { root.selected-profile-index = index; root.profile-selected(index); } }
                             }
@@ -394,12 +395,12 @@ export component MainWindow inherits Window {
                 }
                 if root.mobile-layout: VerticalLayout {
                     spacing: 6px;
-                    Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #91a8b7 : #687985; }
+                    Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #c8c5d0 : #49454f; }
                     Button { text: root.delete-confirmation-visible ? "Отмена" : "Удалить выбранный"; enabled: root.selected-profile-index >= 0; horizontal-stretch: 1; clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; } }
                 }
                 if !root.mobile-layout: HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #91a8b7 : #687985; vertical-alignment: center; }
+                    Text { text: "Выберите сервер для подключения"; color: root.dark-theme ? #c8c5d0 : #49454f; vertical-alignment: center; }
                     Rectangle { horizontal-stretch: 1; background: transparent; }
                     Button { text: root.delete-confirmation-visible ? "Отмена" : "Удалить выбранный"; enabled: root.selected-profile-index >= 0; clicked => { root.delete-confirmation-visible = !root.delete-confirmation-visible; } }
                 }
@@ -415,17 +416,17 @@ export component MainWindow inherits Window {
                 }
                 Rectangle {
                     vertical-stretch: 1;
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     VerticalLayout {
                         padding: root.mobile-layout ? 12px : 18px;
                         spacing: 10px;
-                        Text { text: "Параметры профиля"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
-                        Text { text: "Название"; color: root.dark-theme ? #9cb0bd : #64747e; font-size: 12px; }
+                        Text { text: "Параметры профиля"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 16px; font-weight: 700; }
+                        Text { text: "Название"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; }
                         LineEdit { placeholder-text: "Например, Домашний сервер"; text <=> root.profile-name; }
-                        Text { text: "Ссылка VLESS"; color: root.dark-theme ? #9cb0bd : #64747e; font-size: 12px; }
+                        Text { text: "Ссылка VLESS"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; }
                         LineEdit { placeholder-text: "Вставьте ссылку vless://…"; input-type: root.show-vless-link ? text : password; text <=> root.vless-link; }
                         if root.mobile-layout: VerticalLayout {
                             spacing: 6px;
@@ -440,7 +441,7 @@ export component MainWindow inherits Window {
                             Rectangle { horizontal-stretch: 1; background: transparent; }
                             Button { text: "Сохранить сервер"; clicked => { root.save-profile(); } }
                         }
-                        Text { text: "Секретная ссылка хранится в защищённом хранилище профилей и не выводится в журнал."; color: root.dark-theme ? #718796 : #7b8992; font-size: 11px; wrap: word-wrap; }
+                        Text { text: "Секретная ссылка хранится в защищённом хранилище профилей и не выводится в журнал."; color: root.dark-theme ? #938f99 : #79757f; font-size: 11px; wrap: word-wrap; }
                     }
                 }
                 Text { text: root.detail-text; color: root.dark-theme ? #d7b45e : #906315; font-size: 13px; wrap: word-wrap; }
@@ -451,15 +452,15 @@ export component MainWindow inherits Window {
                 spacing: root.mobile-layout ? 8px : 12px;
                 if root.mobile-layout: VerticalLayout {
                     spacing: 8px;
-                    Text { text: "Соединения"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                    Text { text: "Текущая статистика и журнал ядра."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                    Text { text: "Соединения"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                    Text { text: "Текущая статистика и журнал ядра."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; wrap: word-wrap; }
                     Button { text: "Копировать журнал"; clicked => { log-view.select-all(); log-view.copy(); } }
                 }
                 if !root.mobile-layout: HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Соединения"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                        Text { text: "Текущая статистика и журнал ядра."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; }
+                        Text { text: "Соединения"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                        Text { text: "Текущая статистика и журнал ядра."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; }
                     }
                     Rectangle { horizontal-stretch: 1; background: transparent; }
                     Button { text: "Копировать журнал"; clicked => { log-view.select-all(); log-view.copy(); } }
@@ -469,12 +470,12 @@ export component MainWindow inherits Window {
                     InfoCard { horizontal-stretch: 1; title: "АКТИВНЫЕ СОЕДИНЕНИЯ"; value: root.active-connection-count-text; caption: "Счётчик предоставлен API ядра"; dark-theme: root.dark-theme; }
                     InfoCard { horizontal-stretch: 1; title: "ТЕКУЩАЯ СКОРОСТЬ"; value: root.connection-speed-text; caption: "Входящий и исходящий трафик"; dark-theme: root.dark-theme; }
                 }
-                Text { text: "Активные потоки"; color: root.dark-theme ? #c8d6de : #45555f; font-size: 14px; font-weight: 700; }
+                Text { text: "Активные потоки"; color: root.dark-theme ? #e6e1e9 : #49454f; font-size: 14px; font-weight: 700; }
                 Rectangle {
                     vertical-stretch: 1;
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     ScrollView {
                         mouse-drag-pan-enabled: root.mobile-layout;
@@ -483,24 +484,24 @@ export component MainWindow inherits Window {
                             spacing: 6px;
                             if root.connection-model.length == 0: Text {
                                 text: root.status-text == "Отключено" ? "Подключитесь, чтобы увидеть активные соединения." : "Сейчас активных соединений нет.";
-                                color: root.dark-theme ? #91a8b7 : #687985;
+                                color: root.dark-theme ? #c8c5d0 : #49454f;
                                 font-size: 13px;
                                 vertical-alignment: center;
                             }
                             for row in root.connection-model: Rectangle {
                                 height: 58px;
-                                background: root.dark-theme ? #0e171e : #ffffff;
+                                background: root.dark-theme ? #211f26 : #ffffff;
                                 border-radius: 7px;
                                 HorizontalLayout {
                                     padding: 11px;
-                                    Text { text: "●"; color: #37c8a5; vertical-alignment: center; }
-                                    Text { text: row; color: root.dark-theme ? #dce8ed : #263640; font-size: 12px; vertical-alignment: center; wrap: word-wrap; }
+                                    Text { text: "●"; color: #b0d9cf; vertical-alignment: center; }
+                                    Text { text: row; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 12px; vertical-alignment: center; wrap: word-wrap; }
                                 }
                             }
                         }
                     }
                 }
-                Text { text: "Журнал приложения"; color: root.dark-theme ? #c8d6de : #45555f; font-size: 13px; font-weight: 700; }
+                Text { text: "Журнал приложения"; color: root.dark-theme ? #e6e1e9 : #49454f; font-size: 13px; font-weight: 700; }
                 log-view := TextEdit {
                     height: 92px;
                     text <=> root.log-text;
@@ -508,7 +509,7 @@ export component MainWindow inherits Window {
                     wrap: word-wrap;
                     font-size: 12px;
                 }
-                Text { text: "Список обновляется по данным локального API ядра. Адреса и домены назначения видны только в приложении."; color: root.dark-theme ? #718796 : #7b8992; font-size: 11px; wrap: word-wrap; }
+                Text { text: "Список обновляется по данным локального API ядра. Адреса и домены назначения видны только в приложении."; color: root.dark-theme ? #938f99 : #79757f; font-size: 11px; wrap: word-wrap; }
             }
 
             if root.active-tab == 3: VerticalLayout {
@@ -516,54 +517,54 @@ export component MainWindow inherits Window {
                 spacing: root.mobile-layout ? 8px : 12px;
                 if root.mobile-layout: VerticalLayout {
                     spacing: 4px;
-                    Text { text: "Настройки"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                    Text { text: "Интерфейс, системная интеграция и расширенная конфигурация."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                    Text { text: "Настройки"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                    Text { text: "Интерфейс, системная интеграция и расширенная конфигурация."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; wrap: word-wrap; }
                     ComboBox { horizontal-stretch: 1; model: ["Тёмная тема", "Светлая тема"]; current-index <=> root.theme-index; selected => { root.theme-selected(root.theme-index); } }
                 }
                 if !root.mobile-layout: HorizontalLayout {
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Настройки"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
-                        Text { text: "Интерфейс, системная интеграция и расширенная конфигурация."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; }
+                        Text { text: "Настройки"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
+                        Text { text: "Интерфейс, системная интеграция и расширенная конфигурация."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; }
                     }
                     Rectangle { horizontal-stretch: 1; background: transparent; }
                     ComboBox { width: 150px; model: ["Тёмная тема", "Светлая тема"]; current-index <=> root.theme-index; selected => { root.theme-selected(root.theme-index); } }
                 }
                 if !root.config-editor-visible: Rectangle {
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     VerticalLayout {
                         padding: root.mobile-layout ? 12px : 16px;
                         spacing: root.mobile-layout ? 8px : 10px;
-                        Text { text: "Подключение и маршрутизация"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
-                        Text { text: "Режим полного JSON открывает все возможности закреплённого ядра: TUN, DNS fake-IP и правила маршрутизации. Совместимость зависит от ОС."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
+                        Text { text: "Подключение и маршрутизация"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 16px; font-weight: 700; }
+                        Text { text: "Режим полного JSON открывает все возможности закреплённого ядра: TUN, DNS fake-IP и правила маршрутизации. Совместимость зависит от ОС."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; wrap: word-wrap; }
                         ThemeCheckBox { text: "Использовать полный конфиг ядра"; dark-theme: root.dark-theme; checked <=> root.use-full-config; }
                         ThemeCheckBox { text: "Включить системный прокси Windows"; dark-theme: root.dark-theme; checked <=> root.enable-system-proxy; visible: root.system-proxy-supported; enabled: !root.use-full-config; }
                         if root.use-full-config: Rectangle {
-                            background: root.dark-theme ? #0e171e : #ffffff;
+                            background: root.dark-theme ? #211f26 : #ffffff;
                             border-width: 1px;
-                            border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                            border-color: root.dark-theme ? #49454f : #cac4d0;
                             border-radius: 8px;
                             VerticalLayout {
                                 padding: 12px;
                                 spacing: 7px;
-                                Text { text: "DNS и маршрутизация"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 14px; font-weight: 700; }
-                                Text { text: "Переключатели записывают параметры в JSON. На Windows для TUN нужен официальный wintun.dll рядом с приложением и запуск от имени администратора."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
+                                Text { text: "DNS и маршрутизация"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 14px; font-weight: 700; }
+                                Text { text: "Переключатели записывают параметры в JSON. На Windows для TUN нужен официальный wintun.dll рядом с приложением и запуск от имени администратора."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 11px; wrap: word-wrap; }
                                 ThemeCheckBox { text: "TUN: направлять системный трафик через VPN"; dark-theme: root.dark-theme; checked <=> root.config-tun-enabled; enabled: root.tun-settings-supported; }
                                 ThemeCheckBox { text: "Fake-IP DNS"; dark-theme: root.dark-theme; checked <=> root.fakeip-enabled; }
                                 if root.fakeip-enabled: Text { text: "В Xray FakeDNS может оставить поддельные адреса в системном DNS-кэше после отключения. Если сайты перестанут открываться, очистите DNS-кэш системы."; color: root.dark-theme ? #d7b45e : #906315; font-size: 11px; wrap: word-wrap; }
                                 if root.android-app-filter-supported: Rectangle {
-                                    background: root.dark-theme ? #0a1117 : #ffffff;
+                                    background: root.dark-theme ? #141318 : #ffffff;
                                     border-width: 1px;
-                                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                                    border-color: root.dark-theme ? #49454f : #cac4d0;
                                     border-radius: 7px;
                                     VerticalLayout {
                                         padding: 9px;
                                         spacing: 6px;
-                                        Text { text: "Приложения Android"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 13px; font-weight: 700; }
-                                        Text { text: "Оставьте поле пустым для всех приложений. Иначе VPN будет работать только для перечисленных package ID через запятую."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
+                                        Text { text: "Приложения Android"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 13px; font-weight: 700; }
+                                        Text { text: "Оставьте поле пустым для всех приложений. Иначе VPN будет работать только для перечисленных package ID через запятую."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 11px; wrap: word-wrap; }
                                         if root.mobile-layout: VerticalLayout {
                                             spacing: 6px;
                                             ComboBox { horizontal-stretch: 1; model: root.android-app-model; current-index <=> root.selected-android-app-index; }
@@ -596,7 +597,7 @@ export component MainWindow inherits Window {
                                     Button { text: "Применить переключатели"; clicked => { root.network-options-save-requested(); } }
                                     Button { text: "Считать из JSON"; clicked => { root.config-options-sync-requested(); } }
                                 }
-                                Text { text: "Можно вставить домен или ссылку сайта (например, https://vk.com/video); правило применяется ко всему домену. IP-диапазоны задаются в CIDR, например 203.0.113.0/24."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 11px; wrap: word-wrap; }
+                                Text { text: "Можно вставить домен или ссылку сайта (например, https://vk.com/video); правило применяется ко всему домену. IP-диапазоны задаются в CIDR, например 203.0.113.0/24."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 11px; wrap: word-wrap; }
                                 if root.mobile-layout: VerticalLayout {
                                     spacing: 6px;
                                     LineEdit { horizontal-stretch: 1; placeholder-text: "Домен или URL: vk.com/video"; text <=> root.route-domain-input; }
@@ -619,7 +620,7 @@ export component MainWindow inherits Window {
                                     Button { text: "Добавить правило"; clicked => { root.routing-rule-add-requested(); } }
                                     Button { text: "Очистить мои правила"; clicked => { root.routing-rules-clear-requested(); } }
                                 }
-                                Text { text: root.route-rules-summary; color: root.dark-theme ? #8fa4b2 : #687985; font-size: 11px; wrap: word-wrap; }
+                                Text { text: root.route-rules-summary; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 11px; wrap: word-wrap; }
                             }
                         }
                         if root.mobile-layout: VerticalLayout {
@@ -652,14 +653,14 @@ export component MainWindow inherits Window {
                             }
                         }
                         if root.tun-cleanup-supported: Rectangle {
-                            background: root.dark-theme ? #0e171e : #ffffff;
+                            background: root.dark-theme ? #211f26 : #ffffff;
                             border-width: 1px;
-                            border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                            border-color: root.dark-theme ? #49454f : #cac4d0;
                             border-radius: 8px;
                             VerticalLayout {
                                 padding: 12px;
                                 spacing: 7px;
-                                Text { text: "Восстановление Windows TUN"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 14px; font-weight: 700; }
+                                Text { text: "Восстановление Windows TUN"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 14px; font-weight: 700; }
                                 Text { text: "После аварийного завершения запустите очистку только после отключения клиента. Ядро снимает лишь собственные остатки; операция требует прав администратора."; color: root.dark-theme ? #d7b45e : #906315; font-size: 11px; wrap: word-wrap; }
                                 Button { text: root.tun-cleanup-confirmation-visible ? "Отмена" : "Подготовить очистку…"; enabled: root.connect-button-text == "Подключить"; clicked => { root.tun-cleanup-confirmation-visible = !root.tun-cleanup-confirmation-visible; } }
                                 if root.tun-cleanup-confirmation-visible: HorizontalLayout {
@@ -673,9 +674,9 @@ export component MainWindow inherits Window {
                 }
                 if root.config-editor-visible: Rectangle {
                     vertical-stretch: 1;
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     VerticalLayout {
                         padding: 14px;
@@ -701,23 +702,23 @@ export component MainWindow inherits Window {
             if root.active-tab == 4: VerticalLayout {
                 padding: 20px;
                 spacing: 14px;
-                Text { text: "О приложении"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 22px; font-weight: 700; }
+                Text { text: "О приложении"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 22px; font-weight: 700; }
                 Text { text: "Reality Client"; color: root.dark-theme ? #b0d9cf : #006a60; font-size: 28px; font-weight: 800; }
-                Text { text: "Версия " + root.app-version + " · Rust / Slint"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 14px; }
+                Text { text: "Версия " + root.app-version + " · Rust / Slint"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 14px; }
                 Rectangle {
-                    background: root.dark-theme ? #121f28 : #f7fafb;
+                    background: root.dark-theme ? #211f26 : #ece6f0;
                     border-width: 1px;
-                    border-color: root.dark-theme ? #263b47 : #d9e2e8;
+                    border-color: root.dark-theme ? #49454f : #cac4d0;
                     border-radius: 10px;
                     VerticalLayout {
                         padding: 18px;
                         spacing: 10px;
-                        Text { text: "Клиент для Reality Core"; color: root.dark-theme ? #edf5f7 : #17232b; font-size: 16px; font-weight: 700; }
-                        Text { text: "Проект объединяет графический клиент и закреплённое сетевое ядро. Набор функций зависит от операционной системы и доступных возможностей ядра."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 13px; wrap: word-wrap; }
+                        Text { text: "Клиент для Reality Core"; color: root.dark-theme ? #e6e1e9 : #1d1b20; font-size: 16px; font-weight: 700; }
+                        Text { text: "Проект объединяет графический клиент и закреплённое сетевое ядро. Набор функций зависит от операционной системы и доступных возможностей ядра."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 13px; wrap: word-wrap; }
                         Button { text: "Открыть репозиторий ↗"; clicked => { root.open-repository-requested(); } }
-                        Text { text: "Разработчик: ERGFT"; color: root.dark-theme ? #91a8b7 : #687789; font-size: 12px; }
-                        Text { text: "Целевые платформы: Windows, Linux и Android. Статус сборки и проверенные возможности каждой платформы указаны в README репозитория."; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; wrap: word-wrap; }
-                        Text { text: "Лицензия: GPL-3.0-or-later"; color: root.dark-theme ? #91a8b7 : #687985; font-size: 12px; }
+                        Text { text: "Разработчик: ERGFT"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; }
+                        Text { text: "Целевые платформы: Windows, Linux и Android. Статус сборки и проверенные возможности каждой платформы указаны в README репозитория."; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; wrap: word-wrap; }
+                        Text { text: "Лицензия: GPL-3.0-or-later"; color: root.dark-theme ? #c8c5d0 : #49454f; font-size: 12px; }
                     }
                 }
                 Rectangle { vertical-stretch: 1; background: transparent; }

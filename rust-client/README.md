@@ -76,7 +76,7 @@ The dated entries below describe the state at the time of each change. For curre
 
 ### Material You-inspired palette (2026-10-06)
 
-Updated the light and dark surfaces, navigation selection, profile selection, status pill, cards, and checkbox accent colors toward Material You's tonal palette and rounded geometry. The change is Slint-native styling and does not yet read Android wallpaper-derived dynamic colors. Both Windows host test configurations passed after the UI change: 65 default tests and 68 Android-bridge host-check tests. The automated checks compile the interface but do not replace a visual review on each platform.
+Updated the light and dark surfaces, navigation selection, profile selection, status pill, cards, and checkbox accent colors toward Material You's tonal palette and rounded geometry. On narrow Android screens the five navigation labels are centered and sized to fit without clipping. The styling uses Slint palette values and does not yet read Android wallpaper-derived dynamic colors. Both Windows host test configurations passed: 65 default tests and 68 Android-bridge host-check tests; strict Clippy passed for both. The ARM64 APK rebuilt, its v2 signature verified, and it installed and launched on the Android 15 / API 35 emulator. The Home and Settings screens were visually reviewed for the tonal surfaces and tab labels. APK SHA-256: `812FA409854DB1BFB508D3048A107ECEACC96BED3294ED1DC9080AF497754E6B`. No VPN permission was requested, no TUN was started, and no remote VPN traffic was tested.
 
 ### About page and package instructions (2026-10-06)
 
