@@ -25,7 +25,8 @@ flowchart TB
     S[ui/main.slint<br/>Theme + компоненты + страницы]
   end
   subgraph APP[Логика клиента — rust-client/src]
-    LIB[lib.rs<br/>состояние и привязки UI]
+    UIM[ui/<br/>обработчики окна по темам, UiState]
+    PURE[config_json.rs, server_info.rs,<br/>clipboard.rs, runtime_stats.rs<br/>чистые функции с тестами]
     PR[profiles.rs<br/>профили и хранилище]
     SEC[security.rs<br/>очистка секретов]
     CORE[core.rs, ffi_core.rs, ffi_session.rs<br/>запуск и управление ядром]
@@ -39,9 +40,9 @@ flowchart TB
   K[Kotlin: MainActivity, RealityVpnService]
   LR[libreality — vpn-core, C ABI]
 
-  S <--> LIB
-  LIB --> PR & SEC & CORE & MAT
-  LIB --> WP & PF & AB
+  S <--> UIM
+  UIM --> PURE & PR & SEC & CORE & MAT
+  UIM --> WP & PF & AB
   CORE --> LR
   AB <--> K
   K -- TUN fd, protect --> LR
@@ -150,7 +151,8 @@ vpn-core подключается как библиотека через C ABI: 
 
 | Путь | Что |
 |---|---|
-| `rust-client/src/` | логика клиента и платформенные адаптеры |
+| `rust-client/src/ui/` | обработчики окна по темам: `appearance`, `diagnostics`, `config_editor`, `profiles`, `connection`, `groups`, `runtime` (таймеры), общее состояние `UiState` в `mod.rs` |
+| `rust-client/src/*.rs` | чистая логика с тестами (`config_json`, `server_info`, `clipboard`, `runtime_stats`, `profiles`, `security`), запуск ядра (`core`, `ffi_*`) и платформенные адаптеры |
 | `rust-client/ui/main.slint` | интерфейс |
 | `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService`, политика TUN, JVM-тесты |
 | `rust-client/assets/` | иконка приложения |
@@ -162,8 +164,8 @@ vpn-core подключается как библиотека через C ABI: 
 
 ## 9. Известный технический долг
 
-- `rust-client/src/lib.rs` — монолит около 3600 строк: состояние, обработчики и
-  привязки UI надо разнести по модулям (этап 5).
+- В `ui/` по-прежнему большие функции `install` (обработчики — замыкания с общими `Arc`);
+  их можно дробить дальше, но поведение уже разнесено по темам (этап 5 выполнен).
 - Ядро загружается динамически (`libloading`); планируется прямая зависимость Cargo
   (этап 4, часть 2).
 - В git лежат бинарные файлы (`dist/`, `third_party/reality-client.exe` для C#, `wintun.dll`).

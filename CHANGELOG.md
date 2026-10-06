@@ -23,6 +23,12 @@
   по платформам, правила участия и политика безопасности — в двух языках.
 - Старые журналы перенесены в `docs/` как архив.
 
+### Структура кода
+- `rust-client/src/lib.rs` (3600 строк) разнесён: обработчики окна — в `src/ui/` по темам
+  (`appearance`, `diagnostics`, `config_editor`, `profiles`, `connection`, `groups`,
+  `runtime`) с общим `UiState`; чистая логика с тестами — в `config_json`, `server_info`,
+  `clipboard`, `runtime_stats`. Поведение и набор тестов не менялись.
+
 ### Сборка
 - Ядро больше не лежит в git архивом с Python-патчем: хеш коммита vpn-core записан
   в `third_party/vpn-core.rev`, `scripts/fetch-core.{sh,ps1}` скачивают ровно этот
@@ -67,6 +73,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - README, roadmap, verification status, architecture, design system, platform guides,
   contribution rules and the security policy, in two languages.
 - Old logs moved to `docs/` as an archive.
+
+### Code structure
+- `rust-client/src/lib.rs` (3600 lines) was split: window handlers live in `src/ui/` by
+  topic (`appearance`, `diagnostics`, `config_editor`, `profiles`, `connection`, `groups`,
+  `runtime`) with a shared `UiState`; pure logic with tests lives in `config_json`,
+  `server_info`, `clipboard`, `runtime_stats`. Behaviour and the test set are unchanged.
 
 ### Build
 - The core is no longer a zip archive with a Python patch in git: the vpn-core commit

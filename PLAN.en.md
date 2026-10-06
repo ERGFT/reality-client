@@ -19,7 +19,7 @@ Stage status (updated as work goes on):
 | 2 | Repository polish after vpn-core: README, docs, bilingual pages, status | ✅ |
 | 3 | CI: green builds and checks on three OSes (the repository is public, Actions are free) | ✅ |
 | 4 | The core without a zip archive and a Python patch: the TUN-descriptor fix goes into vpn-core itself ([#28](https://github.com/ERGFT/vpn-core/pull/28)), the build fetches the core by commit hash; then a Cargo dependency (`reality-core`) | ⏳ first part in progress |
-| 5 | Split `rust-client/src/lib.rs` (~3600 lines) into modules: state, handlers, UI bindings | ⏳ |
+| 5 | `rust-client/src/lib.rs` (3600 lines) split into modules: `ui/` (handlers by topic, `UiState`) and pure modules with tests; behaviour and tests unchanged | ✅ |
 | 6 | End-to-end checks: a real REALITY server → Windows, Linux, Android | ⏳ needs a server and devices |
 | 7 | Android: move the TUN policy from Kotlin to Rust, keep a minimal `VpnService` shim | ⏳ |
 | 8 | Remove C# and PowerShell scripts after parity, replace with `cargo xtask` | ⏳ |
