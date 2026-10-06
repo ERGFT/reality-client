@@ -229,6 +229,12 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
         Err(problem) => return Err(slint::PlatformError::Other(problem)),
     };
 
+    // Идентификатор приложения связывает окно с .desktop-файлом (иконка, группировка).
+    #[cfg(target_os = "linux")]
+    {
+        slint::BackendSelector::new().select()?;
+        slint::set_xdg_app_id("reality-client")?;
+    }
     let window = MainWindow::new()?;
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
     #[cfg(target_os = "android")]

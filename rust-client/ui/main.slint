@@ -509,6 +509,7 @@ component IpRow inherits Rectangle {
 
 export component MainWindow inherits Window {
     title: "Reality Client";
+    icon: @image-url("../assets/icon.png");
     in property <bool> mobile-layout: false;
     in property <string> app-version;
     preferred-width: mobile-layout ? 380px : 1080px;
