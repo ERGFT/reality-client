@@ -60,6 +60,11 @@
   вызывают `cargo xtask fetch-core`. Прежняя версия на C# и её скрипты пока остаются: их уберём после
   паритета и сквозной проверки (этап 6).
 
+- Выпуск по тегу: тег `v*` запускает сборку на трёх платформах, и CI публикует в Releases
+  `RealityClient-Rust-windows-x64.zip`, отладочный APK и архив Linux с файлами SHA-256
+  (`.github/scripts/publish-release.sh`; тег с дефисом — пре-релиз). Заметки первой версии —
+  `docs/releases/v0.1.0-preview.1.md`, порядок выпуска — `docs/RELEASING.md`. Сборки не подписаны.
+
 ### Подготовка к публикации
 - Проверена история (97 коммитов) и дерево на секреты и личные данные: настоящих ссылок, ключей и токенов нет, только тестовые заглушки.
 - Добавлены `CODE_OF_CONDUCT.md`, `SUPPORT.md`, шаблоны issue и pull request, `CODEOWNERS`, Dependabot; в `Cargo.toml` — лицензия и метаданные.
@@ -133,6 +138,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   `build_rust_core.ps1`, `rust-client/build-windows.ps1`, `rust-client/tests/windows-test.ps1`; the
   Linux/Android scripts and CI call `cargo xtask fetch-core`. The previous C# version and its scripts
   stay for now: they go after parity and the end-to-end check (stage 6).
+
+- Releasing by tag: a `v*` tag starts the builds on three platforms, and CI publishes
+  `RealityClient-Rust-windows-x64.zip`, a debug APK and the Linux archive to Releases with SHA-256
+  files (`.github/scripts/publish-release.sh`; a tag with a hyphen is a pre-release). The notes of
+  the first version are `docs/releases/v0.1.0-preview.1.md`, the procedure is `docs/RELEASING.en.md`.
+  The builds are unsigned.
 
 ### Preparing for publication
 - The history (97 commits) and the tree were scanned for secrets and personal data: no real links, keys or tokens, only test placeholders.

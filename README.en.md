@@ -84,7 +84,9 @@ Step-by-step instructions, TUN, privileges and limits: [docs/PLATFORMS.en.md](do
 
 > [!NOTE]
 > [Releases](https://github.com/ERGFT/reality-client/releases) currently hold
-> pre-releases only (`v0.1.0-preview.*`, Windows x64 and a debug APK).
+> pre-releases only (`v0.1.0-preview.*`: Windows x64, a debug APK and Linux x86_64,
+> with SHA-256 checksums). They are unsigned and have not been run against a real server.
+> How versions are cut: [docs/RELEASING.en.md](docs/RELEASING.en.md).
 
 ## How it works
 

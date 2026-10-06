@@ -2,6 +2,8 @@ name: Rust client Windows
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
@@ -74,10 +76,46 @@ jobs:
               throw "Missing packaged file: $file"
             }
           }
+      - name: Prepare Windows release archive and checksum
+        shell: pwsh
+        run: |
+          $dist = 'rust-client\dist'
+          $zip = Join-Path $dist 'RealityClient-Rust-windows-x64.zip'
+          Compress-Archive -Path (Join-Path $dist 'windows-x64\*') -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  RealityClient-Rust-windows-x64.zip" | Set-Content -LiteralPath (Join-Path $dist 'SHA256SUMS-windows-x64.txt') -Encoding ascii
       - name: Upload Windows x64 package
         uses: actions/upload-artifact@v7
         with:
           name: reality-client-windows-x64
-          path: rust-client/dist/windows-x64/
+          path: |
+            rust-client/dist/windows-x64/
+            rust-client/dist/RealityClient-Rust-windows-x64.zip
+            rust-client/dist/SHA256SUMS-windows-x64.txt
           if-no-files-found: error
           retention-days: 14
+
+  publish-windows-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-windows-x64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/scripts
+            docs/releases
+      - name: Download Windows release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: reality-client-windows-x64
+          path: dist
+      - name: Create the release if needed and attach the Windows archive and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/publish-release.sh "$GITHUB_REF_NAME" \
+            dist/RealityClient-Rust-windows-x64.zip \
+            dist/SHA256SUMS-windows-x64.txt

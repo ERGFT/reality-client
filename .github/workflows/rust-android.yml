@@ -2,6 +2,8 @@ name: Rust client Android
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
@@ -66,10 +68,44 @@ jobs:
       - name: Build Android ARM64 APK
         run: bash rust-client/build-android.sh
 
+      - name: Prepare Android release file and checksum
+        run: |
+          mkdir -p release
+          cp rust-client/android/app/build/outputs/apk/debug/app-debug.apk release/RealityClient-Rust-android-arm64-debug.apk
+          cd release
+          sha256sum RealityClient-Rust-android-arm64-debug.apk > SHA256SUMS-android-arm64.txt
+
       - name: Upload Android APK for device testing
         uses: actions/upload-artifact@v7
         with:
           name: reality-client-android-arm64-debug
-          path: rust-client/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            release/RealityClient-Rust-android-arm64-debug.apk
+            release/SHA256SUMS-android-arm64.txt
           if-no-files-found: error
           retention-days: 14
+
+  publish-android-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-android-arm64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/scripts
+            docs/releases
+      - name: Download Android release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: reality-client-android-arm64-debug
+          path: dist
+      - name: Create the release if needed and attach the APK and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/publish-release.sh "$GITHUB_REF_NAME" \
+            dist/RealityClient-Rust-android-arm64-debug.apk \
+            dist/SHA256SUMS-android-arm64.txt

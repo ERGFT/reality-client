@@ -9,6 +9,7 @@ The root [README](../README.en.md) answers "what is it and how do I run it". The
 | [ARCHITECTURE.en.md](ARCHITECTURE.en.md) | developers: layers, threads, secret storage, the link to the core |
 | [DESIGN.en.md](DESIGN.en.md) | UI designers and developers: tokens, components, Material 3 Expressive, dynamic colours |
 | [PLATFORMS.en.md](PLATFORMS.en.md) | users and packagers: Windows, Linux, Android: build, run, privileges, TUN |
+| [RELEASING.en.md](RELEASING.en.md) | maintainers: how to cut a release (tag → CI → Releases) |
 | [STATUS.en.md](STATUS.en.md) | everyone: what has been run and how it was confirmed, what has not |
 | [../PLAN.en.md](../PLAN.en.md) | roadmap by stage |
 | [../CONTRIBUTING.en.md](../CONTRIBUTING.en.md) | how to build, test and format changes |
