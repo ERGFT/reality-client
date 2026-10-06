@@ -212,11 +212,12 @@ fn find_core() -> Result<PathBuf, String> {
         candidates.push(root.join("third_party").join(file_name));
         candidates.push(root.join("../third_party").join(file_name));
     }
-    // Тесты на чистой машине (CI) берут закреплённое ядро из репозитория.
+    // Тесты берут ядро, собранное из закреплённой версии (build_rust_core.ps1,
+    // build-linux.sh) в rust-client/third_party.
     #[cfg(test)]
     candidates.push(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../third_party")
+            .join("third_party")
             .join(file_name),
     );
     candidates

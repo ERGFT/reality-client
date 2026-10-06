@@ -50,9 +50,10 @@ rustup target add aarch64-linux-android
 
 ## Закреплённое ядро
 
-`../third_party/vpn-core-source.zip` + `.commit` — версия vpn-core, из которой
-собираются скрипты. Скрипты проверяют коммит и SHA-256 и применяют
-`patches/apply_core_tun_fd_ownership.py` (владение TUN-дескриптором).
-Переход на зависимость Cargo — этап 4 в [PLAN.md](../PLAN.md).
+`../third_party/vpn-core.rev` — хеш коммита vpn-core, из которого собираются
+скрипты. `../scripts/fetch-core.sh` (`.ps1` на Windows) скачивает ровно этот
+коммит из публичного репозитория; патчей и архивов в git больше нет.
+Чтобы собрать с локальной копией ядра: `REALITY_CORE_URL=/путь/к/vpn-core ./build-linux.sh`.
+Переход на зависимость Cargo — следующий шаг этапа 4 в [PLAN.md](../PLAN.md).
 
 Архив журнала проверок предварительных сборок — [docs/BUILD-LOG.md](../docs/BUILD-LOG.md).

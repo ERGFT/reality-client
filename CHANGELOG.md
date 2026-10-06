@@ -23,6 +23,14 @@
   по платформам, правила участия и политика безопасности — в двух языках.
 - Старые журналы перенесены в `docs/` как архив.
 
+### Сборка
+- Ядро больше не лежит в git архивом с Python-патчем: хеш коммита vpn-core записан
+  в `third_party/vpn-core.rev`, `scripts/fetch-core.{sh,ps1}` скачивают ровно этот
+  коммит. Исправление владения TUN-дескриптором внесено в vpn-core
+  ([#28](https://github.com/ERGFT/vpn-core/pull/28)). Windows-пакет собирает и
+  `reality-client.exe` из той же версии и содержит `CORE-SOURCE.txt` (адрес и коммит
+  исходников ядра).
+
 ### Подготовка к публикации
 - Проверена история (97 коммитов) и дерево на секреты и личные данные: настоящих ссылок, ключей и токенов нет, только тестовые заглушки.
 - Добавлены `CODE_OF_CONDUCT.md`, `SUPPORT.md`, шаблоны issue и pull request, `CODEOWNERS`, Dependabot; в `Cargo.toml` — лицензия и метаданные.
@@ -59,6 +67,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - README, roadmap, verification status, architecture, design system, platform guides,
   contribution rules and the security policy, in two languages.
 - Old logs moved to `docs/` as an archive.
+
+### Build
+- The core is no longer a zip archive with a Python patch in git: the vpn-core commit
+  hash is recorded in `third_party/vpn-core.rev` and `scripts/fetch-core.{sh,ps1}` fetch
+  exactly that commit. The TUN-descriptor ownership fix went into vpn-core
+  ([#28](https://github.com/ERGFT/vpn-core/pull/28)). The Windows package also builds
+  `reality-client.exe` from the same version and carries `CORE-SOURCE.txt` (the core's
+  source repository and commit).
 
 ### Preparing for publication
 - The history (97 commits) and the tree were scanned for secrets and personal data: no real links, keys or tokens, only test placeholders.

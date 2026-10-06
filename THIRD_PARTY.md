@@ -3,13 +3,11 @@
 ## reality-core / reality-client
 
 - Repository: https://github.com/ERGFT/vpn-core
-- Source snapshot: `third_party/vpn-core-source.zip`
-- Checkout commit for the snapshot: `ee68039943ebb2aaf3287bf622ae34c18bfa0cae`
+- Pinned source: commit recorded in `third_party/vpn-core.rev`; `scripts/fetch-core.sh` and `scripts/fetch-core.ps1` fetch exactly that commit from the repository above (a commit hash fixes the content, so no separate checksum is kept).
 - License declared by the upstream Cargo workspace: GPL-3.0-or-later
-- Bundled executable version: `reality-client 0.1.0`
-- Bundled executable SHA-256: see the `CoreExeSha256` line in `BUILD-MANIFEST.txt`.
+- Built from that commit: `libreality` (`reality.dll`, `libreality.so`) and the `reality-client` command-line program that the GUI starts for config checks, system-proxy recovery and TUN cleanup.
 
-The Windows GUI embeds the executable as a resource and extracts it to `%LOCALAPPDATA%\RealityClient` at runtime. The source archive contains the pinned upstream commit listed above. `build_core.ps1` verifies the archive SHA-256 and revision marker, then extracts it to a temporary directory for a native rebuild. The GUI ships with that GPL-licensed core; keep the source archive and license with any redistribution.
+Corresponding source for the GPL-licensed core in any binary package is the commit above; each Windows package carries `CORE-SOURCE.txt` with the repository URL, the commit and a direct archive link.
 
 The GUI and the combined Windows client are distributed under GPL-3.0-or-later; see `LICENSE.txt`.
 
