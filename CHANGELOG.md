@@ -53,6 +53,13 @@
   Строже прежнего: логические флаги и MTU не приводятся молчаливо из строк, числа и
   адреса разбираются стандартным разбором Rust (например, `010.0.0.1` отклоняется).
 
+- `cargo xtask` (каталог `xtask/`, алиас в `.cargo/config.toml`) заменил PowerShell и bash-скачивание
+  ядра: `fetch-core`, `core-cli`, `package-windows` (включая ярлык `.lnk` через COM и проверку SHA-256
+  Wintun), `test-windows`. Удалены `scripts/fetch-core.{sh,ps1}`, `build_rust_core.ps1`,
+  `rust-client/build-windows.ps1`, `rust-client/tests/windows-test.ps1`; Linux/Android-скрипты и CI
+  вызывают `cargo xtask fetch-core`. Прежняя версия на C# и её скрипты пока остаются: их уберём после
+  паритета и сквозной проверки (этап 6).
+
 ### Подготовка к публикации
 - Проверена история (97 коммитов) и дерево на секреты и личные данные: настоящих ссылок, ключей и токенов нет, только тестовые заглушки.
 - Добавлены `CODE_OF_CONDUCT.md`, `SUPPORT.md`, шаблоны issue и pull request, `CODEOWNERS`, Dependabot; в `Cargo.toml` — лицензия и метаданные.
@@ -119,6 +126,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   `VpnService.Builder`. `AndroidTunPolicy.kt`, `TunAddress.kt` and their tests are removed.
   Stricter than before: boolean flags and MTU are not silently coerced from strings, and
   numbers and addresses use Rust's standard parsing (for example `010.0.0.1` is rejected).
+
+- `cargo xtask` (the `xtask/` directory, alias in `.cargo/config.toml`) replaces PowerShell and the
+  bash core download: `fetch-core`, `core-cli`, `package-windows` (including the `.lnk` shortcut via
+  COM and the Wintun SHA-256 check), `test-windows`. Removed `scripts/fetch-core.{sh,ps1}`,
+  `build_rust_core.ps1`, `rust-client/build-windows.ps1`, `rust-client/tests/windows-test.ps1`; the
+  Linux/Android scripts and CI call `cargo xtask fetch-core`. The previous C# version and its scripts
+  stay for now: they go after parity and the end-to-end check (stage 6).
 
 ### Preparing for publication
 - The history (97 commits) and the tree were scanned for secrets and personal data: no real links, keys or tokens, only test placeholders.

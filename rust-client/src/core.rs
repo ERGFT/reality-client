@@ -212,7 +212,7 @@ fn find_core() -> Result<PathBuf, String> {
         candidates.push(root.join("third_party").join(file_name));
         candidates.push(root.join("../third_party").join(file_name));
     }
-    // Тесты берут ядро, собранное из закреплённой версии (build_rust_core.ps1,
+    // Тесты берут ядро, собранное из закреплённой версии (`cargo xtask core-cli`,
     // build-linux.sh) в rust-client/third_party.
     #[cfg(test)]
     candidates.push(
@@ -312,8 +312,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn bundled_core_accepts_a_direct_json_config() {
-        let core =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../third_party/reality-client.exe");
+        let core = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("third_party/reality-client.exe");
         assert!(
             core.is_file(),
             "expected pinned config checker at {}",

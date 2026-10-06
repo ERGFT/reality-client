@@ -3,7 +3,7 @@
 ## reality-core / reality-client
 
 - Repository: https://github.com/ERGFT/vpn-core
-- Pinned source: commit recorded in `third_party/vpn-core.rev`; `scripts/fetch-core.sh` and `scripts/fetch-core.ps1` fetch exactly that commit from the repository above (a commit hash fixes the content, so no separate checksum is kept).
+- Pinned source: commit recorded in `third_party/vpn-core.rev`; `cargo xtask fetch-core` fetches exactly that commit from the repository above (a commit hash fixes the content, so no separate checksum is kept).
 - License declared by the upstream Cargo workspace: GPL-3.0-or-later
 - Built from that commit: `libreality` (the `reality-ffi` crate), linked into the application as a Cargo dependency from `third_party/vpn-core/` (with the same `rustls` and `smoltcp` patches as vpn-core, under `[patch.crates-io]`), and the `reality-client` command-line program that the GUI starts for config checks, system-proxy recovery and TUN cleanup.
 

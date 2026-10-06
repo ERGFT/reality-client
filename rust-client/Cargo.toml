@@ -22,7 +22,7 @@ url = "2.5.8"
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "socks-proxy"] }
 zeroize = "1.8"
 # Ядро vpn-core: исходники по хешу из ../third_party/vpn-core.rev, скачиваются
-# scripts/fetch-core.sh (.ps1) в ../third_party/vpn-core перед любой сборкой.
+# `cargo xtask fetch-core` в ../third_party/vpn-core перед любой сборкой.
 reality-ffi = { path = "../third_party/vpn-core/ffi" }
 
 [target.'cfg(windows)'.dependencies]

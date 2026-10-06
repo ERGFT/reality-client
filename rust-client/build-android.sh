@@ -69,7 +69,7 @@ trap cleanup EXIT
 
 # Ядро — Cargo-зависимость клиента (path-зависимость на third_party/vpn-core),
 # линкуется в libreality_client_rs.so; отдельной libreality.so больше нет.
-bash "$repo_root/scripts/fetch-core.sh" "$repo_root/third_party/vpn-core"
+(cd "$repo_root" && cargo xtask fetch-core)
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$build_root/target}"
 jni_dir="$app_dir/build/generated/jniLibs"

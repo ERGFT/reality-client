@@ -25,6 +25,7 @@ Contents:
 | Splitting `lib.rs` into modules | Linux: `fmt`, Clippy, 51 tests, `android-bridge-check`, the window starts; Windows: Clippy via cross-build (`x86_64-pc-windows-gnu`, both feature sets); Android code is compiled only by CI | Claude, 2026-10-06 |
 | The core as a Cargo dependency (Linux) | `reality-ffi` is linked into the app; 52 tests, including starting the core in-process: loopback SOCKS listener, `/groups`, `/stats`, reload, stop; Windows: Clippy via cross-build; Android code is compiled by CI only | Claude, 2026-10-06 |
 | Android TUN policy in Rust | `android_tun.rs`: 20 host tests (addresses, DNS neighbour, app filter, unsupported options, MTU); `nativePlanTun` and the Kotlin shell are checked by CI only (APK build and Kotlin tests), not run on a device | Claude, 2026-10-06 |
+| `cargo xtask` | Linux: `fetch-core` (download, a repeat run changes nothing, a wrong command exits with 2), `fmt`, Clippy; Windows: Clippy via cross-build (including the COM shortcut). `core-cli`, `package-windows`, `test-windows` were not run on Windows: CI runs them | Claude, 2026-10-06 |
 | Linux installer | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | UI layout | `slint-viewer` screenshots: 5 pages, phone (380 px, M3) and desktop (1080 px), both themes | Claude, 2026-10-06 |
 | Windows build and tests (66 + 69), DPAPI compatibility with C# | developer machine | previous author ([log](BUILD-LOG.md), Russian); not re-run |
@@ -33,7 +34,7 @@ Contents:
 ## 2. Not verified
 
 - End-to-end traffic "client → real VLESS/REALITY server → website" on **any** platform.
-- Windows: running the built `.exe`, system proxy and TUN (Wintun) on a clean machine; the full `build-windows.ps1` package (core, `wintun.dll`).
+- Windows: running the built `.exe`, system proxy and TUN (Wintun) on a clean machine; the full `cargo xtask package-windows` package (core, `wintun.dll`).
 - Linux: TUN and routes, Secret Service on a real desktop, `setcap`.
 - Android: an APK build after the changes (Material 3, Kotlin `readSystemPalette` and its
   JNI call), `VpnService` and TUN on a device, `protect(fd)`, network changes,

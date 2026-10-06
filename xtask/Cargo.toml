@@ -1,0 +1,13 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+description = "Сборочные задачи Reality Client (cargo xtask): ядро по хешу коммита, пакет Windows, тесты на GNU-тулчейне"
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+sha2 = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell"] }

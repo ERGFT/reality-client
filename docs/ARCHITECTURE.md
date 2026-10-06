@@ -102,7 +102,7 @@ vpn-core — зависимость Cargo (`reality-ffi`, путь `third_party/
 временном файле (`link_file`), чтобы секрет не попадал в аргументы процесса.
 
 Версия ядра закреплена хешем коммита в `third_party/vpn-core.rev`; скрипты
-сборки (`scripts/fetch-core.sh`, `scripts/fetch-core.ps1`) скачивают из
+сборки (`cargo xtask fetch-core`) скачивают из
 репозитория vpn-core ровно этот коммит в `third_party/vpn-core/` (каталог вне git);
 перед любым `cargo` его нужно скачать. Хеш коммита сам гарантирует содержимое,
 отдельная контрольная сумма и локальные патчи не нужны. Патчи зависимостей ядра
@@ -169,7 +169,7 @@ vpn-core — зависимость Cargo (`reality-ffi`, путь `third_party/
 | `rust-client/android/` | Kotlin: `MainActivity`, `RealityVpnService` (тонкая оболочка), JVM-тесты временного файла конфигурации |
 | `rust-client/assets/` | иконка приложения |
 | `rust-client/build-*.{sh,ps1}` | сборка пакетов под платформы |
-| `scripts/` | `fetch-core.sh` / `fetch-core.ps1` — скачивание ядра по хешу коммита |
+| `xtask/` | `cargo xtask`: `fetch-core` (ядро по хешу коммита), `core-cli`, `package-windows`, `test-windows` |
 | `third_party/` | `vpn-core.rev` (коммит ядра), `wintun.dll` |
 | `src/`, `build.ps1`, `dist/` | прежняя версия на C# (архив) |
 | `.github/workflows/` | CI: Linux, Windows, Android |

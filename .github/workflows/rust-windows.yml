@@ -5,17 +5,17 @@ on:
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
-      - "scripts/fetch-core.*"
+      - "xtask/**"
+      - ".cargo/**"
       - "third_party/wintun/**"
-      - "build_rust_core.ps1"
       - ".github/workflows/rust-windows.yml"
   pull_request:
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
-      - "scripts/fetch-core.*"
+      - "xtask/**"
+      - ".cargo/**"
       - "third_party/wintun/**"
-      - "build_rust_core.ps1"
       - ".github/workflows/rust-windows.yml"
 
 permissions:
@@ -40,9 +40,6 @@ jobs:
         with:
           toolchain: stable-x86_64-pc-windows-gnu
           components: rustfmt, clippy
-      - name: Fetch pinned vpn-core (Cargo dependency of the client)
-        shell: pwsh
-        run: .\scripts\fetch-core.ps1 -Destination third_party\vpn-core
       - name: Configure core build environment
         shell: pwsh
         run: |
@@ -51,24 +48,23 @@ jobs:
           "RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "AWS_LC_SYS_PREBUILT_NASM=1" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "CMAKE_GENERATOR=Ninja" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Fetch pinned vpn-core (Cargo dependency of the client)
+        run: cargo xtask fetch-core
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-client/Cargo.toml --check
       - name: Run Rust static analysis
         run: cargo clippy --manifest-path rust-client/Cargo.toml --locked --features android-bridge-check --all-targets --target x86_64-pc-windows-gnu -- -D warnings -A dead_code
       - name: Build pinned vpn-core command-line program
-        shell: pwsh
         env:
           REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
-        run: .\build_rust_core.ps1
+        run: cargo xtask core-cli
       - name: Run Windows Rust tests
-        shell: pwsh
         run: |
           cargo test --manifest-path rust-client/Cargo.toml --features android-bridge-check --locked --target x86_64-pc-windows-gnu
       - name: Build Windows package
-        shell: pwsh
         env:
           REALITY_MINGW_BIN: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
-        run: .\rust-client\build-windows.ps1
+        run: cargo xtask package-windows
       - name: Verify packaged files
         shell: pwsh
         run: |
