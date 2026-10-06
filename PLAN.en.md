@@ -23,7 +23,7 @@ Stage status (updated as work goes on):
 | 6 | End-to-end checks: a real REALITY server → Windows, Linux, Android | ⏳ needs a server and devices |
 | 7 | Android: TUN policy moved from Kotlin to Rust (`android_tun.rs`, host tests), `VpnService` is a thin shell | ✅ not checked on a device |
 | 8 | PowerShell scripts replaced by `cargo xtask` (`fetch-core`, `core-cli`, `package-windows`, `test-windows`); C# and its scripts go after parity and stage 6 | 🔶 xtask done, CI builds the Windows package with it; C# stays |
-| 9 | First release: signed builds, SHA-256, install and update instructions | ⏳ |
+| 9 | First release: signed builds, SHA-256, install and update instructions | 🔶 pre-release `v0.1.0-preview.1` on a tag (CI publishes the `.exe`/`.apk`/Linux files and SHA-256); signing and update instructions come later |
 | 10 | Apple: macOS, then iOS/tvOS (Network Extension) | 💤 postponed |
 
 ## Principles

@@ -9,6 +9,7 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | разработчикам: слои, потоки, хранение секретов, связь с ядром |
 | [DESIGN.md](DESIGN.md) | дизайнерам и разработчикам интерфейса: токены, компоненты, Material 3 Expressive, динамические цвета |
 | [PLATFORMS.md](PLATFORMS.md) | пользователям и сборщикам: Windows, Linux, Android — сборка, запуск, права, TUN |
+| [RELEASING.md](RELEASING.md) | сопровождающим: как выпустить версию (тег → CI → Releases) |
 | [STATUS.md](STATUS.md) | всем: что запускалось и чем подтверждено, чего ещё нет |
 | [../PLAN.md](../PLAN.md) | дорожная карта по этапам |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | как собирать, проверять, оформлять изменения |

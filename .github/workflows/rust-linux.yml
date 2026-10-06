@@ -2,6 +2,8 @@ name: Rust client Linux
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
     paths:
       - "rust-client/**"
       - "third_party/vpn-core.rev"
@@ -84,7 +86,7 @@ jobs:
           retention-days: 14
 
   publish-linux-release:
-    if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') || startsWith(github.ref, 'refs/tags/v')
     needs: build-linux-x86_64
     runs-on: ubuntu-24.04
     permissions:
@@ -95,12 +97,16 @@ jobs:
         with:
           name: reality-client-linux-x86_64
           path: dist
-      - name: Attach Linux archive and checksum to the published release
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/scripts
+            docs/releases
+      - name: Attach Linux archive and checksum to the release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || (github.event_name == 'workflow_dispatch' && inputs.release_tag) || github.ref_name }}
         run: |
-          gh release upload "$RELEASE_TAG" \
+          bash .github/scripts/publish-release.sh "$RELEASE_TAG" \
             dist/RealityClient-Rust-linux-x86_64.tar.gz \
-            dist/SHA256SUMS-linux-x86_64.txt \
-            --repo "$GITHUB_REPOSITORY"
+            dist/SHA256SUMS-linux-x86_64.txt

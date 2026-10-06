@@ -84,7 +84,9 @@ cd rust-client
 
 > [!NOTE]
 > Готовых сборок в [Releases](https://github.com/ERGFT/reality-client/releases)
-> пока только предварительные (`v0.1.0-preview.*`, Windows x64 и отладочный APK).
+> пока только предварительные (`v0.1.0-preview.*`: Windows x64, отладочный APK и Linux x86_64,
+> с контрольными суммами SHA-256). Они не подписаны и не проверялись на реальном сервере.
+> Как выпускаются версии — [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Как это устроено
 
