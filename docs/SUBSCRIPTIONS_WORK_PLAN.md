@@ -6,6 +6,12 @@ Current delivery: [PR #19](https://github.com/ERGFT/reality-client/pull/19),
 implementation commit d89dba2. Windows and Android runtime checks passed;
 Linux/Windows/Android push and PR jobs are running. Merge gate remains pending.
 
+Final storage review found the 16 KiB plaintext limit was also applied to DPAPI
+ciphertext, which has additional headers. Protected subscription blobs now allow
+32 KiB while input and legacy vault limits remain unchanged. A regression saves
+and reopens maximum-length URL and VLESS inputs. All 15 subscription tests and
+Clippy passed after this correction.
+
 ## Requirements
 
 - Import an HTTPS subscription as a group of servers; support UTF-8 URI lists

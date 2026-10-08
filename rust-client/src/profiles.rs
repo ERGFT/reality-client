@@ -9,6 +9,8 @@ use zeroize::{Zeroize, Zeroizing};
 const HEADER: &[u8] = b"RCLIENT1";
 const MAX_PROFILES: usize = 100;
 const MAX_PROTECTED_LINK: usize = 16 * 1024;
+#[cfg(windows)]
+const MAX_DPAPI_BLOB_SIZE: usize = 32 * 1024;
 const MAX_VAULT_SIZE: usize = 2 * 1024 * 1024;
 
 #[derive(Clone, Debug)]
@@ -444,7 +446,7 @@ pub(crate) fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
             }
             return Err("Windows вернула пустую защищённую ссылку.".into());
         }
-        if output.cbData as usize > MAX_PROTECTED_LINK {
+        if output.cbData as usize > MAX_DPAPI_BLOB_SIZE {
             let _ = LocalFree(Some(HLOCAL(output.pbData.cast())));
             return Err("Защищённая ссылка превышает допустимый размер профиля.".into());
         }
@@ -579,7 +581,7 @@ pub(crate) fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> 
             CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptUnprotectData,
         },
     };
-    if protected.is_empty() || protected.len() > MAX_PROTECTED_LINK {
+    if protected.is_empty() || protected.len() > MAX_DPAPI_BLOB_SIZE {
         return Err("Сохранённая ссылка профиля повреждена.".into());
     }
     let input = CRYPT_INTEGER_BLOB {

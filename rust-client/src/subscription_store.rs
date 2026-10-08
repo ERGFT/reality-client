@@ -18,6 +18,8 @@ use crate::{
 
 const MAX_FILE_BYTES: usize = 32 * 1024 * 1024;
 const MAX_GROUPS: usize = 50;
+// DPAPI ciphertext includes headers in addition to the bounded 16 KiB input.
+const MAX_PROTECTED_BYTES: usize = 32 * 1024;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -296,7 +298,7 @@ fn validate_vault(vault: &Vault) -> Result<(), String> {
         if group.id == 0
             || group.id >= vault.next_id
             || !ids.insert(group.id)
-            || !(1..=16 * 1024).contains(&group.protected_url.len())
+            || !(1..=MAX_PROTECTED_BYTES).contains(&group.protected_url.len())
             || group.servers.is_empty()
             || group
                 .last_error
@@ -311,7 +313,7 @@ fn validate_vault(vault: &Vault) -> Result<(), String> {
                 || !ids.insert(server.id)
                 || server.name.chars().count() > 100
                 || server.name.chars().any(char::is_control)
-                || !(1..=16 * 1024).contains(&server.protected_link.len())
+                || !(1..=MAX_PROTECTED_BYTES).contains(&server.protected_link.len())
             {
                 return Err(invalid());
             }
@@ -333,6 +335,33 @@ mod tests {
     use crate::subscriptions::parse;
     const URL: &str = "https://service.example.org/sublink/private-fixture";
     const FIRST: &str = "vless://00000000-0000-4000-8000-000000000000@edge.example.org:443#First";
+
+    #[test]
+    fn subscription_protected_store_accepts_maximum_input_after_dpapi_overhead() {
+        let root = std::env::temp_dir().join(format!(
+            "subscription-max-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("subscriptions.json");
+        let mut store = SubscriptionStore::open_at(path.clone()).unwrap();
+        let prefix = "https://example.invalid/";
+        let url = format!("{prefix}{}", "x".repeat(16 * 1024 - prefix.len()));
+        let link = format!("{FIRST}{}", "y".repeat(16 * 1024 - FIRST.len()));
+        let imported = parse(link.as_bytes()).unwrap();
+        let group = store
+            .replace(None, "Maximum input", &url, &imported)
+            .unwrap();
+        let store = SubscriptionStore::open_at(path).unwrap();
+        let server = store.groups()[0].servers[0].id;
+        assert_eq!(*store.url(group).unwrap(), url);
+        assert_eq!(*store.link(group, server).unwrap(), link);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn protected_store_preserves_identity_and_old_data_on_invalid_refresh() {
