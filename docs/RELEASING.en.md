@@ -29,7 +29,7 @@ A `v*` tag starts the three workflows (Linux, Windows, Android). Each builds its
 
 | File | Platform |
 |---|---|
-| `RealityClient-Rust-windows-x64.zip`, `SHA256SUMS-windows-x64.txt` | Windows x64 |
+| `RealityClient-Setup-windows-x64.exe` | Windows x64: GUI installer that places the client under `%LOCALAPPDATA%\Programs\Reality Client` and adds a Start menu shortcut |
 | `RealityClient-Rust-android-arm64-debug.apk`, `SHA256SUMS-android-arm64.txt` | Android arm64 |
 | `RealityClient-Rust-linux-x86_64.tar.gz`, `SHA256SUMS-linux-x86_64.txt` | Linux x86_64 |
 
@@ -37,5 +37,5 @@ The Windows build takes about half an hour.
 
 ## 3. What is still missing
 
-- Signatures: the Windows build is unsigned (SmartScreen warns), the APK is signed with a debug key. Signing needs the owner's certificate and key; they are not kept in the repository.
+- Signatures: the Windows installer is unsigned, so SmartScreen may warn that the app is unrecognized. Signing requires a trusted Authenticode certificate and the owner's key; they are not kept in the repository. The APK is signed with a debug key.
 - Update instructions between versions (for now: "uninstall and install the new one").

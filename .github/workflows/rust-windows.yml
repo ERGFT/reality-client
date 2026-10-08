@@ -10,6 +10,7 @@ on:
       - "xtask/**"
       - ".cargo/**"
       - "third_party/wintun/**"
+      - "installer-windows.iss"
       - ".github/workflows/rust-windows.yml"
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - "xtask/**"
       - ".cargo/**"
       - "third_party/wintun/**"
+      - "installer-windows.iss"
       - ".github/workflows/rust-windows.yml"
 
 permissions:
@@ -76,22 +78,24 @@ jobs:
               throw "Missing packaged file: $file"
             }
           }
-      - name: Prepare Windows release archive and checksum
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Build Windows installer
         shell: pwsh
         run: |
           $dist = 'rust-client\dist'
-          $zip = Join-Path $dist 'RealityClient-Rust-windows-x64.zip'
-          Compress-Archive -Path (Join-Path $dist 'windows-x64\*') -DestinationPath $zip -CompressionLevel Optimal
-          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  RealityClient-Rust-windows-x64.zip" | Set-Content -LiteralPath (Join-Path $dist 'SHA256SUMS-windows-x64.txt') -Encoding ascii
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler)) { throw "Inno Setup compiler not found: $compiler" }
+          & $compiler 'installer-windows.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+          $setup = Join-Path $dist 'RealityClient-Setup-windows-x64.exe'
+          if (-not (Test-Path -LiteralPath $setup)) { throw "Installer was not created: $setup" }
       - name: Upload Windows x64 package
         uses: actions/upload-artifact@v7
         with:
           name: reality-client-windows-x64
           path: |
-            rust-client/dist/windows-x64/
-            rust-client/dist/RealityClient-Rust-windows-x64.zip
-            rust-client/dist/SHA256SUMS-windows-x64.txt
+            rust-client/dist/RealityClient-Setup-windows-x64.exe
           if-no-files-found: error
           retention-days: 14
 
@@ -112,10 +116,9 @@ jobs:
         with:
           name: reality-client-windows-x64
           path: dist
-      - name: Create the release if needed and attach the Windows archive and checksum
+      - name: Create the release if needed and attach the Windows installer
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           bash .github/scripts/publish-release.sh "$GITHUB_REF_NAME" \
-            dist/RealityClient-Rust-windows-x64.zip \
-            dist/SHA256SUMS-windows-x64.txt
+            dist/RealityClient-Setup-windows-x64.exe

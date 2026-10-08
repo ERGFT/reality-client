@@ -16,7 +16,12 @@
   меняет форму при подключении.
 - Android 12+: динамические цвета из системной палитры Material You
   (`MainActivity.readSystemPalette` + модуль `material.rs` с тестами).
+- Android 15+: безопасные отступы для строки состояния, выреза камеры и жестовой навигации; внутренний верхний отступ уменьшен.
 - Иконка приложения; на Linux — привязка окна к `.desktop` (app-id) и установка иконки.
+
+### Windows
+- Вместо ZIP релиз собирает единый GUI-установщик `.exe` с файлами клиента и ярлыком в меню «Пуск».
+- Windows GUI-клиент собирается как Windows-приложение без консольного окна.
 
 ### Исправлено
 - `cargo xtask test-windows` передаёт флаги Cargo для Clippy до `--`, а lint-флаги — после него.
@@ -99,8 +104,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   buttons, an M3 switch and navigation bar, a power button that changes shape on connect.
 - Android 12+: dynamic colours from the Material You system palette
   (`MainActivity.readSystemPalette` + the tested `material.rs` module).
+- Android 15+: safe drawing insets for the status bar, display cutout, and gesture navigation; reduced the extra top gap.
 - An app icon; on Linux the window is tied to the `.desktop` entry (app-id) and the
   icon is installed.
+
+### Windows
+- Replace the ZIP download with one GUI installer `.exe` that installs the client bundle and adds a Start menu shortcut.
+- Build the Windows GUI as a Windows-subsystem application so starting it does not open a console window.
 
 ### Fixed
 - `cargo xtask test-windows` passes Cargo flags for Clippy before `--` and lint flags after it.
