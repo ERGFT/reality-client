@@ -7,8 +7,9 @@
 Detailed plan and evidence: [SUBSCRIPTIONS_WORK_PLAN.md](docs/SUBSCRIPTIONS_WORK_PLAN.md).
 Implement protected subscription storage, plain/Base64 VLESS imports, server
 groups, manual refresh and UI controls. Updates preserve manual profiles,
-server selection and a running session. Windows tests passed; Android checks
-and a separate PR with green CI are remaining required steps.
+server selection and a running session. Windows tests and Android Keystore/Slint
+runtime checks passed. [PR #19](https://github.com/ERGFT/reality-client/pull/19) is
+open; green CI and post-merge main verification are the remaining required steps.
 
 The goal is a graphical client for [vpn-core](https://github.com/ERGFT/vpn-core),
 **written entirely in Rust** wherever possible: shared logic, UI (Slint), platform

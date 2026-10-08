@@ -2,6 +2,10 @@
 
 Status: in progress. Target: Reality Client (Rust + Slint), Windows and Android.
 
+Current delivery: [PR #19](https://github.com/ERGFT/reality-client/pull/19),
+implementation commit d89dba2. Windows and Android runtime checks passed;
+Linux/Windows/Android push and PR jobs are running. Merge gate remains pending.
+
 ## Requirements
 
 - Import an HTTPS subscription as a group of servers; support UTF-8 URI lists
