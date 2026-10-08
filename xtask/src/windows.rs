@@ -121,10 +121,23 @@ pub fn package() -> Result<()> {
     let package_third_party = package.join("third_party");
     fs::create_dir_all(&package_third_party).map_err(|e| e.to_string())?;
     let exe = package.join("RealityClient-Rust.exe");
+    let client_target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .map(|path| -> Result<PathBuf> {
+            if path.is_absolute() {
+                Ok(path)
+            } else {
+                std::env::current_dir()
+                    .map(|cwd| cwd.join(path))
+                    .map_err(|e| {
+                        format!("не удалось определить текущую папку для CARGO_TARGET_DIR: {e}")
+                    })
+            }
+        })
+        .transpose()?
+        .unwrap_or_else(|| root.join("rust-client/target"));
     copy(
-        &root.join(format!(
-            "rust-client/target/{TARGET}/release/reality-client-rs.exe"
-        )),
+        &client_target.join(format!("{TARGET}/release/reality-client-rs.exe")),
         &exe,
     )?;
     copy(&core_cli, &package_third_party.join("reality-client.exe"))?;
@@ -193,7 +206,7 @@ pub fn test() -> Result<()> {
             &std::env::var_os("LIBRARY_PATH").unwrap_or_default(),
         ));
         let library_path = std::env::join_paths(library_path).map_err(|e| e.to_string())?;
-        let cargo = |args: &[&str]| -> Result<()> {
+        let cargo = |subcommand: &str, args: &[&str]| -> Result<()> {
             let mut command = Command::new("cargo");
             command
                 .current_dir(root.join("rust-client"))
@@ -202,23 +215,29 @@ pub fn test() -> Result<()> {
                 .env("RUSTUP_TOOLCHAIN", TOOLCHAIN)
                 .env("AWS_LC_SYS_PREBUILT_NASM", "1")
                 .env("CMAKE_GENERATOR", "Ninja")
-                .args(args)
-                .args(["--locked", "--release", "--target", TARGET]);
+                .arg(subcommand)
+                .args(["--locked", "--release", "--target", TARGET])
+                .args(args);
             run(&mut command)
         };
-        let lints = ["--all-targets"];
-        let deny = ["--", "-D", "warnings", "-A", "dead_code"];
-        cargo(&["test"])?;
-        cargo(&["test", "--features", "android-bridge-check"])?;
-        cargo(&[&["clippy"][..], &lints, &deny].concat())?;
+        cargo("test", &[])?;
+        cargo("test", &["--features", "android-bridge-check"])?;
         cargo(
+            "clippy",
+            &["--all-targets", "--", "-D", "warnings", "-A", "dead_code"],
+        )?;
+        cargo(
+            "clippy",
             &[
-                &["clippy"][..],
-                &lints,
-                &["--features", "android-bridge-check"],
-                &deny,
-            ]
-            .concat(),
+                "--all-targets",
+                "--features",
+                "android-bridge-check",
+                "--",
+                "-D",
+                "warnings",
+                "-A",
+                "dead_code",
+            ],
         )
     })();
     let _ = fs::remove_dir_all(&lib_dir);

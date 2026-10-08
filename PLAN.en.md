@@ -22,8 +22,8 @@ Stage status (updated as work goes on):
 | 5 | `rust-client/src/lib.rs` (3600 lines) split into modules: `ui/` (handlers by topic, `UiState`) and pure modules with tests; behaviour and tests unchanged | ✅ |
 | 6 | End-to-end checks: a real REALITY server → Windows, Linux, Android | ⏳ needs a server and devices |
 | 7 | Android: TUN policy moved from Kotlin to Rust (`android_tun.rs`, host tests), `VpnService` is a thin shell | ✅ not checked on a device |
-| 8 | PowerShell scripts replaced by `cargo xtask` (`fetch-core`, `core-cli`, `package-windows`, `test-windows`); C# and its scripts go after parity and stage 6 | 🔶 xtask done, CI builds the Windows package with it; C# stays |
-| 9 | First release: signed builds, SHA-256, install and update instructions | 🔶 pre-release `v0.1.0-preview.1` on a tag (CI publishes the `.exe`/`.apk`/Linux files and SHA-256); signing and update instructions come later |
+| 8 | PowerShell scripts replaced by `cargo xtask` (`fetch-core`, `core-cli`, `package-windows`, `test-windows`); C# and its scripts go after parity and stage 6 | 🔶 CI builds the Windows package; local `package-windows` built with relative `CARGO_TARGET_DIR`; GNU-toolchain `test-windows` passed (92/95 host tests, both Clippy sets). Target lookup and Clippy argument order fixed. C# stays |
+| 9 | First release: signed builds, SHA-256, install and update instructions | 🔶 pre-release `v0.1.0-preview.9` is published: Windows x64, Linux x86_64 and Android ARM64 debug APK, each with SHA-256; signing and update instructions come later. Linux had to be attached manually because checkout removed the downloaded artifact and the workflow ran twice for a tag (`push` + `release`); the step order is fixed and the redundant trigger removed in the local branch, but CI has not verified the changes |
 | 10 | Apple: macOS, then iOS/tvOS (Network Extension) | 💤 postponed |
 
 ## Principles
