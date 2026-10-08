@@ -252,6 +252,13 @@ pub(crate) fn parse(body: &[u8]) -> Result<ImportResult, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subscription_urls_cannot_be_exposed_by_dependency_trace_logging() {
+        // ureq's DebugUri only redacts path/query when TRACE is disabled.
+        let maximum = std::hint::black_box(log::STATIC_MAX_LEVEL);
+        assert!(maximum <= log::LevelFilter::Debug);
+    }
     const LINK: &str = "vless://00000000-0000-4000-8000-000000000000@edge.example.org:443?encryption=none#%D0%A1%D0%B5%D1%80%D0%B2%D0%B5%D1%80";
 
     #[test]

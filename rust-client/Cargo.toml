@@ -25,6 +25,9 @@ base64 = "0.23.1"
 url = "2.5.8"
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "socks-proxy"] }
 zeroize = "1.8"
+# ureq reveals URI path/query at log TRACE. Keep that disabled regardless of
+# RUST_LOG; the core's direct tracing instrumentation is not affected.
+log = { version = "0.4", features = ["max_level_debug"] }
 # Ядро vpn-core: исходники по хешу из ../third_party/vpn-core.rev, скачиваются
 # `cargo xtask fetch-core` в ../third_party/vpn-core перед любой сборкой.
 reality-ffi = { path = "../third_party/vpn-core/ffi" }

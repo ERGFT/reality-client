@@ -12,6 +12,12 @@ ciphertext, which has additional headers. Protected subscription blobs now allow
 and reopens maximum-length URL and VLESS inputs. All 15 subscription tests and
 Clippy passed after this correction.
 
+Final privacy/clipboard review: dependency TRACE logging is disabled at compile time
+to prevent HTTP request path/query leakage even with RUST_LOG=trace. The shared
+clipboard sanitizer accepts HTTPS and rejects multiline input without echoing
+secrets. All 17 subscription tests, fmt and all-target android-bridge-check
+Clippy passed. Native clipboard input remains unverified. Final CI is pending.
+
 ## Requirements
 
 - Import an HTTPS subscription as a group of servers; support UTF-8 URI lists

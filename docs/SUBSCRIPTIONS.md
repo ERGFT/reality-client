@@ -39,6 +39,10 @@ keyboard/clipboard input, provider compatibility or remote VPN traffic.
 
 ## Русский
 
+TRACE-логирование зависимостей через `log` отключено при сборке: ureq на этом
+уровне раскрывает URL. Это действует и при `RUST_LOG=trace`. Прямые события
+ядра через `tracing` не ограничиваются этой настройкой.
+
 В исходниках клиента добавлен импорт подписок; опубликованные сборки могут
 ещё не содержать эту функцию. Состояние проверки — в
 [плане реализации](SUBSCRIPTIONS_WORK_PLAN.md).
@@ -91,6 +95,10 @@ keyboard/clipboard input, provider compatibility or remote VPN traffic.
 Не отправляйте полную ссылку подписки в отчёты об ошибках.
 
 ## English
+
+Dependency TRACE events through `log` are disabled at compile time because
+ureq reveals URI paths/queries at that level, including with `RUST_LOG=trace`.
+The core's direct `tracing` events are not capped by this setting.
 
 Subscription support is present in the source; published builds may not yet
 include it. See the [implementation plan](SUBSCRIPTIONS_WORK_PLAN.md) for

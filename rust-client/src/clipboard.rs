@@ -1,4 +1,4 @@
-//! Чтение ссылки VLESS из буфера обмена.
+//! Чтение одной ссылки из буфера обмена; формат проверяет вызывающий код.
 
 #[cfg(windows)]
 use std::time::Duration;
@@ -93,11 +93,11 @@ pub(crate) fn read_clipboard_profile_link() -> Result<Zeroizing<String>, String>
 pub(crate) fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<String>, String> {
     let text = Zeroizing::new(text);
     if text.contains(['\r', '\n', '\0']) {
-        return Err("В буфере несколько строк. Скопируйте только одну ссылку VLESS.".into());
+        return Err("В буфере несколько строк. Скопируйте только одну ссылку.".into());
     }
     let trimmed = text.trim();
     if trimmed.is_empty() {
-        return Err("В буфере нет текста со ссылкой VLESS.".into());
+        return Err("В буфере нет текста со ссылкой.".into());
     }
     Ok(Zeroizing::new(trimmed.to_owned()))
 }
@@ -105,6 +105,16 @@ pub(crate) fn sanitize_clipboard_profile_link(text: String) -> Result<Zeroizing<
 #[cfg(test)]
 mod clipboard_tests {
     use super::sanitize_clipboard_profile_link;
+
+    #[test]
+    fn subscription_clipboard_accepts_https_without_echoing_invalid_input() {
+        let link = "https://example.invalid/sublink/synthetic-token";
+        let pasted = sanitize_clipboard_profile_link(format!("  {link}  ")).unwrap();
+        assert_eq!(pasted.as_str(), link);
+        crate::subscriptions::validate_url(&pasted).unwrap();
+        let error = sanitize_clipboard_profile_link(format!("{link}\n{link}")).unwrap_err();
+        assert!(!error.contains("synthetic-token"));
+    }
 
     #[test]
     fn clipboard_paste_trims_outer_whitespace_and_preserves_link() {
