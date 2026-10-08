@@ -100,7 +100,8 @@ pub fn check_config_file(path: &std::path::Path) -> Result<(), String> {
     let base = path
         .parent()
         .ok_or("Не удалось определить папку конфигурации.")?;
-    let mut process = Command::new(core)
+    let mut command = Command::new(core);
+    command
         .args([
             "--config",
             path.to_str()
@@ -110,7 +111,14 @@ pub fn check_config_file(path: &std::path::Path) -> Result<(), String> {
         .current_dir(base)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // The core is a console-subsystem executable; do not flash a console when the GUI invokes it.
+        command.creation_flags(0x0800_0000);
+    }
+    let mut process = command
         .spawn()
         .map_err(|e| format!("Не удалось запустить проверку ядра: {e}"))?;
     let stdout = process
@@ -233,12 +241,19 @@ fn find_core() -> Result<PathBuf, String> {
 #[cfg(windows)]
 pub fn cleanup_tun_routes() -> Result<String, String> {
     let executable = find_core()?;
-    let output = Command::new(&executable)
+    let mut command = Command::new(&executable);
+    command
         .arg("--tun-cleanup")
         .current_dir(executable.parent().unwrap_or_else(|| Path::new(".")))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command
         .output()
         .map_err(|problem| format!("Не удалось запустить восстановление Windows TUN: {problem}"))?;
     let diagnostic = [output.stdout.as_slice(), output.stderr.as_slice()]

@@ -611,7 +611,9 @@ export component MainWindow inherits Window {
     property <int> power-state: root.connected ? 2 : (root.idle ? 0 : 1);
     property <bool> show-diagnostics: false;
     property <length> page-pad: root.compact ? 16px : 32px;
-    property <length> top-pad: root.mobile-layout ? 34px : 28px;
+    // AndroidActivity applies real system-bar and display-cutout insets. Keep
+    // only a small visual gap here so the page does not start below the clock twice.
+    property <length> top-pad: root.mobile-layout ? 14px : 28px;
 
     changed use-full-config => {
         if root.use-full-config { root.enable-system-proxy = false; }

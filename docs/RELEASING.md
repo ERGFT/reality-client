@@ -29,7 +29,7 @@ git push origin v0.1.0-preview.1
 
 | Файл | Платформа |
 |---|---|
-| `RealityClient-Rust-windows-x64.zip`, `SHA256SUMS-windows-x64.txt` | Windows x64 |
+| `RealityClient-Setup-windows-x64.exe` | Windows x64: GUI-установщик, который кладёт клиент в `%LOCALAPPDATA%\Programs\Reality Client` и добавляет ярлык в меню «Пуск» |
 | `RealityClient-Rust-android-arm64-debug.apk`, `SHA256SUMS-android-arm64.txt` | Android arm64 |
 | `RealityClient-Rust-linux-x86_64.tar.gz`, `SHA256SUMS-linux-x86_64.txt` | Linux x86_64 |
 
@@ -37,5 +37,5 @@ Windows-сборка идёт около получаса.
 
 ## 3. Чего ещё нет
 
-- Подписи: Windows-сборка не подписана (SmartScreen предупреждает), APK подписан отладочным ключом. Подпись требует сертификата и ключа владельца; они не хранятся в репозитории.
+- Подписи: Windows-установщик не подписан, поэтому SmartScreen может предупреждать о неизвестном приложении. Подпись требует доверенного Authenticode сертификата и ключа владельца; они не хранятся в репозитории. APK подписан отладочным ключом.
 - Инструкции обновления между версиями (пока — «удалите и поставьте новую»).

@@ -6,6 +6,9 @@ import android.content.Intent
 import android.net.Uri
 import android.net.VpnService
 import android.os.Build
+import android.graphics.Color
+import android.view.View
+import android.view.WindowInsets
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -99,7 +102,40 @@ class MainActivity : NativeActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        applySafeDrawingInsets()
         PendingVpnConfig.eraseStale(filesDir, PendingVpnStartStore.current()?.configPath)
+    }
+
+    /** Keep the native Slint surface inside Android system-bar, cutout and gesture-safe areas. */
+    private fun applySafeDrawingInsets() {
+        // Before Android 15 the decor already fits app content below system bars.
+        // targetSdk 35 opts into enforced edge-to-edge on Android 15+, so only
+        // those versions need explicit safe-area padding here.
+        if (Build.VERSION.SDK_INT < 35) return
+
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        window.isStatusBarContrastEnforced = false
+        window.isNavigationBarContrastEnforced = false
+
+        val content = findViewById<View>(android.R.id.content) ?: return
+        val baseLeft = content.paddingLeft
+        val baseTop = content.paddingTop
+        val baseRight = content.paddingRight
+        val baseBottom = content.paddingBottom
+        content.setOnApplyWindowInsetsListener { view, insets ->
+            val edgeInsets = insets.getInsets(
+                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+            )
+            view.setPadding(
+                baseLeft + edgeInsets.left,
+                baseTop + edgeInsets.top,
+                baseRight + edgeInsets.right,
+                baseBottom + edgeInsets.bottom,
+            )
+            insets
+        }
+        content.post { content.requestApplyInsets() }
     }
 
     fun requestVpn(config: String, baseDir: String, removeProfileSecret: Boolean) {
