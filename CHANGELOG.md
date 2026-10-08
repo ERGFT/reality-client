@@ -7,6 +7,13 @@
 
 ## [Не выпущено]
 
+### Подписки
+- HTTPS-импорт текстовых и Base64-списков VLESS, защищённые URL и ссылки серверов,
+  группы и управление на странице серверов. Обновления атомарны, сохраняют ручные
+  профили и действующее соединение; ошибки форматов и лимитов показаны явно.
+- Регрессионные тесты HTTPS/TLS, хранилища и Slint; отдельный тестовый режим Android,
+  отключённый по умолчанию и ограниченный песочницей тестового APK.
+
 ### Интерфейс
 - Интерфейс переписан: глобальная тема с токенами, набор общих компонентов, один
   адаптивный макет (боковая панель на компьютере, нижняя навигация на телефоне),
@@ -95,6 +102,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 [SemVer](https://semver.org/); the first stable release has not been cut yet.
 
 ## [Unreleased]
+
+### Subscriptions
+- HTTPS plain/Base64 VLESS imports, protected URLs and server links, groups and
+  controls on the server page. Atomic updates preserve manual profiles and a
+  running connection; format and limit failures are reported explicitly.
+- HTTPS/TLS, storage and Slint regression tests; an opt-in Android runtime driver
+  restricted to the isolated test APK sandbox and disabled in normal builds.
 
 ### UI
 - The UI was rewritten: a global theme with tokens, a set of shared components, one

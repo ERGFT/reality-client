@@ -7,6 +7,7 @@
 | Документ | Для кого и о чём |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | разработчикам: слои, потоки, хранение секретов, связь с ядром |
+| [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) | HTTPS-подписки: импорт, обновление, форматы и ограничения |
 | [DESIGN.md](DESIGN.md) | дизайнерам и разработчикам интерфейса: токены, компоненты, Material 3 Expressive, динамические цвета |
 | [PLATFORMS.md](PLATFORMS.md) | пользователям и сборщикам: Windows, Linux, Android — сборка, запуск, права, TUN |
 | [RELEASING.md](RELEASING.md) | сопровождающим: как выпустить версию (тег → CI → Releases) |

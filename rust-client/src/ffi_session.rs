@@ -32,6 +32,24 @@ pub struct CoreSession {
 }
 
 impl CoreSession {
+    #[cfg(all(test, windows))]
+    pub(crate) fn isolated_direct_test_session(base: &Path, port: u16) -> Self {
+        let config = serde_json::json!({
+            "inbounds": [{"type":"mixed","tag":"test","listen":"127.0.0.1","listen_port":port}],
+            "outbounds": [{"type":"direct","tag":"direct"}], "route":{"final":"direct"}
+        })
+        .to_string();
+        Self {
+            core: Some(FfiCore::start(&config, base, -1).expect("isolated loopback core")),
+            _log_queue: Arc::new(Mutex::new(VecDeque::new())),
+            secret_file: None,
+            proxy_backup: None,
+            verify_socks: false,
+            reload_supported: false,
+            config_path: None,
+        }
+    }
+
     pub fn reload_supported(&self) -> bool {
         self.reload_supported && self.core.is_some()
     }

@@ -12,6 +12,7 @@ mod groups;
 mod profile_flow;
 mod profiles;
 mod runtime;
+mod subscriptions;
 
 use std::{
     collections::VecDeque,
@@ -230,6 +231,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     diagnostics::install(&window, &state);
     config_editor::install(&window, &state);
     profiles::install(&window, &state);
+    subscriptions::install(&window, &state);
     if let Some(index) = profile_flow::initial_profile_index(window.get_profile_model().row_count())
     {
         let index = index as i32;
@@ -239,6 +241,9 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     connection::install(&window, &state);
     groups::install(&window, &state);
     let _timers = runtime::install(&window, &state);
+
+    #[cfg(all(target_os = "android", feature = "subscription-device-check"))]
+    subscriptions::device_check::start(&window, &state);
 
     window.run()
 }

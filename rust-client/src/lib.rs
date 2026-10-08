@@ -14,6 +14,8 @@ mod profiles;
 mod runtime_stats;
 mod security;
 mod server_info;
+mod subscription_store;
+mod subscriptions;
 mod ui;
 #[cfg(windows)]
 mod windows_proxy;

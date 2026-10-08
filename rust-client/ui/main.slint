@@ -426,9 +426,11 @@ component Segmented inherits Rectangle {
 component ProfileRow inherits Rectangle {
     in property <string> name;
     in property <bool> selected: false;
+    in property <bool> compact: false;
     callback picked();
 
-    height: 56px;
+    height: max(56px, caption.preferred-height + 24px);
+    min-width: 0px;
     border-radius: Theme.r-row;
     background: root.selected ? Theme.accent-soft : (area.has-hover ? Theme.surface-3 : Theme.surface-2);
     border-width: root.selected ? 1px : 0px;
@@ -459,16 +461,17 @@ component ProfileRow inherits Rectangle {
                 }
             }
         }
-        Text {
+        caption := Text {
+            min-width: 0px;
             text: root.name;
             color: Theme.text;
             font-size: 14px;
             font-weight: root.selected ? 700 : 500;
             vertical-alignment: center;
             horizontal-stretch: 1;
-            overflow: elide;
+            wrap: word-wrap;
         }
-        if root.selected: VerticalLayout { alignment: center; Chip { text: "ВЫБРАН"; } }
+        if root.selected && !root.compact: VerticalLayout { alignment: center; Chip { text: "ВЫБРАН"; } }
     }
     area := TouchArea { mouse-cursor: pointer; clicked => { root.picked(); } }
 }
@@ -580,6 +583,19 @@ export component MainWindow inherits Window {
     callback paste-profile-link();
     callback profile-selected(index: int);
     callback confirm-delete-profile();
+    in property <[string]> subscription-model;
+    in-out property <int> selected-subscription-index: -1;
+    in-out property <string> subscription-name;
+    in-out property <string> subscription-url;
+    in-out property <string> subscription-status: "Добавьте HTTPS-подписку, чтобы загрузить её серверы.";
+    in-out property <bool> subscription-busy: false;
+    in-out property <bool> subscription-delete-confirmation: false;
+    callback subscription-selected(index: int);
+    callback subscription-add();
+    callback subscription-refresh();
+    callback subscription-rename();
+    callback subscription-delete();
+    callback subscription-paste();
     callback connect-requested();
     callback group-selected(index: int);
     callback member-selected(index: int);
@@ -826,6 +842,7 @@ export component MainWindow inherits Window {
                             }
                             for profile[index] in root.profile-model: ProfileRow {
                                 name: profile;
+                                compact: root.mobile-layout;
                                 selected: index == root.selected-profile-index;
                                 picked => { root.selected-profile-index = index; root.profile-selected(index); }
                             }
@@ -847,7 +864,8 @@ export component MainWindow inherits Window {
                         }
 
                         Card {
-                            SectionTitle { title: "Добавить сервер"; subtitle: "Секретная ссылка хранится в защищённом хранилище и не попадает в журнал."; }
+                            SectionTitle { title: "Ручной профиль"; subtitle: "Для добавления отдельного сервера сначала нажмите «Новый профиль». Серверы подписок обновляются через подписку."; }
+                            Btn { text: "Новый профиль"; clicked => { root.selected-profile-index = -1; root.profile-name = ""; root.vless-link = ""; } }
                             FieldLabel { text: "Название"; }
                             LineEdit { placeholder-text: "Например, Домашний сервер"; text <=> root.profile-name; }
                             FieldLabel { text: "Ссылка VLESS"; }
@@ -859,6 +877,35 @@ export component MainWindow inherits Window {
                                 Rectangle { horizontal-stretch: 1; }
                                 Btn { text: "Сохранить"; kind: 0; clicked => { root.save-profile(); } }
                             }
+                        }
+
+                        Card {
+                            SectionTitle { title: "Подписки"; subtitle: "HTTPS-ссылка загружает список серверов. Поддерживаются текстовые и Base64-списки VLESS."; }
+                            ComboBox { model: root.subscription-model; current-index <=> root.selected-subscription-index; enabled: !root.subscription-busy; selected => { root.subscription-selected(root.selected-subscription-index); } }
+                            FieldLabel { text: "Название подписки"; }
+                            LineEdit { text <=> root.subscription-name; placeholder-text: "Например, Основная подписка"; enabled: !root.subscription-busy; }
+                            FieldLabel { text: "HTTPS-ссылка для новой подписки"; }
+                            LineEdit { text <=> root.subscription-url; input-type: password; placeholder-text: "https://…/sublink/…"; enabled: !root.subscription-busy; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                if root.clipboard-paste-supported: Btn { text: "Вставить"; enabled: !root.subscription-busy; clicked => { root.subscription-paste(); } }
+                                Btn { horizontal-stretch: 1; text: root.subscription-busy ? "Загрузка…" : "Добавить"; kind: 0; enabled: !root.subscription-busy; clicked => { root.subscription-add(); } }
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Btn { horizontal-stretch: 1; text: "Обновить"; enabled: !root.subscription-busy && root.selected-subscription-index >= 0; clicked => { root.subscription-refresh(); } }
+                                Btn { horizontal-stretch: 1; text: "Переименовать"; enabled: !root.subscription-busy && root.selected-subscription-index >= 0; clicked => { root.subscription-rename(); } }
+                            }
+                            Btn { text: "Удалить подписку"; kind: 3; enabled: !root.subscription-busy && root.selected-subscription-index >= 0; clicked => { root.subscription-delete-confirmation = true; } }
+                            if root.subscription-delete-confirmation: VerticalLayout {
+                                Notice { danger: true; text: "Удалить подписку и её серверы? Текущее VPN-соединение продолжит работать."; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Btn { text: "Отмена"; clicked => { root.subscription-delete-confirmation = false; } }
+                                    Btn { text: "Удалить"; kind: 3; enabled: !root.subscription-busy; clicked => { root.subscription-delete-confirmation = false; root.subscription-delete(); } }
+                                }
+                            }
+                            Notice { text: root.subscription-status; }
                         }
 
                         if root.detail-text != "": Notice { text: root.detail-text; }

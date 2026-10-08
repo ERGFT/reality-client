@@ -48,6 +48,21 @@ pub(crate) fn save_profile_for_connection(
     } else {
         name.trim()
     };
+    if let Some(index) = selected.filter(|index| store.subscription_identity(*index).is_some()) {
+        if store.read_link(index)?.as_str() != link.as_str() {
+            return Err(
+                "Сервер подписки нельзя изменять вручную. Добавьте отдельный ручной профиль."
+                    .into(),
+            );
+        }
+        let names = store.names();
+        return Ok(SavedProfile {
+            index,
+            name: names[index].clone(),
+            names,
+            link: Zeroizing::new(link.to_string()),
+        });
+    }
     let index = store.save(name, link, selected)?;
     Ok(SavedProfile {
         index,
@@ -106,6 +121,82 @@ mod profile_startup_tests {
 mod connect_profile_tests {
     use super::{ProfileStore, Zeroizing, save_profile_for_connection};
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn subscription_connection_preserves_manual_vault_and_stable_identity() {
+        let dir = std::env::temp_dir().join(format!(
+            "subscription-mixed-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("profiles.dat");
+        let mut store = ProfileStore::open_at(path.clone()).unwrap();
+        let manual = "vless://00000000-0000-4000-8000-000000000000@manual.example.org:443";
+        store.save("Manual", manual, None).unwrap();
+        let original = std::fs::read(&path).unwrap();
+        let a = "vless://00000000-0000-4000-8000-000000000000@a.example.org:443#A";
+        let b = "vless://00000000-0000-4000-8000-000000000000@b.example.org:443#B";
+        let parsed = crate::subscriptions::parse(format!("{a}\n{b}").as_bytes()).unwrap();
+        let url = "https://subscription.example.org/fixture";
+        let group = store
+            .subscriptions
+            .as_mut()
+            .unwrap()
+            .replace(None, "Group", url, &parsed)
+            .unwrap();
+        let identity = store.subscription_identity(2).unwrap();
+        let reordered = crate::subscriptions::parse(format!("{b}\n{a}").as_bytes()).unwrap();
+        store
+            .subscriptions
+            .as_mut()
+            .unwrap()
+            .replace(Some(group), "Group", url, &reordered)
+            .unwrap();
+        assert_eq!(store.index_for_identity(identity), Some(1));
+        assert_eq!(store.read_link(0).unwrap().as_str(), manual);
+        let shared = Arc::new(Mutex::new(Some(store)));
+        let link = Zeroizing::new(b.to_owned());
+        let saved = save_profile_for_connection(&shared, "Ignored edit", &link, Some(1)).unwrap();
+        assert_eq!(saved.index, 1);
+        assert_eq!(saved.name, "Group · B");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        let changed = Zeroizing::new(a.to_owned());
+        assert!(save_profile_for_connection(&shared, "Ignored", &changed, Some(1)).is_err());
+        let reopened = ProfileStore::open_at(path.clone()).unwrap();
+        assert_eq!(reopened.len(), 3);
+        assert_eq!(reopened.names(), ["Manual", "Group · B", "Group · A"]);
+        assert_eq!(reopened.read_link(1).unwrap().as_str(), b);
+        let remaining = crate::subscriptions::parse(a.as_bytes()).unwrap();
+        shared
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .subscriptions
+            .as_mut()
+            .unwrap()
+            .replace(Some(group), "Group", url, &remaining)
+            .unwrap();
+        assert!(
+            shared
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .index_for_identity(identity)
+                .is_none()
+        );
+        std::fs::write(dir.join("subscriptions.json"), b"corrupted fixture").unwrap();
+        let manual_only = ProfileStore::open_at(path).unwrap();
+        assert!(manual_only.subscription_error.is_some());
+        assert_eq!(manual_only.read_link(0).unwrap().as_str(), manual);
+        assert_eq!(std::fs::read(dir.join("profiles.dat")).unwrap(), original);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn connect_profile_save_creates_then_replaces_protected_profile() {

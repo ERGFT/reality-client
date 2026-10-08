@@ -3,7 +3,7 @@
 # Verification status
 
 What was run and how it was confirmed. "Not verified" does not mean "broken", it
-means "nobody ran it". Updated: 2026-10-08.
+means "nobody ran it". Updated: 2026-10-09.
 
 Contents:
 
@@ -15,6 +15,9 @@ Contents:
 
 | What | Where and how | By |
 |---|---|---|
+| HTTPS subscriptions: Windows | 17 tests: plain/Base64, core parameters, TLS/redirects/limits/timeout/HTTP 403, DPAPI, atomic updates, manual profiles, stable IDs and real Slint callbacks. One TCP connection through an isolated core survives refresh/rename/delete. All-target Clippy with `android-bridge-check`, fmt. Fresh mobile and desktop renders inspected | Codex, 2026-10-09 |
+| APK with subscriptions | Android x86_64 Rust library, Gradle Kotlin tests and debug APK built. Isolated APK installed and launched on API35 emulator; startup screenshot inspected, no VPN enabled. Does not verify an actual provider or physical phone | Codex, 2026-10-09 |
+| Android subscription runtime | Opt-in `subscription-device-check` in a separate APK: real Slint add/select/refresh/reorder/rename/delete callbacks, stable IDs, Android Keystore URL/server reads after reopening and unchanged manual vault. PASS report on API35 x86_64. No VPN started; keyboard/clipboard input and actual provider remain unverified | Codex, 2026-10-09 |
 | Client build on Linux x86_64 | Ubuntu 24.04, `cargo build --locked` | Claude, 2026-10-06 |
 | 72 unit tests | `cargo test --locked` in `rust-client/`, all pass (including the dynamic-colour mapping) | Claude, 2026-10-06 |
 | `cargo fmt --check`, Clippy | clean (`-D warnings -A dead_code`) | Claude, 2026-10-06 |

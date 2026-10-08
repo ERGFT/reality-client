@@ -13,17 +13,25 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 android-bridge-check = []
+# Opt-in emulator regression driver; refuses the normal application data path.
+subscription-device-check = []
 
 [dependencies]
 slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 jni = "=0.22.4"
 serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+base64 = "0.23.1"
 url = "2.5.8"
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "socks-proxy"] }
 zeroize = "1.8"
+# ureq reveals URI path/query at log TRACE. Keep that disabled regardless of
+# RUST_LOG; the core's direct tracing instrumentation is not affected.
+log = { version = "0.4", features = ["max_level_debug"] }
 # Ядро vpn-core: исходники по хешу из ../third_party/vpn-core.rev, скачиваются
 # `cargo xtask fetch-core` в ../third_party/vpn-core перед любой сборкой.
 reality-ffi = { path = "../third_party/vpn-core/ffi" }
+reality-core = { path = "../third_party/vpn-core/core" }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Networking_WinInet", "Win32_Security_Authorization", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_DataExchange", "Win32_System_JobObjects", "Win32_System_Memory", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
@@ -42,6 +50,10 @@ uuid = { version = "1", features = ["v4"] }
 
 [build-dependencies]
 slint-build = "1.18.1"
+
+[dev-dependencies]
+rustls = { version = "0.23", default-features = false, features = ["std"] }
+image = { version = "0.25.10", default-features = false, features = ["png"] }
 
 # Те же правки зависимостей, что в корневом Cargo.toml vpn-core (патченный
 # rustls для REALITY, smoltcp с правкой окна приёма): без них ядро не
