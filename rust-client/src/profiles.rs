@@ -20,6 +20,9 @@ struct SavedProfile {
 pub struct ProfileStore {
     path: PathBuf,
     profiles: Vec<SavedProfile>,
+    pub(crate) subscriptions: Option<crate::subscription_store::SubscriptionStore>,
+    pub(crate) subscription_error: Option<String>,
+    pub(crate) revision: u64,
 }
 
 pub fn storage_backend_description() -> &'static str {
@@ -64,18 +67,90 @@ impl ProfileStore {
             Vec::new()
         };
 
-        Ok(Self { path, profiles })
+        let (subscriptions, subscription_error) =
+            match crate::subscription_store::SubscriptionStore::open_at(
+                path.with_file_name("subscriptions.json"),
+            ) {
+                Ok(store) => (Some(store), None),
+                Err(error) => (None, Some(error)),
+            };
+        Ok(Self {
+            path,
+            profiles,
+            subscriptions,
+            subscription_error,
+            revision: 0,
+        })
     }
 
     pub fn len(&self) -> usize {
         self.profiles.len()
+            + self
+                .subscriptions
+                .as_ref()
+                .map(|store| {
+                    store
+                        .groups()
+                        .iter()
+                        .map(|group| group.servers.len())
+                        .sum::<usize>()
+                })
+                .unwrap_or(0)
     }
 
     pub fn names(&self) -> Vec<String> {
-        self.profiles.iter().map(|p| p.name.clone()).collect()
+        let mut names: Vec<_> = self.profiles.iter().map(|p| p.name.clone()).collect();
+        if let Some(store) = &self.subscriptions {
+            for group in store.groups() {
+                names.extend(
+                    group
+                        .servers
+                        .iter()
+                        .map(|server| format!("{} · {}", group.name, server.name)),
+                );
+            }
+        }
+        names
+    }
+
+    pub(crate) fn subscription_identity(&self, index: usize) -> Option<(u64, u64)> {
+        let offset = index.checked_sub(self.profiles.len())?;
+        self.subscriptions
+            .as_ref()?
+            .groups()
+            .iter()
+            .flat_map(|group| {
+                group
+                    .servers
+                    .iter()
+                    .map(move |server| (group.id, server.id))
+            })
+            .nth(offset)
+    }
+
+    pub(crate) fn index_for_identity(&self, identity: (u64, u64)) -> Option<usize> {
+        self.subscriptions
+            .as_ref()?
+            .groups()
+            .iter()
+            .flat_map(|group| {
+                group
+                    .servers
+                    .iter()
+                    .map(move |server| (group.id, server.id))
+            })
+            .position(|candidate| candidate == identity)
+            .map(|offset| self.profiles.len() + offset)
     }
 
     pub fn read_link(&self, index: usize) -> Result<Zeroizing<String>, String> {
+        if let Some((group, server)) = self.subscription_identity(index) {
+            return self
+                .subscriptions
+                .as_ref()
+                .ok_or("Подписки недоступны.")?
+                .link(group, server);
+        }
         let profile = self.profiles.get(index).ok_or("Профиль не найден.")?;
         let mut clear = unprotect(&profile.protected_link)?;
         decode_secret_link(&mut clear)
@@ -132,6 +207,7 @@ impl ProfileStore {
         let old_reference =
             selected.map(|old_index| self.profiles[old_index].protected_link.clone());
         self.profiles = updated;
+        self.revision = self.revision.wrapping_add(1);
         if let Some(old_reference) = old_reference {
             let _ = delete_protected(&old_reference);
         }
@@ -139,6 +215,9 @@ impl ProfileStore {
     }
 
     pub fn delete(&mut self, index: usize) -> Result<(), String> {
+        if self.subscription_identity(index).is_some() {
+            return Err("Для удаления серверов подписки удалите саму подписку.".into());
+        }
         if index >= self.profiles.len() {
             return Err("Профиль не найден.".into());
         }
@@ -146,6 +225,7 @@ impl ProfileStore {
         let removed = updated.remove(index);
         write_vault_atomic(&self.path, &encode_vault(&updated))?;
         self.profiles = updated;
+        self.revision = self.revision.wrapping_add(1);
         let _ = delete_protected(&removed.protected_link);
         Ok(())
     }
@@ -290,8 +370,19 @@ impl<'a> Cursor<'a> {
 }
 
 fn write_vault_atomic(path: &Path, contents: &[u8]) -> Result<(), String> {
-    if contents.len() > MAX_VAULT_SIZE {
-        return Err("Файл профилей превышает допустимый размер 2 МиБ.".into());
+    write_private_file_atomic(path, contents, MAX_VAULT_SIZE)
+}
+
+pub(crate) fn write_private_file_atomic(
+    path: &Path,
+    contents: &[u8],
+    limit: usize,
+) -> Result<(), String> {
+    if contents.len() > limit {
+        return Err(format!(
+            "Файл хранилища превышает допустимый размер {} МиБ.",
+            limit / (1024 * 1024)
+        ));
     }
     let parent = path.parent().ok_or("Некорректный путь хранилища.")?;
     fs::create_dir_all(parent).map_err(|e| format!("Не удалось создать папку данных: {e}"))?;
@@ -318,7 +409,7 @@ fn data_directory() -> Result<PathBuf, String> {
 }
 
 #[cfg(windows)]
-fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
     use windows::{
         Win32::{
             Foundation::{HLOCAL, LocalFree},
@@ -364,7 +455,7 @@ fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(target_os = "linux")]
-fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let entry = keyring::Entry::new("reality-client", &id)
         .map_err(|_| "Не удалось создать запись в системном хранилище секретов.".to_owned())?;
@@ -375,7 +466,7 @@ fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(target_os = "android")]
-fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
     use android_native_keyring_store::by_store::Store;
     use keyring_core::api::CredentialStoreApi;
 
@@ -391,7 +482,7 @@ fn protect(clear: &[u8]) -> Result<Vec<u8>, String> {
     Ok(id.into_bytes())
 }
 
-fn delete_protected(reference: &[u8]) -> Result<(), String> {
+pub(crate) fn delete_protected(reference: &[u8]) -> Result<(), String> {
     #[cfg(windows)]
     {
         let _ = reference;
@@ -431,7 +522,7 @@ fn delete_protected(reference: &[u8]) -> Result<(), String> {
 }
 
 #[cfg(target_os = "android")]
-fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
+pub(crate) fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
     use android_native_keyring_store::by_store::Store;
     use keyring_core::api::CredentialStoreApi;
 
@@ -463,7 +554,7 @@ fn linux_keyring_entry(reference: &[u8]) -> Result<keyring::Entry, String> {
 }
 
 #[cfg(target_os = "linux")]
-fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
+pub(crate) fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
     let entry = linux_keyring_entry(protected)?;
     let mut secret = entry
         .get_secret()
@@ -476,12 +567,12 @@ fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
 }
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
-fn protect(_: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn protect(_: &[u8]) -> Result<Vec<u8>, String> {
     Err("Защищённое хранилище профилей для этой ОС ещё не подключено.".into())
 }
 
 #[cfg(windows)]
-fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
+pub(crate) fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
     use windows::Win32::{
         Foundation::{HLOCAL, LocalFree},
         Security::Cryptography::{
@@ -527,7 +618,7 @@ fn unprotect(protected: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
 }
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
-fn unprotect(_: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
+pub(crate) fn unprotect(_: &[u8]) -> Result<Zeroizing<Vec<u8>>, String> {
     Err("Защищённое хранилище профилей для этой ОС ещё не подключено.".into())
 }
 
@@ -719,10 +810,7 @@ public static class RealityClientDpapiInterop {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("profiles.dat");
-        let mut store = ProfileStore {
-            path: path.clone(),
-            profiles: Vec::new(),
-        };
+        let mut store = ProfileStore::open_at(path.clone()).unwrap();
         let first =
             "vless://00000000-0000-4000-8000-000000000000@edge.example.org:443?encryption=none";
         let second =

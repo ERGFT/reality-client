@@ -6,6 +6,7 @@ The root [README](../README.en.md) answers "what is it and how do I run it". The
 
 | Document | Audience and contents |
 |---|---|
+| [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) | users: HTTPS subscription formats, import, refresh, security and limits (RU/EN) |
 | [ARCHITECTURE.en.md](ARCHITECTURE.en.md) | developers: layers, threads, secret storage, the link to the core |
 | [DESIGN.en.md](DESIGN.en.md) | UI designers and developers: tokens, components, Material 3 Expressive, dynamic colours |
 | [PLATFORMS.en.md](PLATFORMS.en.md) | users and packagers: Windows, Linux, Android: build, run, privileges, TUN |

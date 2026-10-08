@@ -178,9 +178,30 @@ capped at 2 MiB and links at 16 KiB.
 
 - The `install` functions in `ui/` are still large (handlers are closures sharing `Arc`s);
   they can be split further, but behaviour is already grouped by topic (stage 5 done).
-- The core is called through C ABI functions (`ffi_core.rs`, `unsafe`); calling
-  `reality-core` directly without the C ABI is a separate step.
+- Running core sessions use the C ABI (`ffi_core.rs`, `unsafe`). Imported
+  links are validated with the safe Rust `VlessConfig` parser from the same
+  pinned `reality-core` dependency.
 - The client's `Cargo.lock` holds the whole core dependency graph, and `[patch.crates-io]`
   duplicates vpn-core's root `Cargo.toml`: when the core commit changes, compare both.
 - Binary files are tracked in git (`dist/`, `third_party/reality-client.exe` for C#, `wintun.dll`).
 - The Kotlin part of Android is now minimal (stage 7 done) but not checked on a device: the TUN policy is in Rust and covered by host tests only.
+
+## 10. HTTPS subscriptions
+
+`subscriptions.rs` handles bounded HTTPS retrieval, UTF-8/Base64 parsing,
+core parameter validation, deduplication and sanitized reports.
+`subscription_store.rs` maintains stable group/server IDs and protected URL
+references in atomically replaced `subscriptions.json`. Failed commits discard
+new secrets and retain the old group. `profiles.rs` presents a combined list,
+while preserving the legacy RCLIENT1 manual-profile file. Corrupt subscription
+metadata does not prevent access to manual profiles.
+
+`ui/subscriptions.rs` performs download/storage work in background threads.
+Operation coordination happens on the UI thread. Selection follows stable IDs
+instead of list indexes; a store revision rejects stale profile-read results.
+Subscription changes never call stop/reload on `CoreSession`.
+
+A Windows test retains one TCP stream through a real isolated core SOCKS
+listener across subscription refresh, rename and delete. Slint software rendering
+covers desktop/mobile layouts, but does not prove Android Activity, keyboard or
+system inset behavior. See [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) for user limits.

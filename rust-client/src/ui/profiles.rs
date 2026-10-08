@@ -19,10 +19,18 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
         let window = window.as_weak();
         let profile_store = state.profile_store.clone();
         let selected_profile_link = state.selected_profile_link.clone();
+        let is_starting = state.is_starting.clone();
         move || {
             let Some(window) = window.upgrade() else {
                 return;
             };
+            if is_starting
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                window.set_detail_text("Дождитесь завершения текущей операции.".into());
+                return;
+            }
             let name = window.get_profile_name().trim().to_owned();
             let link = Zeroizing::new(window.get_vless_link().trim().to_owned());
             let selected = window.get_selected_profile_index();
@@ -34,6 +42,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             let weak_window = window.as_weak();
             let worker_store = profile_store.clone();
             let worker_link_cache = selected_profile_link.clone();
+            let is_starting = is_starting.clone();
             std::thread::spawn(move || {
                 let result = {
                     let mut guard = worker_store.lock();
@@ -52,7 +61,9 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                         Err(_) => Err("Хранилище профилей недоступно.".into()),
                     }
                 };
-                let _ = slint::invoke_from_event_loop(move || {
+                let operation_flag = is_starting.clone();
+                let dispatched = slint::invoke_from_event_loop(move || {
+                    is_starting.store(false, Ordering::Release);
                     let Some(window) = weak_window.upgrade() else {
                         return;
                     };
@@ -83,6 +94,9 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                         Err(problem) => window.set_detail_text(problem.into()),
                     }
                 });
+                if dispatched.is_err() {
+                    operation_flag.store(false, Ordering::Release);
+                }
             });
         }
     });
@@ -140,7 +154,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                     Ok(store) => match store.as_ref() {
                         Some(store) => store
                             .read_link(index as usize)
-                            .map(|link| (link, store.names())),
+                            .map(|link| (link, store.names(), store.revision)),
                         None => Err("Хранилище профилей недоступно.".into()),
                     },
                     Err(_) => Err("Хранилище профилей недоступно.".into()),
@@ -153,7 +167,18 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                         return;
                     }
                     match result {
-                        Ok((link, names)) => {
+                        Ok((link, names, revision)) => {
+                            // A subscription refresh can replace/reorder the
+                            // list while this worker is reading. Never apply
+                            // a stale secret to the same numeric index.
+                            let current_revision = profile_store
+                                .try_lock()
+                                .ok()
+                                .and_then(|guard| guard.as_ref().map(|store| store.revision));
+                            if current_revision != Some(revision) {
+                                window.invoke_profile_selected(index);
+                                return;
+                            }
                             let Some(name) = names.get(index as usize) else {
                                 return;
                             };

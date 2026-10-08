@@ -52,6 +52,11 @@ device, and shows speed, traffic, connections and logs.
 
 - **Profiles.** Several VLESS profiles; the secret link lives in the OS secure
   store (DPAPI, Secret Service, Android Keystore) and never reaches the log.
+- **HTTPS subscriptions.** Import plain/Base64 VLESS lists, group servers,
+  refresh manually, rename and delete subscriptions. Failed updates retain
+  working servers; running connections are not restarted.
+  [Formats and limits](docs/SUBSCRIPTIONS.md). Added in source; previously
+  published builds may not include this feature.
 - **Modes.** Local proxy (SOCKS5/HTTP) and a full core config: TUN, DNS fake-IP,
   routing rules by domain and IP.
 - **Validation before start.** The core checks the config; errors are shown as
