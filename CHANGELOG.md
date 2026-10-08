@@ -3,7 +3,7 @@
 # Журнал изменений
 
 Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/). Версии —
-[SemVer](https://semver.org/lang/ru/); первый релиз ещё не выпущен.
+[SemVer](https://semver.org/lang/ru/); первый стабильный релиз ещё не выпущен.
 
 ## [Не выпущено]
 
@@ -17,6 +17,10 @@
 - Android 12+: динамические цвета из системной палитры Material You
   (`MainActivity.readSystemPalette` + модуль `material.rs` с тестами).
 - Иконка приложения; на Linux — привязка окна к `.desktop` (app-id) и установка иконки.
+
+### Исправлено
+- `cargo xtask test-windows` передаёт флаги Cargo для Clippy до `--`, а lint-флаги — после него.
+- `cargo xtask package-windows` берёт клиентский EXE из настроенного `CARGO_TARGET_DIR`, включая абсолютный и относительный путь.
 
 ### Документация
 - README, дорожная карта, статус проверок, архитектура, дизайн-система, инструкции
@@ -74,15 +78,16 @@
 
 ## Предварительные выпуски
 
-`v0.1.0-preview.1` … `preview.8` — предварительные сборки Windows x64 и Android
-arm64 (отладочный APK). Подробности — [docs/BUILD-LOG.md](docs/BUILD-LOG.md).
+`v0.1.0-preview.1` … `preview.9` — предварительные сборки Windows x64, Android
+arm64 (отладочный APK) и Linux x86_64. Подробности — [docs/BUILD-LOG.md](docs/BUILD-LOG.md)
+и [v0.1.0-preview.9](https://github.com/ERGFT/reality-client/releases/tag/v0.1.0-preview.9).
 
 ---
 
 # Changelog
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow
-[SemVer](https://semver.org/); the first release has not been cut yet.
+[SemVer](https://semver.org/); the first stable release has not been cut yet.
 
 ## [Unreleased]
 
@@ -96,6 +101,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   (`MainActivity.readSystemPalette` + the tested `material.rs` module).
 - An app icon; on Linux the window is tied to the `.desktop` entry (app-id) and the
   icon is installed.
+
+### Fixed
+- `cargo xtask test-windows` passes Cargo flags for Clippy before `--` and lint flags after it.
+- `cargo xtask package-windows` reads the client executable from the configured `CARGO_TARGET_DIR`, including absolute and relative paths.
 
 ### Documentation
 - README, roadmap, verification status, architecture, design system, platform guides,
@@ -154,5 +163,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## Pre-releases
 
-`v0.1.0-preview.1` … `preview.8` — pre-release Windows x64 and Android arm64 (debug
-APK) builds. Details: [docs/BUILD-LOG.md](docs/BUILD-LOG.md) (Russian).
+`v0.1.0-preview.1` … `preview.9` — pre-release Windows x64, Android arm64 (debug
+APK), and Linux x86_64 builds. Details: [docs/BUILD-LOG.md](docs/BUILD-LOG.md) (Russian)
+and [v0.1.0-preview.9](https://github.com/ERGFT/reality-client/releases/tag/v0.1.0-preview.9).

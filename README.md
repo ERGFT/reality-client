@@ -101,8 +101,9 @@ flowchart LR
 
 - **`rust-client/`** — приложение: общий Rust-код, интерфейс Slint, платформенные
   адаптеры и тонкий слой Kotlin для `VpnService`.
-- **vpn-core** закреплён хешем коммита (`third_party/vpn-core.rev`) и скачивается
-  скриптами сборки. Планируется переход на зависимость Cargo — [PLAN.md](PLAN.md).
+- **vpn-core** закреплён хешем коммита (`third_party/vpn-core.rev`); `cargo xtask
+  fetch-core` скачивает его в `third_party/vpn-core`, а Cargo-зависимость
+  `reality-ffi` линкует ядро с приложением.
 - **`src/`** — прежняя версия на C# (архив): [docs/LEGACY-CSHARP.md](docs/LEGACY-CSHARP.md).
 
 Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

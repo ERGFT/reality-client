@@ -3,7 +3,7 @@
 # Verification status
 
 What was run and how it was confirmed. "Not verified" does not mean "broken", it
-means "nobody ran it". Updated: 2026-10-06.
+means "nobody ran it". Updated: 2026-10-08.
 
 Contents:
 
@@ -25,8 +25,9 @@ Contents:
 | Splitting `lib.rs` into modules | Linux: `fmt`, Clippy, 51 tests, `android-bridge-check`, the window starts; Windows: Clippy via cross-build (`x86_64-pc-windows-gnu`, both feature sets); Android code is compiled only by CI | Claude, 2026-10-06 |
 | The core as a Cargo dependency (Linux) | `reality-ffi` is linked into the app; 52 tests, including starting the core in-process: loopback SOCKS listener, `/groups`, `/stats`, reload, stop; Windows: Clippy via cross-build; Android code is compiled by CI only | Claude, 2026-10-06 |
 | Android TUN policy in Rust | `android_tun.rs`: 20 host tests (addresses, DNS neighbour, app filter, unsupported options, MTU); `nativePlanTun` and the Kotlin shell are checked by CI only (APK build and Kotlin tests), not run on a device | Claude, 2026-10-06 |
-| `cargo xtask` | Linux: `fetch-core` (download, a repeat run changes nothing, a wrong command exits with 2), `fmt`, Clippy. Windows (GitHub Actions, PR #14): `core-cli` and `package-windows` ran — the core's command-line program and the client with the core inside were built, and the package holds every expected file (the packaged-files step passed), including the `.lnk` and `CORE-SOURCE.txt`. `test-windows` has not been run anywhere (CI calls `cargo test` directly); how the `.lnk` behaves when the folder is moved was not checked | Claude, GitHub Actions, 2026-10-06 |
-| Releasing by tag | The workflow YAML files parse and `publish-release.sh` passes `bash -n`; publishing to Releases has never run in CI — the `v0.1.0-preview.1` tag is its first test | Claude, 2026-10-06 |
+| `cargo xtask` | Linux: `fetch-core` (download, a repeat run changes nothing, a wrong command exits with 2), `fmt`, Clippy. Windows (GitHub Actions, PR #14) previously built `core-cli` and `package-windows`. Locally, `core-cli` built for pinned core `e069518…` (SHA-256 `2DE7A466…C330849`); `cargo xtask test-windows` passed 92 standard and 95 `android-bridge-check` host tests, plus both Clippy runs with `-D warnings -A dead_code`. `cargo xtask package-windows` built a 9-file package with a relative `CARGO_TARGET_DIR`; the Wintun digest matched its pinned value and the shortcut points to the packaged EXE. Fixed target-path lookup and Clippy argument order. `fetch-core` now downloads and verifies in a temporary directory; a failed source leaves no partial destination, and retry plus idempotent repeat passed locally. These checks do not launch the GUI, system proxy, TUN, or remote VPN | Codex, 2026-10-08 |
+| Windows GUI package startup | Isolated data directory on D:; the `Reality Client` window appeared and closed cleanly; no connection was initiated | Codex, 2026-10-08 |
+| Release `v0.1.0-preview.9` | GitHub API confirms six uploaded assets: Windows x64 and Linux x86_64 archives, Android ARM64 debug APK, and three SHA-256 files. Windows/Android publish jobs passed; the Linux build passed but its publish job failed because `checkout` cleaned the downloaded `dist`, and the `push` + `release` events launched duplicate jobs. The Linux archive was attached manually and its checksum verified. The checkout/download order is fixed and the redundant trigger removed locally; GitHub Actions has not verified the changes | Codex, 2026-10-08 |
 | Linux installer | `tests/linux-installer-smoke.sh` — PASS | Claude, 2026-10-06 |
 | UI layout | `slint-viewer` screenshots: 5 pages, phone (380 px, M3) and desktop (1080 px), both themes | Claude, 2026-10-06 |
 | Windows build and tests (66 + 69), DPAPI compatibility with C# | developer machine | previous author ([log](BUILD-LOG.md), Russian); not re-run |
@@ -35,7 +36,7 @@ Contents:
 ## 2. Not verified
 
 - End-to-end traffic "client → real VLESS/REALITY server → website" on **any** platform.
-- Windows: running the built `.exe`, system proxy and TUN (Wintun) on a clean machine; the full `cargo xtask package-windows` package (core, `wintun.dll`).
+- Windows: system proxy, TUN (Wintun), and real remote traffic on a clean machine. The GUI package passed a brief isolated startup smoke check, which does not verify connection behavior.
 - Linux: TUN and routes, Secret Service on a real desktop, `setcap`.
 - Android: an APK build after the changes (Material 3, Kotlin `readSystemPalette` and its
   JNI call), `VpnService` and TUN on a device, `protect(fd)`, network changes,

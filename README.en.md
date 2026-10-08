@@ -101,8 +101,9 @@ flowchart LR
 
 - **`rust-client/`**: the app: shared Rust code, Slint UI, platform adapters and a
   thin Kotlin layer for `VpnService`.
-- **vpn-core** is pinned by a commit hash (`third_party/vpn-core.rev`) and fetched by the
-  build scripts. A move to a Cargo dependency is planned: [PLAN.en.md](PLAN.en.md).
+- **vpn-core** is pinned by a commit hash (`third_party/vpn-core.rev`);
+  `cargo xtask fetch-core` downloads it into `third_party/vpn-core`, and the
+  `reality-ffi` Cargo dependency links the core into the app.
 - **`src/`**: the previous C# version (archive): [docs/LEGACY-CSHARP.md](docs/LEGACY-CSHARP.md).
 
 More: [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md).

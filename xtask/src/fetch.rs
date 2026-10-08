@@ -43,6 +43,38 @@ fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+struct StagingDirectory(PathBuf);
+
+impl Drop for StagingDirectory {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+fn create_staging_directory(destination: &Path) -> Result<StagingDirectory> {
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+    let name = destination
+        .file_name()
+        .ok_or_else(|| format!("Недопустимый путь каталога: {}", destination.display()))?
+        .to_string_lossy();
+    for attempt in 0..32 {
+        let staging = parent.join(format!(".{name}.fetch-{}-{attempt}", std::process::id()));
+        match fs::create_dir(&staging) {
+            Ok(()) => return Ok(StagingDirectory(staging)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("{}: {error}", staging.display())),
+        }
+    }
+    Err(format!(
+        "Не удалось создать временный каталог рядом с {}",
+        destination.display()
+    ))
+}
+
 pub fn run_fetch(destination: &Path) -> Result<()> {
     let revision = revision()?;
     let url = std::env::var("REALITY_CORE_URL").unwrap_or_else(|_| DEFAULT_URL.to_owned());
@@ -63,21 +95,36 @@ pub fn run_fetch(destination: &Path) -> Result<()> {
             destination.display()
         ));
     }
-    fs::create_dir_all(destination).map_err(|e| e.to_string())?;
-    let git = |args: &[&str]| run(Command::new("git").arg("-C").arg(destination).args(args));
+    let staging = create_staging_directory(destination)?;
+    let staging_path = &staging.0;
+    let git = |args: &[&str]| run(Command::new("git").arg("-C").arg(staging_path).args(args));
     git(&["init", "-q"])?;
     git(&["remote", "add", "origin", &url])?;
     git(&["fetch", "-q", "--depth", "1", "origin", &revision])?;
     git(&["checkout", "-q", "FETCH_HEAD"])?;
-    let actual = git_output(destination, &["rev-parse", "HEAD"]).unwrap_or_default();
+    let actual = git_output(staging_path, &["rev-parse", "HEAD"]).unwrap_or_default();
     if actual != revision {
         return Err(format!(
             "Скачана другая версия ядра: {actual} вместо {revision}"
         ));
     }
-    if !destination.join("Cargo.toml").is_file() {
+    if !staging_path.join("Cargo.toml").is_file() {
         return Err("В скачанных исходниках нет корневого Cargo.toml ядра.".into());
     }
+    if destination.exists() {
+        fs::remove_dir(destination).map_err(|e| {
+            format!(
+                "Не удалось заменить пустой каталог {}: {e}",
+                destination.display()
+            )
+        })?;
+    }
+    fs::rename(staging_path, destination).map_err(|e| {
+        format!(
+            "Не удалось переместить проверенное ядро в {}: {e}",
+            destination.display()
+        )
+    })?;
     println!("CORE_SOURCE_COMMIT={revision}");
     Ok(())
 }
