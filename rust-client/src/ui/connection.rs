@@ -205,12 +205,14 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             }
 
             let use_full_config = window.get_use_full_config();
+            let bind_profile = window.get_config_bind_selected_profile();
+            let editor_config = Zeroizing::new(window.get_config_editor_text().to_string());
             let profile_index = window.get_selected_profile_index();
             let selected = (profile_index >= 0
                 && (profile_index as usize) < window.get_profile_model().row_count())
                 .then_some(profile_index as usize);
             let profile_name = window.get_profile_name().trim().to_owned();
-            let link = if use_full_config {
+            let link = if use_full_config && !bind_profile {
                 None
             } else {
                 let editor_link = Zeroizing::new(window.get_vless_link().trim().to_owned());
@@ -266,7 +268,11 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                             }
                         }
                     } else { None };
-                    let prepared = if let Some(link) = link.as_ref() {
+                    let prepared = if use_full_config {
+                        ffi_session::prepare_android_config_editor(&editor_config, link.as_ref().map(|link| link.as_str()))
+                            .map(|config| (config, config_path.parent().map(PathBuf::from)
+                                .ok_or_else(|| "Не удалось определить папку JSON-конфигурации.".to_owned())))
+                    } else if let Some(link) = link.as_ref() {
                         ffi_session::prepare_android_profile(link)
                             .map(|config| (config, platform::app_data_dir()))
                     } else {
@@ -345,7 +351,9 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                 } else {
                     None
                 };
-                let result = if let Some(link) = link.as_ref() {
+                let result = if use_full_config {
+                    CoreSession::start_config_editor(&config_path, &editor_config, link.as_ref().map(|link| link.as_str()), &core_logs).map(|session| (session, true, false))
+                } else if let Some(link) = link.as_ref() {
                     CoreSession::start(link, enable_system_proxy, &core_logs)
                         .map(|session| (session, false, enable_system_proxy))
                 } else {
@@ -359,6 +367,15 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                     }
                     match result {
                         Ok((session, full_config, system_proxy)) => {
+                            window.set_connected_server_name(saved_profile.as_ref().map(|p| p.name.as_str()).unwrap_or("JSON-конфигурация").into());
+                            window.set_connected_server_endpoint(link.as_ref().map(|link| crate::server_info::server_endpoint(link)).unwrap_or_else(|| "Серверы заданы в JSON".into()).into());
+                            let mode = if full_config {
+                                if crate::config_json::parse_jsonc_value(&editor_config).is_ok_and(|value| crate::config_json::value_has_tun(&value)) {
+                                    "Режим: TUN"
+                                } else { "Режим: JSON без TUN — браузер автоматически не перенаправляется" }
+                            } else if system_proxy { "Режим: системный прокси Windows" }
+                            else { "Режим: только локальный прокси" };
+                            window.set_network_mode_text(mode.into());
                             window.set_config_reload_supported(session.reload_supported());
                             *core_session.lock().expect("core-session mutex poisoned") = Some(session);
                             window.set_recovery_visible(false);

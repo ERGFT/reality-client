@@ -3,11 +3,12 @@ use std::sync::atomic::Ordering;
 use slint::ComponentHandle;
 
 use super::UiState;
+#[cfg(target_os = "android")]
+use crate::server_info::local_socks_proxy_uri;
 use crate::{
     MainWindow, platform,
     server_info::{
-        fetch_public_ip_direct, fetch_public_ip_via_proxy, local_socks_proxy_uri,
-        resolve_server_ips, server_socket_target,
+        fetch_public_ip_direct, fetch_public_ip_via_proxy, resolve_server_ips, server_socket_target,
     },
 };
 
@@ -42,6 +43,15 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                 window.set_detail_text("Сначала подключитесь: проверка отправляет запрос к api.ipify.org через локальный прокси ядра.".into());
                 return;
             }
+            #[cfg(not(target_os = "android"))]
+            let proxy_uri = match core_session.lock().ok().and_then(|session| session.as_ref().and_then(|session| session.diagnostic_proxy_uri())) {
+                Some(proxy) => proxy,
+                None => {
+                    window.set_detail_text("В запущенной сессии нет локального SOCKS/mixed-прокси для проверки IP. Добавьте loopback-вход в конфиг и переподключитесь.".into());
+                    return;
+                }
+            };
+            #[cfg(target_os = "android")]
             let proxy_uri = if window.get_use_full_config() {
                 match local_socks_proxy_uri(window.get_config_editor_text().as_str()) {
                     Ok(Some(proxy)) => proxy,

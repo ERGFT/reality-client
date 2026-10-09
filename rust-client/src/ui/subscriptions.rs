@@ -215,7 +215,9 @@ fn begin(window: &MainWindow, state: &UiState, action: Action) {
                 .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
                 .is_err()
             {
+                window.set_import_busy(false);
                 window.set_subscription_busy(false);
+                window.set_import_status("Подключение изменилось во время загрузки. Повторите операцию после его завершения.".into());
                 window.set_subscription_status(
                     "Подключение изменяется. Повторите операцию подписки после его завершения."
                         .into(),
@@ -243,9 +245,21 @@ fn commit_in_background(
         let operation_flag = state.is_starting.clone();
         let dispatched = slint::invoke_from_event_loop(move || {
             if let Some(window) = weak.upgrade() {
+                window.set_import_busy(false);
                 window.set_subscription_busy(false);
                 match result {
                     Ok((group_id, old_identities, old_manual_count, summary)) => {
+                        if matches!(action, Action::Add) {
+                            window.set_import_visible(false);
+                            window.set_import_generation(
+                                window.get_import_generation().wrapping_add(1),
+                            );
+                            window.set_import_edit_index(-1);
+                            window.set_import_edit_revision("".into());
+                            window.set_import_link("".into());
+                            window.set_import_name("".into());
+                            window.set_import_show_link(false);
+                        }
                         reconcile_selection(&window, &state, &old_identities, old_manual_count);
                         sync_groups(&window, &state);
                         let next = state.profile_store.lock().ok().and_then(|guard| {
@@ -264,7 +278,10 @@ fn commit_in_background(
                         window.set_subscription_url("".into());
                         window.set_subscription_status(summary.into());
                     }
-                    Err(error) => window.set_subscription_status(error.into()),
+                    Err(error) => {
+                        window.set_import_status(error.as_str().into());
+                        window.set_subscription_status(error.into());
+                    }
                 }
             }
             state.is_starting.store(false, Ordering::Release);

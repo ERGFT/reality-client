@@ -76,12 +76,15 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
             let is_starting = is_starting.clone();
             let previous_traffic = previous_traffic.clone();
             std::thread::spawn(move || {
-                let result = match core_session.lock() {
+                let (result, network_warning) = match core_session.lock() {
                     Ok(session) => match session.as_ref() {
-                        Some(session) => fetch_runtime_snapshot(session).map(Some),
-                        None => Ok(None),
+                        Some(session) => (
+                            fetch_runtime_snapshot(session).map(Some),
+                            session.network_warning(),
+                        ),
+                        None => (Ok(None), String::new()),
                     },
-                    Err(_) => Err("Сессия ядра недоступна.".to_owned()),
+                    Err(_) => (Err("Сессия ядра недоступна.".to_owned()), String::new()),
                 };
                 let _ = slint::invoke_from_event_loop(move || {
                     runtime_poll_pending.store(false, Ordering::Release);
@@ -91,6 +94,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
                     let Some(window) = weak_window.upgrade() else {
                         return;
                     };
+                    window.set_network_warning(network_warning.into());
                     let snapshot = match result {
                         Ok(Some(snapshot)) => snapshot,
                         Ok(None) => {

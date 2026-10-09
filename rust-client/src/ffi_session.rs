@@ -12,6 +12,9 @@ use std::{
 
 use zeroize::Zeroizing;
 
+#[cfg(all(test, windows))]
+mod profile_transport_tests;
+
 #[cfg(windows)]
 use crate::core::recover_proxy;
 use crate::{
@@ -29,6 +32,7 @@ pub struct CoreSession {
     verify_socks: bool,
     reload_supported: bool,
     config_path: Option<PathBuf>,
+    diagnostic_proxy: Option<String>,
 }
 
 impl CoreSession {
@@ -47,11 +51,28 @@ impl CoreSession {
             verify_socks: false,
             reload_supported: false,
             config_path: None,
+            diagnostic_proxy: None,
         }
     }
 
     pub fn reload_supported(&self) -> bool {
         self.reload_supported && self.core.is_some()
+    }
+
+    pub fn diagnostic_proxy_uri(&self) -> Option<String> {
+        self.diagnostic_proxy.clone()
+    }
+
+    pub fn network_warning(&self) -> String {
+        #[cfg(windows)]
+        if self.proxy_backup.is_some() {
+            return match crate::windows_proxy::active_is_local_proxy() {
+                Ok(true) => String::new(),
+                Ok(false) => "Системный прокси Windows отключён или выбран другой прокси. Ядро работает, но браузер может отправлять трафик другим путём.".into(),
+                Err(_) => "Не удалось проверить текущий системный прокси Windows.".into(),
+            };
+        }
+        String::new()
     }
 
     pub fn reload_config(&self, config_path: &Path, config: &str) -> Result<String, String> {
@@ -132,8 +153,9 @@ impl CoreSession {
             .to_owned();
         fs::create_dir_all(&data_dir)
             .map_err(|e| format!("Не удалось создать папку клиента: {e}"))?;
-        let link_path = data_dir.join("server.txt");
-        let config_path = data_dir.join("client.json");
+        // Runtime files must not overwrite the advanced JSON editor's file.
+        let link_path = data_dir.join("active-profile-server.txt");
+        let config_path = data_dir.join("active-profile.json");
         write_secret(&link_path, vless_link)?;
         let mut cleanup = SecretCleanup {
             path: link_path.clone(),
@@ -178,6 +200,7 @@ impl CoreSession {
             verify_socks: true,
             reload_supported: false,
             config_path: None,
+            diagnostic_proxy: Some("socks5h://127.0.0.1:1080".into()),
         };
         if let Err(problem) = session.wait_for_socks(Duration::from_secs(15)) {
             let _ = session.stop();
@@ -199,6 +222,7 @@ impl CoreSession {
             .parent()
             .ok_or("Не удалось определить папку конфигурации.")?;
         let config = read_checked_config(&config_path, check_config_file)?;
+        let diagnostic_proxy = crate::server_info::local_socks_proxy_uri(&config)?;
         crate::core::save_advanced_config_path(&config_path)?;
         refuse_unmanaged_platform_tun(&config)?;
         let reload_supported = !config_has_tun(&config)?;
@@ -218,6 +242,76 @@ impl CoreSession {
             verify_socks: false,
             reload_supported,
             config_path: Some(config_path),
+            diagnostic_proxy,
+        })
+    }
+
+    /// Start exactly the current editor snapshot, not an older file on disk.
+    /// A bound profile owns its temporary secret until the session stops.
+    pub fn start_config_editor(
+        config_path: &Path,
+        editor: &str,
+        selected_link: Option<&str>,
+        logs: &Arc<Mutex<VecDeque<String>>>,
+    ) -> Result<Self, String> {
+        refuse_recovery()?;
+        let secret_path = if selected_link.is_some() {
+            Some(default_config_path()?.with_file_name("active-server.txt"))
+        } else {
+            None
+        };
+        Self::start_editor_with_secret(config_path, editor, selected_link, secret_path, logs)
+    }
+
+    fn start_editor_with_secret(
+        config_path: &Path,
+        editor: &str,
+        selected_link: Option<&str>,
+        secret_path: Option<PathBuf>,
+        logs: &Arc<Mutex<VecDeque<String>>>,
+    ) -> Result<Self, String> {
+        let base_dir = config_path
+            .parent()
+            .ok_or("Укажите путь к JSON-конфигурации.")?
+            .canonicalize()
+            .map_err(|_| "Папка JSON-конфигурации не найдена.")?;
+        let config = Zeroizing::new(match secret_path.as_ref() {
+            Some(path) => crate::config_json::bind_selected_profile(editor, path)?,
+            None => serde_json::to_string(&crate::config_json::parse_jsonc_value(editor)?)
+                .map_err(|_| "Не удалось подготовить JSON-конфигурацию.")?,
+        });
+        refuse_unmanaged_platform_tun(&config)?;
+        let has_tun = config_has_tun(&config)?;
+        let diagnostic_proxy = crate::server_info::local_socks_proxy_uri(&config)?;
+        #[cfg(windows)]
+        if has_tun {
+            require_bundled_wintun()?;
+            FfiCore::set_lock_dir(&crate::platform::prepare_windows_tun_lock_dir()?)?;
+        }
+        let mut cleanup = secret_path.as_ref().map(|path| SecretCleanup {
+            path: path.clone(),
+            retained: false,
+        });
+        if let (Some(link), Some(path)) = (selected_link, secret_path.as_ref()) {
+            crate::profiles::validate_vless_link(link)?;
+            write_secret(path, link)?;
+        }
+        // rc_start validates and constructs this same snapshot; no external
+        // file can be substituted between checking and starting the core.
+        let mut core = FfiCore::start(&config, &base_dir, -1)?;
+        install_log_callback(&mut core, logs)?;
+        if let Some(cleanup) = cleanup.as_mut() {
+            cleanup.retained = true;
+        }
+        Ok(Self {
+            core: Some(core),
+            _log_queue: logs.clone(),
+            secret_file: secret_path,
+            proxy_backup: None,
+            verify_socks: false,
+            reload_supported: !has_tun && selected_link.is_none() && config_path.is_file(),
+            config_path: config_path.canonicalize().ok(),
+            diagnostic_proxy,
         })
     }
 
@@ -344,6 +438,7 @@ mod session_stop_tests {
             verify_socks: false,
             reload_supported: false,
             config_path: None,
+            diagnostic_proxy: None,
         };
 
         assert!(session.stop().is_ok());
@@ -365,6 +460,7 @@ mod session_stop_tests {
             verify_socks: false,
             reload_supported: false,
             config_path: None,
+            diagnostic_proxy: None,
         };
         let problem = session
             .reload_config(Path::new("unused.json"), "{}")
@@ -544,7 +640,7 @@ fn profile_config() -> String {
     r#"{
   "inbounds": [{ "type": "mixed", "tag": "local", "listen": "127.0.0.1", "listen_port": 1080 }],
   "outbounds": [
-    { "type": "vless", "tag": "proxy", "link_file": "server.txt" },
+    { "type": "vless", "tag": "proxy", "link_file": "active-profile-server.txt" },
     { "type": "direct", "tag": "direct" },
     { "type": "block", "tag": "block" }
   ],
@@ -570,6 +666,32 @@ pub fn prepare_android_profile(vless_link: &str) -> Result<String, String> {
   "dns": { "servers": [{ "type": "https", "tag": "remote", "server": "1.1.1.1", "detour": "proxy" }], "final": "remote" }
 }"#;
     Ok(config.to_owned())
+}
+
+#[cfg(any(target_os = "android", feature = "android-bridge-check"))]
+pub fn prepare_android_config_editor(
+    editor: &str,
+    selected_link: Option<&str>,
+) -> Result<String, String> {
+    let config = if let Some(link) = selected_link {
+        crate::profiles::validate_vless_link(link)?;
+        let dir = crate::platform::app_data_dir()?;
+        crate::platform::ensure_private_dir(&dir)?;
+        let path = dir.join("android-server.txt");
+        let config = crate::config_json::bind_selected_profile(editor, &path)?;
+        if !config_has_tun(&config)? {
+            return Err("Для Android VPN включите TUN и примените настройки.".into());
+        }
+        write_secret(&path, link)?;
+        config
+    } else {
+        serde_json::to_string(&crate::config_json::parse_jsonc_value(editor)?)
+            .map_err(|_| "Не удалось подготовить JSON-конфигурацию.".to_owned())?
+    };
+    if !config_has_tun(&config)? {
+        return Err("Для Android VPN в полном конфиге нужен входящий тип tun.".into());
+    }
+    Ok(config)
 }
 
 #[cfg(any(target_os = "android", feature = "android-bridge-check"))]

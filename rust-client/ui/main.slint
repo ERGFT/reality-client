@@ -526,6 +526,18 @@ export component MainWindow inherits Window {
     in-out property <int> active-tab: 0;
     in-out property <int> theme-index: 0;
     in-out property <string> profile-name;
+    in-out property <bool> import-visible: false;
+    in-out property <int> import-edit-index: -1;
+    in-out property <string> import-edit-revision;
+    in-out property <bool> import-busy: false;
+    in-out property <int> import-generation: 0;
+    in-out property <string> import-link;
+    in-out property <string> import-name;
+    in-out property <string> import-status;
+    in-out property <bool> import-show-link: false;
+    callback import-submit();
+    callback import-paste();
+    callback import-edit-selected();
     in-out property <string> vless-link;
     in-out property <bool> show-vless-link: false;
     in property <bool> clipboard-paste-supported: false;
@@ -536,12 +548,17 @@ export component MainWindow inherits Window {
     in-out property <string> profile-count: "Профили: 0";
     in-out property <bool> delete-confirmation-visible: false;
     in-out property <string> connect-button-text: "Подключить";
+    in-out property <string> network-warning;
+    in-out property <string> connected-server-name;
+    in-out property <string> connected-server-endpoint;
+    in-out property <string> network-mode-text;
     in-out property <bool> config-editor-visible: false;
     in-out property <bool> config-reload-supported: false;
     in-out property <string> config-editor-path;
     in-out property <string> config-editor-text;
     in property <string> config-platform-guidance;
     in-out property <bool> use-full-config: false;
+    in-out property <bool> config-bind-selected-profile: true;
     in-out property <bool> config-tun-enabled: false;
     in-out property <bool> fakeip-enabled: false;
     in property <bool> tun-settings-supported: false;
@@ -691,7 +708,7 @@ export component MainWindow inherits Window {
                             Rectangle { width: 10px; height: 10px; border-radius: 5px; background: root.connected ? Theme.accent : (root.idle ? Theme.faint : Theme.warn); }
                         }
                         Text {
-                            text: root.connected ? "Защищено" : (root.idle ? "Не подключено" : "Подождите…");
+                            text: root.connected ? "Ядро запущено" : (root.idle ? "Не подключено" : "Подождите…");
                             color: root.connected ? Theme.accent : Theme.dim;
                             font-size: 13px;
                             font-weight: 600;
@@ -733,7 +750,7 @@ export component MainWindow inherits Window {
                                 PowerButton { state: root.power-state; clicked => { root.connect-requested(); } }
                             }
                             Text {
-                                text: root.idle ? "Не подключено" : (root.connected ? "Подключено" : root.status-text);
+                                text: root.idle ? "Не подключено" : (root.connected ? "Ядро запущено" : root.status-text);
                                 color: root.connected ? Theme.accent : Theme.text;
                                 font-size: 26px;
                                 font-weight: 800;
@@ -748,6 +765,7 @@ export component MainWindow inherits Window {
                             }
                         }
 
+                        if root.network-warning != "": Notice { text: root.network-warning; danger: true; }
                         Card {
                             HorizontalLayout {
                                 spacing: 12px;
@@ -755,8 +773,9 @@ export component MainWindow inherits Window {
                                     horizontal-stretch: 1;
                                     spacing: 3px;
                                     Text { text: "ТЕКУЩИЙ СЕРВЕР"; color: Theme.dim; font-size: 11px; font-weight: 700; }
-                                    Text { text: root.profile-name == "" ? "Сервер не выбран" : root.profile-name; color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
-                                    Text { text: root.server-endpoint-text; color: Theme.dim; font-size: 12px; overflow: elide; }
+                                    Text { text: root.connected && root.connected-server-name != "" ? root.connected-server-name : (root.profile-name == "" ? "Сервер не выбран" : root.profile-name); color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
+                                    Text { text: root.connected && root.connected-server-endpoint != "" ? root.connected-server-endpoint : root.server-endpoint-text; color: Theme.dim; font-size: 12px; overflow: elide; }
+                                    if root.connected && root.network-mode-text != "": Text { text: root.network-mode-text; color: Theme.dim; font-size: 12px; wrap: word-wrap; }
                                 }
                                 VerticalLayout {
                                     alignment: center;
@@ -830,15 +849,34 @@ export component MainWindow inherits Window {
                         alignment: start;
                         spacing: 16px;
 
-                        PageTitle { title: "Серверы"; subtitle: "Импортируйте ссылку VLESS или выберите сохранённый профиль."; }
+                        PageTitle { title: "Серверы"; subtitle: "Выберите сервер или добавьте ссылку на сервер / подписку."; }
 
+                        Btn { text: "+ Добавить сервер или подписку"; kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-generation += 1; root.import-visible = true; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-status = ""; } }
+                        if root.import-visible: Card {
+                            SectionTitle { title: root.import-edit-index >= 0 ? "Редактировать сервер" : "Добавить по ссылке"; subtitle: root.import-edit-index >= 0 ? "Изменения применятся к соединению после переподключения." : "VLESS — один сервер. HTTPS — подписка со списком серверов."; }
+                            FieldLabel { text: "Ссылка"; }
+                            LineEdit { placeholder-text: "vless://… или https://…"; input-type: root.import-show-link ? text : password; text <=> root.import-link; enabled: !root.subscription-busy && !root.import-busy; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                if root.clipboard-paste-supported: Btn { text: "Вставить из буфера"; enabled: !root.import-busy && !root.subscription-busy; clicked => { root.import-paste(); } }
+                                Btn { text: root.import-show-link ? "Скрыть" : "Показать"; clicked => { root.import-show-link = !root.import-show-link; } }
+                            }
+                            FieldLabel { text: "Название (необязательно)"; }
+                            LineEdit { placeholder-text: "Например, Мои серверы"; text <=> root.import-name; enabled: !root.subscription-busy && !root.import-busy; }
+                            if root.import-status != "": Notice { text: root.import-status; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Btn { text: "Отмена"; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-generation += 1; root.import-visible = false; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-show-link = false; } }
+                                Btn { horizontal-stretch: 1; text: root.subscription-busy ? "Загрузка…" : (root.import-busy ? "Сохранение…" : (root.import-edit-index >= 0 ? "Сохранить" : "Добавить")); kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-submit(); } }
+                            }
+                        }
                         Card {
                             SectionTitle { title: "Сохранённые серверы"; subtitle: root.profile-count; }
                             if root.profile-model.length == 0: Rectangle {
                                 height: 64px;
                                 border-radius: 14px;
                                 background: Theme.surface-2;
-                                Text { text: "Пока нет ни одного сервера. Добавьте его ниже."; color: Theme.dim; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+                                Text { text: "Пока нет серверов. Нажмите «Добавить» выше."; color: Theme.dim; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
                             }
                             for profile[index] in root.profile-model: ProfileRow {
                                 name: profile;
@@ -846,6 +884,7 @@ export component MainWindow inherits Window {
                                 selected: index == root.selected-profile-index;
                                 picked => { root.selected-profile-index = index; root.profile-selected(index); }
                             }
+                            if root.profile-model.length > 0: Btn { text: "Редактировать выбранный"; enabled: root.selected-profile-index >= 0 && !root.import-busy && !root.subscription-busy; clicked => { root.import-edit-selected(); } }
                             if root.profile-model.length > 0 && !root.delete-confirmation-visible: Btn {
                                 text: "Удалить выбранный";
                                 kind: 3;
@@ -863,34 +902,11 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        Card {
-                            SectionTitle { title: "Ручной профиль"; subtitle: "Для добавления отдельного сервера сначала нажмите «Новый профиль». Серверы подписок обновляются через подписку."; }
-                            Btn { text: "Новый профиль"; clicked => { root.selected-profile-index = -1; root.profile-name = ""; root.vless-link = ""; } }
-                            FieldLabel { text: "Название"; }
-                            LineEdit { placeholder-text: "Например, Домашний сервер"; text <=> root.profile-name; }
-                            FieldLabel { text: "Ссылка VLESS"; }
-                            LineEdit { placeholder-text: "vless://…"; input-type: root.show-vless-link ? text : password; text <=> root.vless-link; }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Btn { text: root.show-vless-link ? "Скрыть" : "Показать"; clicked => { root.show-vless-link = !root.show-vless-link; } }
-                                if root.clipboard-paste-supported: Btn { text: "Вставить"; clicked => { root.paste-profile-link(); } }
-                                Rectangle { horizontal-stretch: 1; }
-                                Btn { text: "Сохранить"; kind: 0; clicked => { root.save-profile(); } }
-                            }
-                        }
-
-                        Card {
+                        if root.subscription-model.length > 0: Card {
                             SectionTitle { title: "Подписки"; subtitle: "HTTPS-ссылка загружает список серверов. Поддерживаются текстовые и Base64-списки VLESS."; }
                             ComboBox { model: root.subscription-model; current-index <=> root.selected-subscription-index; enabled: !root.subscription-busy; selected => { root.subscription-selected(root.selected-subscription-index); } }
                             FieldLabel { text: "Название подписки"; }
                             LineEdit { text <=> root.subscription-name; placeholder-text: "Например, Основная подписка"; enabled: !root.subscription-busy; }
-                            FieldLabel { text: "HTTPS-ссылка для новой подписки"; }
-                            LineEdit { text <=> root.subscription-url; input-type: password; placeholder-text: "https://…/sublink/…"; enabled: !root.subscription-busy; }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                if root.clipboard-paste-supported: Btn { text: "Вставить"; enabled: !root.subscription-busy; clicked => { root.subscription-paste(); } }
-                                Btn { horizontal-stretch: 1; text: root.subscription-busy ? "Загрузка…" : "Добавить"; kind: 0; enabled: !root.subscription-busy; clicked => { root.subscription-add(); } }
-                            }
                             HorizontalLayout {
                                 spacing: 8px;
                                 Btn { horizontal-stretch: 1; text: "Обновить"; enabled: !root.subscription-busy && root.selected-subscription-index >= 0; clicked => { root.subscription-refresh(); } }
@@ -1021,6 +1037,11 @@ export component MainWindow inherits Window {
                                 title: "Полный конфиг ядра";
                                 subtitle: "Открывает все возможности ядра: TUN, DNS fake-IP и правила маршрутизации. Совместимость зависит от ОС.";
                                 checked <=> root.use-full-config;
+                            }
+                            if root.use-full-config: ToggleRow {
+                                title: "Использовать выбранный сервер";
+                                subtitle: "Подключение и TUN используют выбранную VLESS-ссылку через выход proxy. Отключите для самостоятельного JSON-конфига.";
+                                checked <=> root.config-bind-selected-profile;
                             }
                             if root.system-proxy-supported: ToggleRow {
                                 title: "Системный прокси Windows";

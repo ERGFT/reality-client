@@ -2,9 +2,9 @@
 
 Status: in progress. Target: Reality Client (Rust + Slint), Windows and Android.
 
-Current delivery: [PR #19](https://github.com/ERGFT/reality-client/pull/19),
+Initial delivery: [PR #19](https://github.com/ERGFT/reality-client/pull/19),
 implementation commit d89dba2. Windows and Android runtime checks passed;
-Linux/Windows/Android push and PR jobs are running. Merge gate remains pending.
+PR #19 is now merged as 38fbabb. Follow-up usability/connection changes are in progress; [PR #20](https://github.com/ERGFT/reality-client/pull/20) is open; its latest CI remains pending.
 
 Final storage review found the 16 KiB plaintext limit was also applied to DPAPI
 ciphertext, which has additional headers. Protected subscription blobs now allow
@@ -17,6 +17,57 @@ to prevent HTTP request path/query leakage even with RUST_LOG=trace. The shared
 clipboard sanitizer accepts HTTPS and rejects multiline input without echoing
 secrets. All 17 subscription tests, fmt and all-target android-bridge-check
 Clippy passed. Native clipboard input remains unverified. Final CI is pending.
+
+## Usability revision requested 2026-10-09
+
+PR #19 is merged as 38fbabb. The revised import UX and connection fixes will be delivered in a new PR on the existing rust-rewrite branch.
+The previous two-form layout confused a selected server with a new import draft.
+Reference: Hiddify's add-profile flow (clipboard or manual link), and v2rayN's
+subscription groups. Keep the existing theme; simplify the user flow.
+
+1. One Add action and independent draft for VLESS or HTTPS; detect the format.
+2. Preserve selected profiles while typing, clear secrets after successful import,
+   show errors beside the draft; leave subscription management separate.
+3. Review desktop/mobile render with the user before expanding the redesign.
+4. Diagnose reported unchanged/Russian exit IP using the actual platform and
+   proxy/TUN mode. Country alone is not proof of routing failure. Separate core
+   outbound success from browser/system routing and from configured direct rules.
+5. Verify changes in isolated tests, then open a new PR and wait for CI.
+
+Local draft: 18 subscription/import tests passed, the real Slint import callback
+added a server without replacing the manual profile or breaking a running
+loopback TCP stream. Desktop/mobile software renders inspected; all-target Clippy
+with android-bridge-check passed. This revision is now in PR #20 and has not been merged.
+Native clipboard/keyboard and this revised screen on Android remain unverified.
+Read-only host check: Happ is running; Windows proxy is enabled but is not the
+client's 127.0.0.1:1080 endpoint. This is current state, not evidence of the state
+when 2ip.io was tested. No host network setting was changed.
+Connection audit: editor changes were ignored by file-based startup, selected
+profiles were ignored in full-config mode, and profile runtime files could
+replace a JSON file chosen for advanced editing. Startup now uses the editor
+snapshot, binds the selected VLESS server explicitly to the proxy outlet, keeps
+runtime files separate, and preserves routes/DNS/TUN settings. A user can disable
+binding for an independent raw JSON configuration. Same snapshot handling is
+implemented for Android. UI shows the active server/mode and detects foreign
+Windows proxy changes without restoring network settings automatically.
+
+Verification: two synthetic VLESS servers received real HTTP CONNECT and SOCKS
+requests through the linked core; switching saved profile changed the response.
+A separate opt-in probe of an encrypted local vault copy completed an HTTPS
+IP-check request with an exit different from the ordinary OS route. No URL or
+IP address was printed. The copied vault and runtime secret were removed. This
+proves core/server forwarding; native browser routing and Windows TUN remain
+unverified while Happ is running. Never claim they passed from a listener test.
+
+Final local follow-up checks (2026-10-09): 114 standard Windows unit tests
+passed; 117 with android-bridge-check passed (one opt-in vault probe ignored
+in both normal suites, and executed separately successfully). All-target Clippy
+and fmt passed. Android x86_64 cargo-ndk check passed. Native browser/TUN and
+updated Android runtime interaction are still separate verification gates.
+Default manual server names now use the VLESS remark or endpoint, rather than
+an uninformative profile number.
+
+A final clipboard callback regression rejects results from an older, closed, or busy import draft. Manual edit/create remain separate; saving clears secrets and invalidates pending clipboard reads.
 
 ## Requirements
 

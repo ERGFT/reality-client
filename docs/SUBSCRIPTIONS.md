@@ -47,14 +47,21 @@ TRACE-логирование зависимостей через `log` откл�
 ещё не содержать эту функцию. Состояние проверки — в
 [плане реализации](SUBSCRIPTIONS_WORK_PLAN.md).
 
-На странице **Серверы → Подписки** введите название и HTTPS-ссылку, затем
-нажмите **Добавить**. Ссылка скрыта; кнопка **Вставить** читает её из буфера
-обмена. Выберите сервер в общем списке: его имя начинается с названия подписки.
+На странице **Серверы** нажмите **Добавить сервер или подписку**. В одно
+поле вставьте `vless://…` для отдельного сервера или `https://…` для подписки.
+Тип определяется автоматически. Название необязательно. Кнопка **Вставить
+из буфера** читает ссылку; **Показать** временно раскрывает скрытое поле.
+Нажмите **Добавить**. При ошибке форма сохраняет ввод и показывает причину.
+После успешного импорта поле очищается, форма закрывается. Новый ввод не
+редактирует выбранный сервер; ручной профиль и подписку можно добавлять подряд.
 
-Выпадающий список подписок позволяет выбрать группу для **Обновить**,
-**Переименовать** и **Удалить подписку**. Обновление использует сохранённую
-ссылку; поле HTTPS предназначено для добавления новой подписки. Удаление
-требует подтверждения. Для отдельной VLESS-ссылки используйте **Новый профиль**.
+Серверы подписки появятся в общем списке с названием группы. Выберите сервер
+для подключения. В разделе **Подписки** выберите группу для **Обновить**,
+**Переименовать** или **Удалить подписку**. Обновление использует сохранённую
+ссылку; удаление требует подтверждения.
+Для изменения ручного профиля выберите сервер и нажмите **Редактировать выбранный**.
+Изменения активного сервера применяются после переподключения. Серверы подписки
+обновляются через группу. [Подключение Windows](WINDOWS_CONNECTION.md).
 
 ### Форматы и ограничения
 
@@ -104,11 +111,16 @@ Subscription support is present in the source; published builds may not yet
 include it. See the [implementation plan](SUBSCRIPTIONS_WORK_PLAN.md) for
 verification status.
 
-On **Servers → Subscriptions**, enter a name and an HTTPS URL, then choose Add.
-Paste reads the URL from the clipboard; the field is masked. Server names in
-the shared list are prefixed with their subscription name. Select a subscription
-to refresh, rename or delete it. Refresh uses its stored URL. Use New profile
-for an independent manual VLESS server.
+On **Servers**, choose **Add server or subscription**. Paste either a `vless://`
+server link or an `https://` subscription URL into the same field. The type is
+detected automatically; the name is optional. Clipboard paste and Show/Hide
+controls are provided. Add imports the link. Failures retain the draft and show
+an error; successful imports clear secrets and close the form. The draft does
+not edit the selected server. Select a saved subscription to refresh, rename
+or delete it; refresh uses its protected stored URL.
+Use **Edit selected** to change an existing manual server. Its running connection
+keeps the old settings until reconnect. Subscription servers are updated through
+the group. See [Windows connections](WINDOWS_CONNECTION.md).
 
 Supported inputs are UTF-8 VLESS URI lists and their standard/URL-safe Base64
 encoding, padded or unpadded. Empty lines, `#` comments and UTF-8 BOM are accepted.
