@@ -72,3 +72,5 @@ warns about foreign Windows proxy changes without taking ownership back.
 Local VLESS HTTP CONNECT/SOCKS forwarding and one explicitly selected local
 profile's HTTPS request passed; native browser routing and Windows TUN remain
 unverified. Happ and host network settings were not changed.
+
+Own loopback HTTPS subscription and two authenticated VLESS/TLS relays passed plain/Base64, HTTP/HTTPS, intact 256 KiB transfers, server switching, stable IDs, reopened storage and update failures. The lab found populated proxy fields conflicting with link_file; binding now replaces old server/TLS/transport fields while retaining shared options and DNS/routes/TUN. Custom CA binding is rejected explicitly because the pinned core cannot combine certificate_path and link_file; independent raw JSON remains supported. These lab checks do not verify REALITY, native installer/UI, browser routing or TUN.

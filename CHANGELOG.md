@@ -31,6 +31,7 @@
 - Windows GUI-клиент собирается как Windows-приложение без консольного окна.
 
 ### Исправлено
+- Привязка выбранного профиля к заполненному полному конфигу: старые поля сервера/TLS/транспорта больше не конфликтуют с `link_file`. Для собственного CA показывается явная подсказка использовать самостоятельный JSON.
 - `cargo xtask test-windows` передаёт флаги Cargo для Clippy до `--`, а lint-флаги — после него.
 - `cargo xtask package-windows` берёт клиентский EXE из настроенного `CARGO_TARGET_DIR`, включая абсолютный и относительный путь.
 
@@ -127,6 +128,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Build the Windows GUI as a Windows-subsystem application so starting it does not open a console window.
 
 ### Fixed
+- Selected-profile binding for populated full configs: old server/TLS/transport fields no longer conflict with `link_file`. Custom CAs produce an explicit instruction to use independent JSON.
 - `cargo xtask test-windows` passes Cargo flags for Clippy before `--` and lint flags after it.
 - `cargo xtask package-windows` reads the client executable from the configured `CARGO_TARGET_DIR`, including absolute and relative paths.
 
