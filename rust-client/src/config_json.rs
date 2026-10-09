@@ -2,6 +2,75 @@
 
 pub(crate) const MANAGED_ROUTE_MARKER: &str = "//reality-client-ui";
 
+/// Bind the selected server to the client's proxy outlet, without changing the
+/// user's saved JSON or embedding a share link in the editor/configuration.
+pub(crate) fn bind_selected_profile(
+    text: &str,
+    secret_path: &std::path::Path,
+) -> Result<String, String> {
+    let mut value = parse_jsonc_value(text)?;
+    if is_xray_config(&value) {
+        return Err("Для выбранного сервера используйте конфиг sing-box с VLESS-выходом proxy. Для самостоятельного Xray JSON отключите привязку выбранного сервера.".into());
+    }
+    let outlets = value
+        .get_mut("outbounds")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or("В конфиге нет массива outbounds.")?;
+    let matches = outlets
+        .iter()
+        .filter(|o| o.get("tag").and_then(serde_json::Value::as_str) == Some("proxy"))
+        .count();
+    if matches != 1 {
+        return Err("Для выбранного сервера нужен один VLESS-выход с тегом proxy. Исправьте JSON или отключите привязку выбранного сервера.".into());
+    }
+    let outlet = outlets
+        .iter_mut()
+        .find(|o| o.get("tag").and_then(serde_json::Value::as_str) == Some("proxy"))
+        .unwrap();
+    if outlet.get("type").and_then(serde_json::Value::as_str) != Some("vless") {
+        return Err(
+            "Выход proxy должен иметь тип vless для подключения выбранного сервера.".into(),
+        );
+    }
+    let outlet = outlet
+        .as_object_mut()
+        .ok_or("Выход proxy должен быть объектом.")?;
+    outlet.remove("link");
+    outlet.insert("link_file".into(), serde_json::json!(secret_path));
+    serde_json::to_string_pretty(&value)
+        .map_err(|_| "Не удалось подготовить конфигурацию выбранного сервера.".into())
+}
+
+#[cfg(test)]
+mod selected_profile_tests {
+    use super::*;
+    #[test]
+    fn selected_profile_binding_keeps_tun_dns_routes_and_original_editor() {
+        let text = r#"{"inbounds":[{"type":"tun","address":["172.19.0.1/30"]}],"outbounds":[{"type":"vless","tag":"proxy","link":"vless://old-secret"},{"type":"direct","tag":"direct"}],"route":{"final":"proxy","rules":[{"domain_suffix":["vk.com"],"outbound":"direct"}]},"dns":{"servers":[{"type":"https","server":"1.1.1.1","detour":"proxy"}]}}"#;
+        let bound =
+            bind_selected_profile(text, std::path::Path::new("selected-server.txt")).unwrap();
+        let a = parse_jsonc_value(text).unwrap();
+        let b = parse_jsonc_value(&bound).unwrap();
+        for field in ["inbounds", "route", "dns"] {
+            assert_eq!(a[field], b[field]);
+        }
+        assert!(b["outbounds"][0].get("link").is_none());
+        assert_eq!(b["outbounds"][0]["link_file"], "selected-server.txt");
+        assert!(text.contains("old-secret"));
+        assert!(!bound.contains("old-secret"));
+    }
+    #[test]
+    fn selected_profile_binding_refuses_ambiguous_or_wrong_outlet() {
+        for text in [
+            r#"{"outbounds":[{"type":"direct","tag":"proxy"}]}"#,
+            r#"{"outbounds":[{"type":"vless","tag":"proxy"},{"type":"vless","tag":"proxy"}]}"#,
+            r#"{"outbounds":[{"type":"vless","tag":"other"}]}"#,
+        ] {
+            assert!(bind_selected_profile(text, std::path::Path::new("fixture.txt")).is_err());
+        }
+    }
+}
+
 pub(crate) fn parse_jsonc_value(text: &str) -> Result<serde_json::Value, String> {
     let bytes = text.as_bytes();
     let mut cleaned = Vec::with_capacity(bytes.len());

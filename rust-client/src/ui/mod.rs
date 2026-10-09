@@ -9,6 +9,7 @@ mod config_editor;
 mod connection;
 mod diagnostics;
 mod groups;
+mod import;
 mod profile_flow;
 mod profiles;
 mod runtime;
@@ -232,6 +233,7 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     config_editor::install(&window, &state);
     profiles::install(&window, &state);
     subscriptions::install(&window, &state);
+    import::install(&window, &state);
     if let Some(index) = profile_flow::initial_profile_index(window.get_profile_model().row_count())
     {
         let index = index as i32;

@@ -248,7 +248,11 @@ pub fn prepare_system_proxy_backup() -> Result<PathBuf, String> {
 
 pub fn enable_system_proxy() -> Result<(), String> {
     let mut backend = RegistryBackend::open(KEY_SET_VALUE)?;
-    enable_with_backend(&mut backend)
+    enable_with_backend(&mut backend)?;
+    if !active_is_local_proxy()? {
+        return Err("Windows не сохранила системный прокси Reality Client; возможно, его изменило другое приложение.".into());
+    }
+    Ok(())
 }
 
 fn enable_with_backend<B: ProxyBackend>(backend: &mut B) -> Result<(), String> {

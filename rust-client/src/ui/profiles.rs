@@ -67,8 +67,15 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                     let Some(window) = weak_window.upgrade() else {
                         return;
                     };
+                    window.set_import_busy(false);
                     match result {
                         Ok((index, names, count, profile_name, link)) => {
+                            window.set_import_visible(false);
+                            window.set_import_edit_index(-1);
+                            window.set_import_edit_revision("".into());
+                            window.set_import_link("".into());
+                            window.set_import_name("".into());
+                            window.set_import_show_link(false);
                             window.set_profile_model(ModelRc::from(Rc::new(VecModel::from(
                                 names
                                     .iter()
@@ -91,7 +98,10 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                                 .into(),
                             );
                         }
-                        Err(problem) => window.set_detail_text(problem.into()),
+                        Err(problem) => {
+                            window.set_import_status(problem.as_str().into());
+                            window.set_detail_text(problem.into());
+                        }
                     }
                 });
                 if dispatched.is_err() {

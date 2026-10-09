@@ -228,6 +228,7 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
     window.set_profile_model(model(vec!["Ручной сервер".into()]));
     super::super::profiles::install(&window, &state);
     install(&window, &state);
+    super::super::import::install(&window, &state);
     let a = "vless://00000000-0000-4000-8000-000000000000@a.example.org:443#%D0%A1%D0%B5%D1%80%D0%B2%D0%B5%D1%80%20A";
     let b = "vless://00000000-0000-4000-8000-000000000000@b.example.org:443#Server%20B";
     let url = Zeroizing::new("https://fixture.example.org/sublink/test".to_owned());
@@ -310,6 +311,80 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
         b"same TCP connection after subscription delete",
     );
     assert!(state.core_session.lock().unwrap().is_some());
+    // The import draft never edits the selected server, and importing a new
+    // manual server cannot overwrite the existing manual profile.
+    window.set_import_visible(true);
+    window.set_import_name("Новый сервер".into());
+    window.set_import_link("http://fixture.invalid/private-token".into());
+    window.invoke_import_submit();
+    assert!(window.get_import_visible());
+    assert!(!window.get_import_status().contains("private-token"));
+    assert_eq!(window.get_profile_model().row_count(), 1);
+    window.set_import_link(b.into());
+    window.set_import_status("".into());
+    window.set_clipboard_paste_supported(true);
+    window
+        .window()
+        .dispatch_event(slint::platform::WindowEvent::PointerScrolled {
+            position: slint::LogicalPosition::new(250.0, 400.0),
+            delta_x: 0.0,
+            delta_y: 1600.0,
+        });
+    render(&window, &adapter, false, "import-desktop");
+    render(&window, &adapter, true, "import-mobile");
+    window.invoke_import_submit();
+    drain(&receiver, &state, &window);
+    assert!(!window.get_import_visible());
+    assert!(window.get_import_link().is_empty());
+    assert_eq!(window.get_profile_model().row_count(), 2);
+    assert_eq!(
+        state
+            .profile_store
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .read_link(0)
+            .unwrap()
+            .as_str(),
+        manual
+    );
+    roundtrip(
+        &mut active_stream,
+        b"same TCP connection after unified import",
+    );
+    window.invoke_import_edit_selected();
+    assert_eq!(window.get_import_edit_index(), 1);
+    window.set_import_name("Изменённый сервер".into());
+    window.set_import_link(a.into());
+    window.invoke_import_submit();
+    drain(&receiver, &state, &window);
+    assert_eq!(window.get_profile_model().row_count(), 2);
+    assert_eq!(
+        state
+            .profile_store
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .read_link(1)
+            .unwrap()
+            .as_str(),
+        a
+    );
+    assert_eq!(
+        state
+            .profile_store
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .read_link(0)
+            .unwrap()
+            .as_str(),
+        manual
+    );
+    roundtrip(&mut active_stream, b"same TCP connection after manual edit");
     drop(active_stream);
     echo_worker.join().unwrap();
     state
