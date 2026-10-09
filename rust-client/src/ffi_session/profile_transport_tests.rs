@@ -141,6 +141,14 @@ fn selected_profile_editor_snapshot_routes_http_and_socks_through_vless() {
         let selected = store.read_link(index).unwrap();
         let mut editor: serde_json::Value = serde_json::from_str(&profile_config()).unwrap();
         editor["inbounds"][0]["listen_port"] = serde_json::json!(port);
+        // A populated advanced editor must still start when the selected URI
+        // replaces its previous server/TLS/transport settings.
+        editor["outbounds"][0]["server"] = serde_json::json!("previous.invalid");
+        editor["outbounds"][0]["server_port"] = serde_json::json!(443);
+        editor["outbounds"][0]["uuid"] = serde_json::json!("11111111-1111-4111-8111-111111111111");
+        editor["outbounds"][0]["tls"] =
+            serde_json::json!({"enabled":true,"server_name":"previous.invalid"});
+        editor["outbounds"][0]["transport"] = serde_json::json!({"type":"ws","path":"/previous"});
         // Only this synthetic loopback fixture uses plaintext VLESS.
         editor["outbounds"][0]["allow_insecure"] = serde_json::json!(true);
         let editor = serde_json::to_string(&editor).unwrap();

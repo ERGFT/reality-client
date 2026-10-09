@@ -35,6 +35,32 @@ pub(crate) fn bind_selected_profile(
     let outlet = outlet
         .as_object_mut()
         .ok_or("Выход proxy должен быть объектом.")?;
+    if outlet
+        .get("tls")
+        .and_then(|tls| tls.get("certificate_path"))
+        .is_some_and(|path| !path.is_null())
+    {
+        return Err("У выхода proxy задан свой CA (tls.certificate_path). Ядро не поддерживает его вместе с link_file: отключите «Использовать выбранный сервер» и запускайте полный конфиг самостоятельно.".into());
+    }
+    // The pinned core's link_file mode accepts the URI and the shared
+    // allow_insecure/fragment/mux options, but rejects structured server fields.
+    // Server identity, TLS and transport now come from the selected URI.
+    for field in [
+        "server",
+        "server_port",
+        "uuid",
+        "flow",
+        "network",
+        "packet_encoding",
+        "tls",
+        "transport",
+        "connect_timeout",
+        "tcp_fast_open",
+        "tcp_multi_path",
+        "udp_fragment",
+    ] {
+        outlet.remove(field);
+    }
     outlet.remove("link");
     outlet.insert("link_file".into(), serde_json::json!(secret_path));
     serde_json::to_string_pretty(&value)
@@ -44,6 +70,30 @@ pub(crate) fn bind_selected_profile(
 #[cfg(test)]
 mod selected_profile_tests {
     use super::*;
+    #[test]
+    fn binding_replaces_structured_server_and_keeps_shared_options() {
+        let text = r#"{"outbounds":[{"type":"vless","tag":"proxy","server":"old.example.org","server_port":443,"uuid":"old-uuid","flow":"xtls-rprx-vision","network":"tcp","packet_encoding":"xudp","tls":{"enabled":true,"server_name":"old-sni","reality":{"enabled":true,"public_key":"old-key"}},"transport":{"type":"ws","path":"/old"},"connect_timeout":"10s","allow_insecure":false,"mux":2}],"route":{"final":"proxy"}}"#;
+        let bound = bind_selected_profile(text, std::path::Path::new("selected.txt")).unwrap();
+        let value = parse_jsonc_value(&bound).unwrap();
+        let outlet = &value["outbounds"][0];
+        assert_eq!(outlet["link_file"], "selected.txt");
+        assert_eq!(outlet["mux"], 2);
+        assert_eq!(outlet["allow_insecure"], false);
+        assert!(!bound.contains("old-"));
+        assert!(text.contains("old-uuid"));
+    }
+    #[test]
+    fn binding_does_not_silently_discard_custom_ca_or_unknown_fields() {
+        let ca = r#"{"outbounds":[{"type":"vless","tag":"proxy","tls":{"enabled":true,"certificate_path":"own-ca.pem"}}]}"#;
+        assert!(
+            bind_selected_profile(ca, std::path::Path::new("selected.txt"))
+                .unwrap_err()
+                .contains("certificate_path")
+        );
+        let typo = r#"{"outbounds":[{"type":"vless","tag":"proxy","unknown_option":true}]}"#;
+        let bound = bind_selected_profile(typo, std::path::Path::new("selected.txt")).unwrap();
+        assert!(bound.contains("unknown_option"));
+    }
     #[test]
     fn selected_profile_binding_keeps_tun_dns_routes_and_original_editor() {
         let text = r#"{"inbounds":[{"type":"tun","address":["172.19.0.1/30"]}],"outbounds":[{"type":"vless","tag":"proxy","link":"vless://old-secret"},{"type":"direct","tag":"direct"}],"route":{"final":"proxy","rules":[{"domain_suffix":["vk.com"],"outbound":"direct"}]},"dns":{"servers":[{"type":"https","server":"1.1.1.1","detour":"proxy"}]}}"#;
