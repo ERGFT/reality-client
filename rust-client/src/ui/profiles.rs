@@ -71,6 +71,9 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                     match result {
                         Ok((index, names, count, profile_name, link)) => {
                             window.set_import_visible(false);
+                            window.set_import_generation(
+                                window.get_import_generation().wrapping_add(1),
+                            );
                             window.set_import_edit_index(-1);
                             window.set_import_edit_revision("".into());
                             window.set_import_link("".into());

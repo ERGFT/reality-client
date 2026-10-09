@@ -251,6 +251,9 @@ fn commit_in_background(
                     Ok((group_id, old_identities, old_manual_count, summary)) => {
                         if matches!(action, Action::Add) {
                             window.set_import_visible(false);
+                            window.set_import_generation(
+                                window.get_import_generation().wrapping_add(1),
+                            );
                             window.set_import_edit_index(-1);
                             window.set_import_edit_revision("".into());
                             window.set_import_link("".into());

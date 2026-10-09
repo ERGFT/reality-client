@@ -4,7 +4,7 @@ Status: in progress. Target: Reality Client (Rust + Slint), Windows and Android.
 
 Initial delivery: [PR #19](https://github.com/ERGFT/reality-client/pull/19),
 implementation commit d89dba2. Windows and Android runtime checks passed;
-PR #19 is now merged as 38fbabb. Follow-up usability/connection changes are in progress; their new PR and CI remain pending.
+PR #19 is now merged as 38fbabb. Follow-up usability/connection changes are in progress; [PR #20](https://github.com/ERGFT/reality-client/pull/20) is open; its latest CI remains pending.
 
 Final storage review found the 16 KiB plaintext limit was also applied to DPAPI
 ciphertext, which has additional headers. Protected subscription blobs now allow
@@ -37,7 +37,7 @@ subscription groups. Keep the existing theme; simplify the user flow.
 Local draft: 18 subscription/import tests passed, the real Slint import callback
 added a server without replacing the manual profile or breaking a running
 loopback TCP stream. Desktop/mobile software renders inspected; all-target Clippy
-with android-bridge-check passed. This revision has not been pushed or merged yet.
+with android-bridge-check passed. This revision is now in PR #20 and has not been merged.
 Native clipboard/keyboard and this revised screen on Android remain unverified.
 Read-only host check: Happ is running; Windows proxy is enabled but is not the
 client's 127.0.0.1:1080 endpoint. This is current state, not evidence of the state
@@ -59,13 +59,15 @@ IP address was printed. The copied vault and runtime secret were removed. This
 proves core/server forwarding; native browser routing and Windows TUN remain
 unverified while Happ is running. Never claim they passed from a listener test.
 
-Final local follow-up checks (2026-10-09): 113 standard Windows unit tests
-passed; 116 with android-bridge-check passed (one opt-in vault probe ignored
+Final local follow-up checks (2026-10-09): 114 standard Windows unit tests
+passed; 117 with android-bridge-check passed (one opt-in vault probe ignored
 in both normal suites, and executed separately successfully). All-target Clippy
 and fmt passed. Android x86_64 cargo-ndk check passed. Native browser/TUN and
 updated Android runtime interaction are still separate verification gates.
 Default manual server names now use the VLESS remark or endpoint, rather than
 an uninformative profile number.
+
+A final clipboard callback regression rejects results from an older, closed, or busy import draft. Manual edit/create remain separate; saving clears secrets and invalidates pending clipboard reads.
 
 ## Requirements
 

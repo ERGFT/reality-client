@@ -9,6 +9,10 @@ enum LinkKind {
     Subscription,
 }
 
+fn clipboard_draft_is_current(current: i32, requested: i32, visible: bool, busy: bool) -> bool {
+    current == requested && visible && !busy
+}
+
 fn classify(link: &str) -> Result<LinkKind, String> {
     if link.starts_with("https://") {
         crate::subscriptions::validate_url(link)?;
@@ -120,6 +124,7 @@ pub(super) fn install(window: &MainWindow, state: &super::UiState) {
                 return;
             };
             window.set_import_edit_index(index);
+            window.set_import_generation(window.get_import_generation().wrapping_add(1));
             window.set_import_edit_revision(revision.to_string().into());
             window.set_import_name(name.into());
             window.set_import_link(link.as_str().into());
@@ -132,6 +137,10 @@ pub(super) fn install(window: &MainWindow, state: &super::UiState) {
     window.on_import_paste({
         let weak = window.as_weak();
         move || {
+            let Some(window) = weak.upgrade() else {
+                return;
+            };
+            let generation = window.get_import_generation();
             let weak = weak.clone();
             std::thread::spawn(move || {
                 let result = crate::clipboard::read_clipboard_profile_link();
@@ -139,6 +148,14 @@ pub(super) fn install(window: &MainWindow, state: &super::UiState) {
                     let Some(window) = weak.upgrade() else {
                         return;
                     };
+                    if !clipboard_draft_is_current(
+                        window.get_import_generation(),
+                        generation,
+                        window.get_import_visible(),
+                        window.get_import_busy() || window.get_subscription_busy(),
+                    ) {
+                        return;
+                    }
                     match result {
                         Ok(link) => {
                             window.set_import_link(link.as_str().into());
@@ -156,6 +173,13 @@ pub(super) fn install(window: &MainWindow, state: &super::UiState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn late_clipboard_result_cannot_fill_another_or_closed_import_draft() {
+        assert!(clipboard_draft_is_current(7, 7, true, false));
+        assert!(!clipboard_draft_is_current(8, 7, true, false));
+        assert!(!clipboard_draft_is_current(7, 7, false, false));
+        assert!(!clipboard_draft_is_current(7, 7, true, true));
+    }
     #[test]
     fn import_detects_server_and_subscription_without_echoing_secrets() {
         assert!(matches!(

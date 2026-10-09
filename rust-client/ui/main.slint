@@ -530,6 +530,7 @@ export component MainWindow inherits Window {
     in-out property <int> import-edit-index: -1;
     in-out property <string> import-edit-revision;
     in-out property <bool> import-busy: false;
+    in-out property <int> import-generation: 0;
     in-out property <string> import-link;
     in-out property <string> import-name;
     in-out property <string> import-status;
@@ -850,7 +851,7 @@ export component MainWindow inherits Window {
 
                         PageTitle { title: "Серверы"; subtitle: "Выберите сервер или добавьте ссылку на сервер / подписку."; }
 
-                        Btn { text: "+ Добавить сервер или подписку"; kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-visible = true; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-status = ""; } }
+                        Btn { text: "+ Добавить сервер или подписку"; kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-generation += 1; root.import-visible = true; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-status = ""; } }
                         if root.import-visible: Card {
                             SectionTitle { title: root.import-edit-index >= 0 ? "Редактировать сервер" : "Добавить по ссылке"; subtitle: root.import-edit-index >= 0 ? "Изменения применятся к соединению после переподключения." : "VLESS — один сервер. HTTPS — подписка со списком серверов."; }
                             FieldLabel { text: "Ссылка"; }
@@ -865,7 +866,7 @@ export component MainWindow inherits Window {
                             if root.import-status != "": Notice { text: root.import-status; }
                             HorizontalLayout {
                                 spacing: 8px;
-                                Btn { text: "Отмена"; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-visible = false; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-show-link = false; } }
+                                Btn { text: "Отмена"; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-generation += 1; root.import-visible = false; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-show-link = false; } }
                                 Btn { horizontal-stretch: 1; text: root.subscription-busy ? "Загрузка…" : (root.import-busy ? "Сохранение…" : (root.import-edit-index >= 0 ? "Сохранить" : "Добавить")); kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-submit(); } }
                             }
                         }
