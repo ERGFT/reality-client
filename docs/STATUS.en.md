@@ -3,7 +3,7 @@
 # Verification status
 
 What was run and how it was confirmed. "Not verified" does not mean "broken", it
-means "nobody ran it". Updated: 2026-10-09.
+means "nobody ran it". Updated: 2026-10-10.
 
 Contents:
 
@@ -15,6 +15,7 @@ Contents:
 
 | What | Where and how | By |
 |---|---|---|
+| Own local HTTPS + VLESS/TLS lab | Two TLS relays; test-scoped CA, plain/Base64, real-core HTTP/HTTPS to `.invalid`, intact 256 KiB, server switching, stable IDs, reopened DPAPI store, retained data on HTTP 503/empty body, rejected wrong UUID. Reproduced populated-JSON/link_file conflict in .11; lab and binding pass after the fix. 119 Windows library tests with Android bridge passed, 1 opt-in ignored; fmt and all-target Clippy passed. Native installer, browser proxy/TUN and REALITY were not verified in this run | Codex, 2026-10-10 |
 | HTTPS subscriptions: Windows | 17 tests: plain/Base64, core parameters, TLS/redirects/limits/timeout/HTTP 403, DPAPI, atomic updates, manual profiles, stable IDs and real Slint callbacks. One TCP connection through an isolated core survives refresh/rename/delete. All-target Clippy with `android-bridge-check`, fmt. Fresh mobile and desktop renders inspected | Codex, 2026-10-09 |
 | APK with subscriptions | Android x86_64 Rust library, Gradle Kotlin tests and debug APK built. Isolated APK installed and launched on API35 emulator; startup screenshot inspected, no VPN enabled. Does not verify an actual provider or physical phone | Codex, 2026-10-09 |
 | Android subscription runtime | Opt-in `subscription-device-check` in a separate APK: real Slint add/select/refresh/reorder/rename/delete callbacks, stable IDs, Android Keystore URL/server reads after reopening and unchanged manual vault. PASS report on API35 x86_64. No VPN started; keyboard/clipboard input and actual provider remain unverified | Codex, 2026-10-09 |

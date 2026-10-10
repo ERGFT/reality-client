@@ -35,6 +35,22 @@ VLESS-ссылкой. При включённом системном прокс�
 
 ## Проверено и не проверено
 
+- Локальная HTTPS-подписка отдаёт два VLESS/TLS-сервера. На исходниках `.11`
+  прошли загрузка с проверкой CA, текст/Base64, HTTP/HTTPS через настоящий core,
+  передача 256 КиБ без искажений, переключение серверов, стабильные ID после
+  обновления, повторное открытие хранилища и сохранение данных при HTTP 503
+  или пустом ответе. Неверный UUID отвергается. Контрольный домен `.invalid`
+  обслуживается только тестовым сервером, поэтому прямой обход не даёт ответ.
+- Этот тест использует изолированную конфигурацию и тестовый CA; это не проверка
+  интерфейса установочного EXE, REALITY, системного прокси браузера или TUN.
+- Тест обнаружил ошибку привязки заполненного выхода `proxy`: оставшиеся
+  `server/server_port/uuid/tls/transport` конфликтовали с `link_file`. Привязка
+  теперь заменяет параметры сервера параметрами выбранной URI; общие
+  `allow_insecure`, `fragment`, `mux`, а также TUN/DNS/маршруты сохраняются.
+- Собственный `tls.certificate_path` нельзя молча отбросить: закреплённое ядро
+  не поддерживает его вместе с `link_file`. Для такого JSON отключите
+  «Использовать выбранный сервер»; клиент сообщает эту причину до запуска.
+
 - Изолированный настоящий core: HTTP CONNECT и SOCKS-запросы доходят до двух
   разных локальных VLESS-серверов при смене сохранённого профиля. Старый файл
   JSON на диске при этом отличается от редактора и остаётся неизменным.
@@ -56,3 +72,5 @@ warns about foreign Windows proxy changes without taking ownership back.
 Local VLESS HTTP CONNECT/SOCKS forwarding and one explicitly selected local
 profile's HTTPS request passed; native browser routing and Windows TUN remain
 unverified. Happ and host network settings were not changed.
+
+Own loopback HTTPS subscription and two authenticated VLESS/TLS relays passed plain/Base64, HTTP/HTTPS, intact 256 KiB transfers, server switching, stable IDs, reopened storage and update failures. The lab found populated proxy fields conflicting with link_file; binding now replaces old server/TLS/transport fields while retaining shared options and DNS/routes/TUN. Custom CA binding is rejected explicitly because the pinned core cannot combine certificate_path and link_file; independent raw JSON remains supported. These lab checks do not verify REALITY, native installer/UI, browser routing or TUN.

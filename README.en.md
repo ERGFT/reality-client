@@ -59,6 +59,9 @@ device, and shows speed, traffic, connections and logs.
   published builds may not include this feature.
 - **Modes.** Local proxy (SOCKS5/HTTP) and a full core config: TUN, DNS fake-IP,
   routing rules by domain and IP.
+  Selected-server binding replaces the `proxy` outlet's previous server/TLS/transport
+  fields with the selected URI. Custom CAs require independent full JSON with
+  binding disabled. [Windows verification and limits](docs/WINDOWS_CONNECTION.md).
 - **Validation before start.** The core checks the config; errors are shown as
   plain text with secrets redacted.
 - **Windows system proxy** with a backup and crash recovery.

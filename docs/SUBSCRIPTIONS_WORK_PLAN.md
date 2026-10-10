@@ -1,6 +1,19 @@
 # HTTPS subscriptions implementation plan
 
-Status: in progress. Target: Reality Client (Rust + Slint), Windows and Android.
+## Обновление 2026-10-10: локальный сервер и проверка подписки
+
+- PR19 и PR20 объединены. Релиз v0.1.0-preview.11 опубликован из main 5e31e4b; Windows/Linux/Android CI зелёный.
+- На D создан локальный стенд: HTTPS-подписка и два VLESS/TLS-сервера, собственный тестовый CA, контрольные HTTP/HTTPS-службы.
+- PASS на исходниках .11: текст/Base64, оба сервера, HTTP/HTTPS, 256 КиБ, стабильные ID, повторное открытие хранилища, ошибки обновления и отказ неверного UUID. Сертификаты проверяются; host trust store не меняется.
+- FAIL обнаружен в .11: выбранный сервер не запускался с уже заполненным полным конфигом — старые server/server_port/uuid/tls оставались вместе с link_file. Исправление подготовлено с регрессионными тестами; отдельный новый PR, не изменение закрытого PR20.
+- После исправления PASS локального стенда и привязки заполненного конфига. Собственный CA с link_file запрещается явно с подсказкой использовать самостоятельный JSON, без молчаливого удаления доверенного CA.
+- Windows VM создана на D, официальный ISO полностью загружен и SHA256 совпал с Microsoft. Гостевая ОС ещё не установлена; не принимать лицензию без пользователя.
+- Осталось: CI нового исправления; гостевые установщик/нативный интерфейс/браузерный прокси/TUN; отдельные REALITY и Android runtime проверки свежей сборки. Эти пункты не считать пройденными на основании локального стенда.
+- Happ и host proxy/DNS/routes сохранены. Ветки не создаются; новый PR использует существующую rust-rewrite.
+
+## Previous delivery notes (historical checkpoints)
+
+Status at the previous checkpoint: in progress. Target: Reality Client (Rust + Slint), Windows and Android.
 
 Initial delivery: [PR #19](https://github.com/ERGFT/reality-client/pull/19),
 implementation commit d89dba2. Windows and Android runtime checks passed;

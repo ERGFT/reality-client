@@ -9,7 +9,12 @@ Implement protected subscription storage, plain/Base64 VLESS imports, server
 groups, manual refresh and UI controls. Updates preserve manual profiles,
 server selection and a running session. Windows tests and Android Keystore/Slint
 runtime checks passed. [PR #19](https://github.com/ERGFT/reality-client/pull/19) is
-open; green CI and post-merge main verification are the remaining required steps.
+merged, as is PR20; `.11` is published and main CI is green.
+A local HTTPS subscription and two VLESS/TLS servers passed transport/storage
+checks. A populated-JSON profile-binding conflict was found and fixed for a new PR.
+Guest Windows installer/UI/browser proxy/TUN, separate REALITY and fresh Android
+runtime checks remain. The Windows ISO is downloaded and verified; VM installation
+awaits the user's license acceptance.
 
 The goal is a graphical client for [vpn-core](https://github.com/ERGFT/vpn-core),
 **written entirely in Rust** wherever possible: shared logic, UI (Slint), platform
