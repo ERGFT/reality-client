@@ -11,8 +11,10 @@ Contents:
 5. [Common checks](#5-common-checks)
 
 > [!WARNING]
-> No platform has been verified end-to-end against a real server. What was
-> actually run is listed in [STATUS.en.md](STATUS.en.md).
+> Android 16 has been tested against an independent local Xray: HTTPS subscription,
+> VLESS/REALITY/Vision, TCP traffic, disconnect and reconnect.
+> Physical phones, remote public exit and UDP/DNS are not verified by this lab.
+> See [STATUS.en.md](STATUS.en.md) and the [API36 report](ANDROID16_RUNTIME_REPORT.en.md) for the evidence boundaries.
 
 ## 1. Linux
 

@@ -59,3 +59,7 @@ Stage status (updated as work goes on):
   published with open sources under the same terms.
 - **The fate of PR #2:** it carries Windows TUN, `wintun.dll` and release workflows;
   decide whether to merge it whole or split it.
+
+## Android 16: verification on 2026-10-10
+
+A separate API36 emulator verified ARM64 APK installation, HTTPS subscription import/refresh, Keystore, VLESS/REALITY via independent local Xray, an intact 256 KiB payload, TUN disconnect and reconnect. Fixed stale disconnected UI, Android counter polling and group selection through the Android session. 123 tests passed (1 ignored), ordinary Clippy passed. This is a TCP lab test using ARM translation, not a physical phone or a real foreign exit IP. Persistent APK signing, a remote provider, UDP/DNS, multi-member selectors and physical phones remain separate tasks. Details: [report](docs/ANDROID16_RUNTIME_REPORT.en.md).

@@ -49,6 +49,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
     window.on_member_selected({
         let window = window.as_weak();
         let selectable_groups = state.selectable_groups.clone();
+        #[cfg(not(target_os = "android"))]
         let core_session = state.core_session.clone();
         let updating_group_controls = state.updating_group_controls.clone();
         let is_starting = state.is_starting.clone();
@@ -81,10 +82,14 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                 format!("Переключаю группу «{group_tag}» на «{member_tag}»…").into(),
             );
             let weak_window = window.as_weak();
+            #[cfg(not(target_os = "android"))]
             let core_session = core_session.clone();
             let selectable_groups = selectable_groups.clone();
             let is_starting = is_starting.clone();
             std::thread::spawn(move || {
+                #[cfg(target_os = "android")]
+                let result = crate::android_bridge::select_group_member(&group_tag, &member_tag);
+                #[cfg(not(target_os = "android"))]
                 let result = core_session
                     .lock()
                     .map_err(|_| "Сессия ядра недоступна.".to_owned())

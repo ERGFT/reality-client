@@ -110,6 +110,27 @@ fn core_slot() -> &'static Mutex<Option<AndroidCore>> {
     ANDROID_CORE.get_or_init(|| Mutex::new(None))
 }
 
+#[cfg(target_os = "android")]
+pub(crate) fn runtime_snapshot() -> Result<Option<crate::runtime_stats::RuntimeSnapshot>, String> {
+    // Hold the session lock for the entire snapshot so stop cannot free the FFI
+    // handle between requests. Polling happens on the existing worker thread.
+    let active = lock_recover(core_slot());
+    let Some(session) = active.as_ref() else {
+        return Ok(None);
+    };
+    crate::runtime_stats::fetch_runtime_snapshot_with(|path| {
+        let (status, body) = session.core.request("GET", path, None)?;
+        if !(200..300).contains(&status) {
+            return Err(format!(
+                "Локальный API ядра вернул HTTP {status} для {path}."
+            ));
+        }
+        serde_json::from_str(&body)
+            .map_err(|_| format!("Локальный API ядра вернул некорректный JSON для {path}."))
+    })
+    .map(Some)
+}
+
 fn lock_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     match mutex.lock() {
         Ok(guard) => guard,
@@ -119,6 +140,16 @@ fn lock_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
             guard
         }
     }
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn select_group_member(group: &str, member: &str) -> Result<(), String> {
+    let active = lock_recover(core_slot());
+    active
+        .as_ref()
+        .ok_or("Ядро уже остановлено.")?
+        .core
+        .select_group_member(group, member)
 }
 
 /// Called by the Android VpnService after it has established a TUN descriptor.
