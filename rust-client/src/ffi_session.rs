@@ -113,34 +113,11 @@ impl CoreSession {
     }
 
     pub fn select_group_member(&self, group: &str, member: &str) -> Result<(), String> {
-        if group.is_empty()
-            || member.is_empty()
-            || group
-                .chars()
-                .any(|c| c.is_control() || matches!(c, '/' | '?' | '#' | '%'))
-            || member.chars().any(|c| c.is_control())
-        {
-            return Err("Имя группы или сервера содержит неподдерживаемые символы.".into());
-        }
-        let core = self.core.as_ref().ok_or("Ядро уже остановлено.")?;
-        let path = format!("/groups/{group}");
-        let body = serde_json::json!({ "member": member }).to_string();
-        let (status, response) = core.request("PUT", &path, Some(&body))?;
-        if !(200..300).contains(&status) {
-            let message = serde_json::from_str::<serde_json::Value>(&response)
-                .ok()
-                .and_then(|value| {
-                    value
-                        .get("message")
-                        .and_then(serde_json::Value::as_str)
-                        .map(str::to_owned)
-                })
-                .unwrap_or_else(|| format!("Локальный API ядра вернул HTTP {status}."));
-            return Err(redact_sensitive_text(&message));
-        }
-        Ok(())
+        self.core
+            .as_ref()
+            .ok_or("Ядро уже остановлено.")?
+            .select_group_member(group, member)
     }
-
     pub fn start(
         vless_link: &str,
         system_proxy: bool,

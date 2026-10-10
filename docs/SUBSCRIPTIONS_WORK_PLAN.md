@@ -237,3 +237,22 @@ A final clipboard callback regression rejects results from an older, closed, or 
 - Windows pagefile grew automatically to about 19 GiB on C: during builds;
   direct artifacts/caches are on D:. Limit subsequent Cargo jobs to two and
   do not change host paging/security/VPN settings.
+
+## 2026-10-10 Android 16 follow-up
+
+- User authorized guest VPN permission and all tests. Official API36 emulator booted; published preview.11 ARM64 APK installed and HTTPS import passed.
+- Confirmed REALITY/Vision traffic through independent local Xray: exit marker and 256 KiB payload with matching SHA256; stopping removed tun0 and restored failing direct baseline.
+- Reproduced Android disconnect UI race and empty traffic counters. Fixes are now in reviewable source changes with regression tests; 123 library tests passed (1 ignored), ordinary all-target Clippy with -D warnings passed.
+- Local ARM64 test APK packaging in progress. Old x86_64 JNI files from earlier local builds were moved into a lab backup so the emulator cannot select a stale native library. Repeat native UI and traffic checks before claiming the fixes passed.
+- Existing rust-rewrite remote branch is an ancestor of current main; use detached main plus explicit push to that existing branch for a NEW PR. No new branch or commit to a closed PR.
+- Published APK and local APK have different debug signing keys; update install is rejected. Release signing needs a persistent private key supplied through protected CI secrets, not committed to Git. Fresh test installation was limited to the agent-owned emulator.
+
+## Final source verification
+
+- Final local ARM64 debug APK (debug symbols removed) SHA256: 08A174990C488B931D8BDC91E7DEF2F307847D0C8B1BD2AB45A088F2273337A4. Size 184300853 bytes. Installed by update with the same local signing key; selected profile survived.
+- Repeated native payload test on this final APK: HTTP 200, 262144 bytes, expected SHA256. Counters now display received traffic. Prior corrected build also passed UI disconnect and reconnect without restarting the app.
+- Group selection now uses the same Android-owned FFI session; desktop and Android share the existing input validation and response handling in FfiCore. Multi-member selector behavior remains to be tested with a suitable config.
+- Final library tests: 123 passed, 0 failed, 1 ignored (android-bridge-check). Ordinary all-target Clippy with -D warnings passed. Gradle Kotlin unit tests and APK packaging passed.
+- Desktop android-bridge-check Clippy with -D warnings fails on pre-existing platform-only dead-code warnings; this feature is covered by compilation/tests, not claimed as a clean lint run. The ordinary CI lint configuration passed.
+- Stopping/restarting the lab Xray process for an unavailable-server negative case was rejected by automatic approval review with a generic policy block; the server was left untouched. This case is not claimed as passed.
+- Android release debug key differs between builds; upgrading the earlier published APK cannot preserve data until a persistent protected signing key is configured. Do not put a private key in repository files.

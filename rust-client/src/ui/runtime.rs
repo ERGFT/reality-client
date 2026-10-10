@@ -17,10 +17,9 @@ use super::UiState;
 use crate::core;
 #[cfg(target_os = "android")]
 use crate::platform;
-use crate::{
-    MainWindow,
-    runtime_stats::{fetch_runtime_snapshot, format_bytes},
-};
+#[cfg(not(target_os = "android"))]
+use crate::runtime_stats::fetch_runtime_snapshot;
+use crate::{MainWindow, runtime_stats::format_bytes};
 
 /// Таймеры нужно держать живыми, пока работает окно.
 pub(super) struct Timers {
@@ -28,6 +27,11 @@ pub(super) struct Timers {
     _log: Timer,
     #[cfg(any(windows, target_os = "linux"))]
     _close: Timer,
+}
+
+#[cfg(any(target_os = "android", test))]
+fn android_session_ended(state: u8, button: &str) -> bool {
+    state == 0 && matches!(button, "Отключается…" | "Отключить")
 }
 
 pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
@@ -56,6 +60,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
     let runtime_timer = Timer::default();
     runtime_timer.start(TimerMode::Repeated, Duration::from_secs(1), {
         let window = window.as_weak();
+        #[cfg(not(target_os = "android"))]
         let core_session = state.core_session.clone();
         let selectable_groups = state.selectable_groups.clone();
         let updating_group_controls = state.updating_group_controls.clone();
@@ -69,6 +74,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
                 return;
             }
             let weak_window = window.clone();
+            #[cfg(not(target_os = "android"))]
             let core_session = core_session.clone();
             let selectable_groups = selectable_groups.clone();
             let updating_group_controls = updating_group_controls.clone();
@@ -76,6 +82,10 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
             let is_starting = is_starting.clone();
             let previous_traffic = previous_traffic.clone();
             std::thread::spawn(move || {
+                #[cfg(target_os = "android")]
+                let (result, network_warning) =
+                    (crate::android_bridge::runtime_snapshot(), String::new());
+                #[cfg(not(target_os = "android"))]
                 let (result, network_warning) = match core_session.lock() {
                     Ok(session) => match session.as_ref() {
                         Some(session) => (
@@ -255,7 +265,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
                         window.set_status_text("Ожидание разрешения Android VPN…".into());
                         window.set_connect_button_text("Отмена".into());
                     }
-                    2 => {
+                    2 if window.get_connect_button_text() != "Отключается…" => {
                         window.set_status_text("VPN подключён".into());
                         window.set_connect_button_text("Отключить".into());
                         window.set_detail_text(
@@ -267,7 +277,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
                         window.set_connect_button_text("Подключить".into());
                         window.set_detail_text(platform::take_android_vpn_error().into());
                     }
-                    _ if window.get_connect_button_text() == "Отключается…" => {
+                    state if android_session_ended(state, &window.get_connect_button_text()) => {
                         window.set_status_text("Отключено".into());
                         window.set_connect_button_text("Подключить".into());
                         window.set_detail_text("Android VPN остановлен.".into());
@@ -397,5 +407,26 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
         _log: log_timer,
         #[cfg(any(windows, target_os = "linux"))]
         _close: _close_timer,
+    }
+}
+
+#[cfg(test)]
+mod android_state_tests {
+    use super::android_session_ended;
+
+    #[test]
+    fn stopped_session_resets_ui_even_if_previous_poll_restored_connected_button() {
+        assert!(android_session_ended(0, "Отключается…"));
+        assert!(android_session_ended(0, "Отключить"));
+    }
+
+    #[test]
+    fn active_pending_and_failed_sessions_are_not_reported_as_stopped() {
+        for state in [1, 2, 3] {
+            assert!(!android_session_ended(state, "Отключается…"));
+            assert!(!android_session_ended(state, "Отключить"));
+        }
+        assert!(!android_session_ended(0, "Подключить"));
+        assert!(!android_session_ended(0, "Отмена"));
     }
 }

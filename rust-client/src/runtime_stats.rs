@@ -29,7 +29,13 @@ pub(crate) fn format_bytes(bytes: u64) -> String {
 }
 
 pub(crate) fn fetch_runtime_snapshot(session: &CoreSession) -> Result<RuntimeSnapshot, String> {
-    let groups_value = session.runtime_api("/groups")?;
+    fetch_runtime_snapshot_with(|path| session.runtime_api(path))
+}
+
+pub(crate) fn fetch_runtime_snapshot_with(
+    mut request: impl FnMut(&str) -> Result<serde_json::Value, String>,
+) -> Result<RuntimeSnapshot, String> {
+    let groups_value = request("/groups")?;
     let groups = groups_value
         .get("groups")
         .and_then(serde_json::Value::as_array)
@@ -62,8 +68,8 @@ pub(crate) fn fetch_runtime_snapshot(session: &CoreSession) -> Result<RuntimeSna
             })
         })
         .collect();
-    let stats = session.runtime_api("/stats")?;
-    let connection_list = session.runtime_api("/connections")?;
+    let stats = request("/stats")?;
+    let connection_list = request("/connections")?;
     let connection_rows = connection_list
         .get("connections")
         .and_then(serde_json::Value::as_array)
@@ -148,7 +154,36 @@ pub(crate) fn format_connection_row(connection: &serde_json::Value) -> String {
 
 #[cfg(test)]
 mod connection_row_tests {
-    use super::format_connection_row;
+    use super::{fetch_runtime_snapshot_with, format_connection_row};
+
+    #[test]
+    fn snapshot_reads_counters_and_connections_from_supplied_session() {
+        let mut requested = Vec::new();
+        let snapshot = fetch_runtime_snapshot_with(|path| {
+            requested.push(path.to_owned());
+            Ok(match path {
+                "/groups" => serde_json::json!({"groups": []}),
+                "/stats" => serde_json::json!({"up": 123, "down": 262144, "connections": 1}),
+                "/connections" => {
+                    serde_json::json!({"connections": [{"upload": 123, "download": 262144}]})
+                }
+                _ => panic!("unexpected API path"),
+            })
+        })
+        .unwrap();
+        assert_eq!(requested, ["/groups", "/stats", "/connections"]);
+        assert_eq!(
+            (snapshot.uploaded, snapshot.downloaded, snapshot.connections),
+            (123, 262144, 1)
+        );
+        assert_eq!(snapshot.connection_rows.len(), 1);
+    }
+
+    #[test]
+    fn snapshot_preserves_request_errors() {
+        let result = fetch_runtime_snapshot_with(|_| Err("session stopped".to_owned()));
+        assert!(matches!(result, Err(message) if message == "session stopped"));
+    }
 
     #[test]
     fn formats_core_connection_metadata_and_traffic() {
