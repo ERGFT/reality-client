@@ -49,3 +49,12 @@
 ## Android 16: проверка 2026-10-10
 
 На отдельном эмуляторе API36 проверены установка ARM64 APK, импорт и обновление HTTPS-подписки, Keystore, VLESS/REALITY через независимый локальный Xray, передача 256 КиБ с совпавшим SHA-256, отключение TUN и повторное подключение. Исправлены неверный статус после отключения, опрос счётчиков и выбор группы через Android-сессию. 123 теста прошли (1 пропущен), обычный Clippy прошёл. Это проверка TCP в лаборатории с ARM-трансляцией, не физического телефона или реального зарубежного IP. Постоянная подпись APK, удалённый провайдер, UDP/DNS, несколько узлов группы и физические телефоны остаются отдельными задачами. Подробности: [отчёт](ANDROID16_RUNTIME_REPORT.en.md).
+
+## Additional API36 checks before PR merge
+
+- Full Windows-host Rust test command (including binary/doc test targets): 123 passed, 0 failed, 1 ignored; binary/doc targets contain no tests. Log: android16-full-tests.log.
+- CI-equivalent android-bridge-check Clippy with `-D warnings -A dead_code` passed. Dependency smoltcp still emits dependency warnings; no client lint errors. Log: android16-ci-clippy.log. The earlier strict dead_code run remains recorded separately.
+- Final local APK disconnect shows Not connected; tun0 no longer exists and the restricted marker request fails. Screenshots/log: android16-final-disconnected.png, android16-final-disconnect-baseline.log.
+- A separate manual VLESS profile to the closed lab port 51986 was imported beside the subscription. Its native VPN service starts, but the marker request fails as expected; a running VPN service is not proof of endpoint reachability. Log: android16-unavailable-probe.log. No lab server process was stopped.
+- The stored HTTPS subscription survived same-key APK update and cold launch. Selecting it exposes the group; refresh succeeded with one server, zero rejected/duplicates, while the separate manual profile remained. Screenshot: android16-mixed-refresh.png.
+- Wrong credentials, UDP/DNS, multiple selector members, real phones, landscape/font/cutout matrix and remote provider exit are still not covered by these additional checks.

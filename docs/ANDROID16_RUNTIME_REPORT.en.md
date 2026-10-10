@@ -45,3 +45,12 @@
 - Desktop android-bridge-check Clippy with -D warnings fails on pre-existing platform-only dead-code warnings; this feature is covered by compilation/tests, not claimed as a clean lint run. The ordinary CI lint configuration passed.
 - Stopping/restarting the lab Xray process for an unavailable-server negative case was rejected by automatic approval review with a generic policy block; the server was left untouched. This case is not claimed as passed.
 - Android release debug key differs between builds; upgrading the earlier published APK cannot preserve data until a persistent protected signing key is configured. Do not put a private key in repository files.
+
+## Additional API36 checks before PR merge
+
+- Full Windows-host Rust test command (including binary/doc test targets): 123 passed, 0 failed, 1 ignored; binary/doc targets contain no tests. Log: android16-full-tests.log.
+- CI-equivalent android-bridge-check Clippy with `-D warnings -A dead_code` passed. Dependency smoltcp still emits dependency warnings; no client lint errors. Log: android16-ci-clippy.log. The earlier strict dead_code run remains recorded separately.
+- Final local APK disconnect shows Not connected; tun0 no longer exists and the restricted marker request fails. Screenshots/log: android16-final-disconnected.png, android16-final-disconnect-baseline.log.
+- A separate manual VLESS profile to the closed lab port 51986 was imported beside the subscription. Its native VPN service starts, but the marker request fails as expected; a running VPN service is not proof of endpoint reachability. Log: android16-unavailable-probe.log. No lab server process was stopped.
+- The stored HTTPS subscription survived same-key APK update and cold launch. Selecting it exposes the group; refresh succeeded with one server, zero rejected/duplicates, while the separate manual profile remained. Screenshot: android16-mixed-refresh.png.
+- Wrong credentials, UDP/DNS, multiple selector members, real phones, landscape/font/cutout matrix and remote provider exit are still not covered by these additional checks.

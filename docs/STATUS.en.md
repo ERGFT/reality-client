@@ -60,3 +60,6 @@ Contents:
 ## Android 16: verification on 2026-10-10
 
 A separate API36 emulator verified ARM64 APK installation, HTTPS subscription import/refresh, Keystore, VLESS/REALITY via independent local Xray, an intact 256 KiB payload, TUN disconnect and reconnect. Fixed stale disconnected UI, Android counter polling and group selection through the Android session. 123 tests passed (1 ignored), ordinary Clippy passed. This is a TCP lab test using ARM translation, not a physical phone or a real foreign exit IP. Persistent APK signing, a remote provider, UDP/DNS, multi-member selectors and physical phones remain separate tasks. Details: [report](ANDROID16_RUNTIME_REPORT.en.md).
+
+Additional API36 checks: full cargo test 123 passed/0 failed/1 ignored; CI-equivalent android-bridge-check Clippy with -A dead_code passed. Manual profile and subscription coexist and survive refresh; closed lab port fails the marker request. See ANDROID16_RUNTIME_REPORT.en.md.
+
