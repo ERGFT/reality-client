@@ -137,3 +137,7 @@ More: [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md).
 GPL-3.0-or-later ([LICENSE.txt](LICENSE.txt)). The client embeds a GPL core and is
 therefore distributed under the same terms. Third-party components:
 [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Android 16: verification on 2026-10-10
+
+A separate API36 emulator verified ARM64 APK installation, HTTPS subscription import/refresh, Keystore, VLESS/REALITY via independent local Xray, an intact 256 KiB payload, TUN disconnect and reconnect. Fixed stale disconnected UI, Android counter polling and group selection through the Android session. 123 tests passed (1 ignored), ordinary Clippy passed. This is a TCP lab test using ARM translation, not a physical phone or a real foreign exit IP. Persistent APK signing, a remote provider, UDP/DNS, multi-member selectors and physical phones remain separate tasks. Details: [report](docs/ANDROID16_RUNTIME_REPORT.en.md).

@@ -45,7 +45,3 @@
 - Desktop android-bridge-check Clippy with -D warnings fails on pre-existing platform-only dead-code warnings; this feature is covered by compilation/tests, not claimed as a clean lint run. The ordinary CI lint configuration passed.
 - Stopping/restarting the lab Xray process for an unavailable-server negative case was rejected by automatic approval review with a generic policy block; the server was left untouched. This case is not claimed as passed.
 - Android release debug key differs between builds; upgrading the earlier published APK cannot preserve data until a persistent protected signing key is configured. Do not put a private key in repository files.
-
-## Android 16: проверка 2026-10-10
-
-На отдельном эмуляторе API36 проверены установка ARM64 APK, импорт и обновление HTTPS-подписки, Keystore, VLESS/REALITY через независимый локальный Xray, передача 256 КиБ с совпавшим SHA-256, отключение TUN и повторное подключение. Исправлены неверный статус после отключения, опрос счётчиков и выбор группы через Android-сессию. 123 теста прошли (1 пропущен), обычный Clippy прошёл. Это проверка TCP в лаборатории с ARM-трансляцией, не физического телефона или реального зарубежного IP. Постоянная подпись APK, удалённый провайдер, UDP/DNS, несколько узлов группы и физические телефоны остаются отдельными задачами. Подробности: [отчёт](ANDROID16_RUNTIME_REPORT.en.md).

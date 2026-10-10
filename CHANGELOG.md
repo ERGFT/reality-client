@@ -7,6 +7,9 @@
 
 ## [Не выпущено]
 
+### Android runtime
+- Исправлены статус отключения, счётчики трафика и выбор групп через живую Android-сессию. Проверены HTTPS-подписка и TCP REALITY на эмуляторе Android 16; см. отчёт проверок.
+
 ### Подписки
 - HTTPS-импорт текстовых и Base64-списков VLESS, защищённые URL и ссылки серверов,
   группы и управление на странице серверов. Обновления атомарны, сохраняют ручные
@@ -103,6 +106,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 [SemVer](https://semver.org/); the first stable release has not been cut yet.
 
 ## [Unreleased]
+
+### Android runtime
+- Fixed disconnect status, traffic counters and group selection via the live Android session. HTTPS subscription and TCP REALITY verified on Android 16 emulator; see verification report.
 
 ### Subscriptions
 - HTTPS plain/Base64 VLESS imports, protected URLs and server links, groups and

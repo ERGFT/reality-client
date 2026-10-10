@@ -56,3 +56,7 @@ Contents:
 - Binary files are tracked in git (`dist/RealityClient.exe`, `third_party/reality-client.exe` for C#, `wintun.dll`).
 - The desktop layout assumes a window at least 760 px wide; width-based adaptation is
   off to avoid a size loop ([DESIGN.en.md](DESIGN.en.md#4-layout)).
+
+## Android 16: verification on 2026-10-10
+
+A separate API36 emulator verified ARM64 APK installation, HTTPS subscription import/refresh, Keystore, VLESS/REALITY via independent local Xray, an intact 256 KiB payload, TUN disconnect and reconnect. Fixed stale disconnected UI, Android counter polling and group selection through the Android session. 123 tests passed (1 ignored), ordinary Clippy passed. This is a TCP lab test using ARM translation, not a physical phone or a real foreign exit IP. Persistent APK signing, a remote provider, UDP/DNS, multi-member selectors and physical phones remain separate tasks. Details: [report](ANDROID16_RUNTIME_REPORT.en.md).
