@@ -21,18 +21,18 @@ export global Theme {
     in-out property <color> dyn-on-accent: #00382f;
     in-out property <color> dyn-on-accent-soft: #8cf5de;
 
-    out property <color> bg: dynamic ? dyn-bg : m3 ? (dark ? #0e1513 : #f4fbf8) : (dark ? #0d1014 : #f2f5f8);
-    out property <color> surface: dynamic ? dyn-surface : m3 ? (dark ? #1a211f : #e9f0ed) : (dark ? #151a21 : #ffffff);
-    out property <color> surface-2: dynamic ? dyn-surface-2 : m3 ? (dark ? #242b29 : #e3eae7) : (dark ? #1c222b : #edf1f5);
-    out property <color> surface-3: dynamic ? dyn-surface-3 : m3 ? (dark ? #2f3634 : #dde4e1) : (dark ? #252c37 : #e1e7ee);
-    out property <color> outline: dynamic ? dyn-outline : m3 ? (dark ? #3f4946 : #bfc9c5) : (dark ? #2a323d : #d9e0e8);
+    out property <color> bg: dynamic ? dyn-bg : m3 ? (dark ? #0e1513 : #f4fbf8) : (dark ? #171821 : #f5f5fa);
+    out property <color> surface: dynamic ? dyn-surface : m3 ? (dark ? #1a211f : #e9f0ed) : (dark ? #20212c : #ffffff);
+    out property <color> surface-2: dynamic ? dyn-surface-2 : m3 ? (dark ? #242b29 : #e3eae7) : (dark ? #282a37 : #f0f0f7);
+    out property <color> surface-3: dynamic ? dyn-surface-3 : m3 ? (dark ? #2f3634 : #dde4e1) : (dark ? #343645 : #e1e7ee);
+    out property <color> outline: dynamic ? dyn-outline : m3 ? (dark ? #3f4946 : #bfc9c5) : (dark ? #363848 : #e3e3ef);
     out property <color> text: dynamic ? dyn-text : m3 ? (dark ? #dde4e1 : #171d1b) : (dark ? #e9edf2 : #11161c);
     out property <color> dim: dynamic ? dyn-dim : m3 ? (dark ? #bec9c4 : #3f4946) : (dark ? #96a1b1 : #586373);
     out property <color> faint: dynamic ? dyn-dim.with-alpha(0.7) : m3 ? (dark ? #899390 : #6f7976) : (dark ? #667182 : #8793a3);
-    out property <color> accent: dynamic ? dyn-accent : m3 ? (dark ? #6ed9c2 : #006b5e) : (dark ? #34d3a8 : #0b9a78);
-    out property <color> accent-hover: dynamic ? dyn-accent.brighter(0.15) : m3 ? (dark ? #8ae6d1 : #00574c) : (dark ? #5ae0bb : #087e62);
-    out property <color> accent-soft: dynamic ? dyn-accent-soft : m3 ? (dark ? #005046 : #8cf5de) : (dark ? #12342d : #d3f1e8);
-    out property <color> on-accent: dynamic ? dyn-on-accent : m3 ? (dark ? #00382f : #ffffff) : (dark ? #04261e : #ffffff);
+    out property <color> accent: dynamic ? dyn-accent : m3 ? (dark ? #6ed9c2 : #006b5e) : (dark ? #a7a5ff : #625bd9);
+    out property <color> accent-hover: dynamic ? dyn-accent.brighter(0.15) : m3 ? (dark ? #8ae6d1 : #00574c) : (dark ? #c2bfff : #5049bf);
+    out property <color> accent-soft: dynamic ? dyn-accent-soft : m3 ? (dark ? #005046 : #8cf5de) : (dark ? #33304f : #eae7ff);
+    out property <color> on-accent: dynamic ? dyn-on-accent : m3 ? (dark ? #00382f : #ffffff) : (dark ? #242044 : #ffffff);
     out property <color> on-accent-container: dynamic ? dyn-on-accent-soft : m3 ? (dark ? #8cf5de : #00201b) : accent;
     out property <color> warn: dark ? #f2bb55 : #9a6100;
     out property <color> warn-soft: dark ? #33290f : #fbefd2;
@@ -40,9 +40,9 @@ export global Theme {
     out property <color> danger-soft: dark ? #3a1b20 : #fbe1e4;
 
     // Формы: у Material 3 Expressive крупные скругления и «таблетки».
-    out property <length> r-card: m3 ? 28px : 18px;
-    out property <length> r-tile: m3 ? 24px : 14px;
-    out property <length> r-row: m3 ? 20px : 14px;
+    out property <length> r-card: m3 ? 28px : 16px;
+    out property <length> r-tile: m3 ? 24px : 12px;
+    out property <length> r-row: m3 ? 20px : 10px;
     out property <length> r-field: m3 ? 20px : 12px;
 }
 
@@ -89,7 +89,7 @@ component Btn inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    height: Theme.m3 ? 48px : 42px;
+    height: Theme.m3 ? 48px : 40px;
     border-radius: Theme.m3 ? self.height / 2 : 13px;
     background: !root.enabled ? Theme.surface-2
         : root.kind == 0 ? (area.has-hover ? Theme.accent-hover : Theme.accent)
@@ -273,8 +273,8 @@ component PowerButton inherits Rectangle {
     in property <int> state: 0;
     callback clicked();
 
-    width: 176px;
-    height: 176px;
+    width: Theme.m3 ? 176px : 128px;
+    height: self.width;
     accessible-role: button;
     accessible-label: root.state == 2 ? "Отключить" : "Подключить";
     accessible-action-default => { root.clicked(); }
@@ -326,8 +326,8 @@ component RailItem inherits Rectangle {
     in property <bool> selected: false;
     callback activated();
 
-    height: 46px;
-    border-radius: 14px;
+    height: 44px;
+    border-radius: 10px;
     background: root.selected ? Theme.accent-soft : (area.has-hover ? Theme.surface-2 : transparent);
     animate background { duration: 120ms; }
     accessible-role: tab;
@@ -395,7 +395,7 @@ component Segmented inherits Rectangle {
     in-out property <int> current;
     callback selected(index: int);
 
-    height: Theme.m3 ? 48px : 42px;
+    height: Theme.m3 ? 48px : 40px;
     border-radius: Theme.m3 ? self.height / 2 : 13px;
     background: Theme.surface-2;
 
@@ -403,6 +403,9 @@ component Segmented inherits Rectangle {
         padding: 3px;
         spacing: 3px;
         for option[index] in root.options: Rectangle {
+            accessible-role: tab;
+            accessible-label: option;
+            accessible-action-default => { root.current = index; root.selected(index); }
             border-radius: Theme.m3 ? 22px : 10px;
             background: index == root.current ? (Theme.m3 ? Theme.accent-soft : Theme.surface) : transparent;
             border-width: index == root.current && !Theme.m3 ? 1px : 0px;
@@ -480,7 +483,7 @@ component PageTitle inherits VerticalLayout {
     in property <string> title;
     in property <string> subtitle;
     spacing: 4px;
-    Text { text: root.title; color: Theme.text; font-size: 26px; font-weight: 800; }
+    Text { text: root.title; color: Theme.text; font-size: 26px; font-weight: 800; wrap: word-wrap; }
     if root.subtitle != "": Text { text: root.subtitle; color: Theme.dim; font-size: 13px; wrap: word-wrap; }
 }
 
@@ -524,6 +527,9 @@ export component MainWindow inherits Window {
 
     in-out property <bool> dark-theme: true;
     in-out property <int> active-tab: 0;
+    // Local navigation only: never changes the selected server or live session.
+    in-out property <int> server-page: 0;
+    property <int> import-kind: 0;
     in-out property <int> theme-index: 0;
     in-out property <string> profile-name;
     in-out property <bool> import-visible: false;
@@ -643,10 +649,10 @@ export component MainWindow inherits Window {
     property <bool> idle: root.connect-button-text == "Подключить";
     property <int> power-state: root.connected ? 2 : (root.idle ? 0 : 1);
     property <bool> show-diagnostics: false;
-    property <length> page-pad: root.compact ? 16px : 32px;
+    property <length> page-pad: root.compact ? 16px : 28px;
     // AndroidActivity applies real system-bar and display-cutout insets. Keep
     // only a small visual gap here so the page does not start below the clock twice.
-    property <length> top-pad: root.mobile-layout ? 14px : 28px;
+    property <length> top-pad: root.mobile-layout ? 14px : 22px;
 
     changed use-full-config => {
         if root.use-full-config { root.enable-system-proxy = false; }
@@ -668,7 +674,7 @@ export component MainWindow inherits Window {
     HorizontalLayout {
         // ------------------------------------------------------------ боковая панель
         if !root.compact: Rectangle {
-            width: 236px;
+            width: 212px;
             background: Theme.surface;
             VerticalLayout {
                 padding: 18px;
@@ -687,7 +693,7 @@ export component MainWindow inherits Window {
                     VerticalLayout {
                         alignment: center;
                         Text { text: "Reality"; color: Theme.text; font-size: 18px; font-weight: 800; }
-                        Text { text: "VPN-клиент"; color: Theme.dim; font-size: 11px; }
+                        Text { text: "vpn-core · Rust"; color: Theme.dim; font-size: 11px; }
                     }
                 }
                 RailItem { glyph: "M3 11 L12 3 L21 11 M5.5 9.5 V20 H18.5 V9.5"; label: "Главная"; selected: root.active-tab == 0; activated => { root.active-tab = 0; } }
@@ -724,6 +730,18 @@ export component MainWindow inherits Window {
         // ------------------------------------------------------------------ страницы
         VerticalLayout {
             horizontal-stretch: 1;
+            if !root.compact: Rectangle {
+                height: 62px;
+                background: Theme.bg;
+                HorizontalLayout {
+                    padding-left: root.page-pad;
+                    padding-right: root.page-pad;
+                    spacing: 12px;
+                    Text { text: root.active-tab == 0 ? "Обзор" : root.active-tab == 1 ? "Серверы и подписки" : root.active-tab == 2 ? "Соединения" : root.active-tab == 3 ? "Настройки" : "О приложении"; color: Theme.text; font-size: 18px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; }
+                    VerticalLayout { alignment: center; Chip { text: root.connected ? "Ядро запущено" : root.idle ? "Не подключено" : "Подождите…"; tone: root.connected ? Theme.accent : Theme.dim; soft: root.connected ? Theme.accent-soft : Theme.surface-2; } }
+                    VerticalLayout { alignment: center; Btn { text: root.dark-theme ? "Светлая тема" : "Тёмная тема"; kind: 2; height: 34px; clicked => { root.theme-selected(root.dark-theme ? 1 : 0); } } }
+                }
+            }
 
             // ===================================================== Главная
             if root.active-tab == 0: ScrollView {
@@ -736,15 +754,13 @@ export component MainWindow inherits Window {
                     Rectangle { horizontal-stretch: 1; }
                     VerticalLayout {
                         horizontal-stretch: 100;
-                        max-width: 680px;
+                        max-width: 920px;
                         alignment: start;
                         spacing: 16px;
 
-                        VerticalLayout {
-                            spacing: 14px;
-                            alignment: start;
-                            padding-top: root.compact ? 8px : 24px;
-                            padding-bottom: 6px;
+                        if !root.compact: PageTitle { title: "Ваше подключение"; subtitle: "Выбранный сервер, состояние ядра и передача данных."; }
+                        Card {
+                            pad: root.compact ? 18px : 24px;
                             HorizontalLayout {
                                 alignment: center;
                                 PowerButton { state: root.power-state; clicked => { root.connect-requested(); } }
@@ -845,17 +861,18 @@ export component MainWindow inherits Window {
                     Rectangle { horizontal-stretch: 1; }
                     VerticalLayout {
                         horizontal-stretch: 100;
-                        max-width: 680px;
+                        max-width: 920px;
                         alignment: start;
                         spacing: 16px;
 
-                        PageTitle { title: "Серверы"; subtitle: "Выберите сервер или добавьте ссылку на сервер / подписку."; }
+                        PageTitle { title: "Серверы и подписки"; subtitle: "Одна ссылка — один сервер. Подписка — обновляемый список серверов."; }
+                        Segmented { options: ["Серверы", "Подписки"]; current <=> root.server-page; }
 
-                        Btn { text: "+ Добавить сервер или подписку"; kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-generation += 1; root.import-visible = true; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-status = ""; } }
+                        Btn { max-width: root.compact ? 10000px : 260px; text: root.server-page == 0 ? "+ Добавить сервер" : "+ Добавить подписку"; kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-generation += 1; root.import-visible = true; root.import-kind = root.server-page; root.import-edit-index = -1; root.import-edit-revision = ""; root.import-link = ""; root.import-name = ""; root.import-status = ""; root.import-show-link = false; } }
                         if root.import-visible: Card {
-                            SectionTitle { title: root.import-edit-index >= 0 ? "Редактировать сервер" : "Добавить по ссылке"; subtitle: root.import-edit-index >= 0 ? "Изменения применятся к соединению после переподключения." : "VLESS — один сервер. HTTPS — подписка со списком серверов."; }
-                            FieldLabel { text: "Ссылка"; }
-                            LineEdit { placeholder-text: "vless://… или https://…"; input-type: root.import-show-link ? text : password; text <=> root.import-link; enabled: !root.subscription-busy && !root.import-busy; }
+                            SectionTitle { title: root.import-edit-index >= 0 ? "Редактировать сервер" : root.import-kind == 0 ? "Новый сервер" : "Новая подписка"; subtitle: root.import-edit-index >= 0 ? "Изменения применятся к соединению после переподключения." : "VLESS — один сервер. HTTPS — подписка со списком серверов."; }
+                            FieldLabel { text: root.import-edit-index >= 0 || root.import-kind == 0 ? "VLESS-ссылка сервера" : "HTTPS-ссылка подписки"; }
+                            LineEdit { placeholder-text: root.import-edit-index >= 0 || root.import-kind == 0 ? "vless://…" : "https://…"; input-type: root.import-show-link ? text : password; text <=> root.import-link; enabled: !root.subscription-busy && !root.import-busy; }
                             HorizontalLayout {
                                 spacing: 8px;
                                 if root.clipboard-paste-supported: Btn { text: "Вставить из буфера"; enabled: !root.import-busy && !root.subscription-busy; clicked => { root.import-paste(); } }
@@ -870,13 +887,13 @@ export component MainWindow inherits Window {
                                 Btn { horizontal-stretch: 1; text: root.subscription-busy ? "Загрузка…" : (root.import-busy ? "Сохранение…" : (root.import-edit-index >= 0 ? "Сохранить" : "Добавить")); kind: 0; enabled: !root.subscription-busy && !root.import-busy; clicked => { root.import-submit(); } }
                             }
                         }
-                        Card {
+                        if root.server-page == 0: Card {
                             SectionTitle { title: "Сохранённые серверы"; subtitle: root.profile-count; }
                             if root.profile-model.length == 0: Rectangle {
-                                height: 64px;
-                                border-radius: 14px;
+                                height: 100px;
+                                border-radius: Theme.r-row;
                                 background: Theme.surface-2;
-                                Text { text: "Пока нет серверов. Нажмите «Добавить» выше."; color: Theme.dim; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+                                Text { text: "Добавьте первый сервер\nВставьте VLESS-ссылку или откройте раздел «Подписки»."; wrap: word-wrap; color: Theme.dim; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
                             }
                             for profile[index] in root.profile-model: ProfileRow {
                                 name: profile;
@@ -902,7 +919,10 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        if root.subscription-model.length > 0: Card {
+                        if root.server-page == 1 && root.subscription-model.length == 0: Card {
+                            SectionTitle { title: "Подписок пока нет"; subtitle: "Добавьте HTTPS-ссылку от вашего сервиса. Серверы появятся в соседнем разделе, а здесь можно будет обновлять подписку."; }
+                        }
+                        if root.server-page == 1 && root.subscription-model.length > 0: Card {
                             SectionTitle { title: "Подписки"; subtitle: "HTTPS-ссылка загружает список серверов. Поддерживаются текстовые и Base64-списки VLESS."; }
                             ComboBox { model: root.subscription-model; current-index <=> root.selected-subscription-index; enabled: !root.subscription-busy; selected => { root.subscription-selected(root.selected-subscription-index); } }
                             FieldLabel { text: "Название подписки"; }
@@ -941,7 +961,7 @@ export component MainWindow inherits Window {
                     Rectangle { horizontal-stretch: 1; }
                     VerticalLayout {
                         horizontal-stretch: 100;
-                        max-width: 680px;
+                        max-width: 920px;
                         alignment: start;
                         spacing: 16px;
 
@@ -1016,7 +1036,7 @@ export component MainWindow inherits Window {
                     Rectangle { horizontal-stretch: 1; }
                     VerticalLayout {
                         horizontal-stretch: 100;
-                        max-width: 680px;
+                        max-width: 920px;
                         alignment: start;
                         spacing: 16px;
 
@@ -1171,7 +1191,7 @@ export component MainWindow inherits Window {
                     Rectangle { horizontal-stretch: 1; }
                     VerticalLayout {
                         horizontal-stretch: 100;
-                        max-width: 680px;
+                        max-width: 920px;
                         alignment: start;
                         spacing: 16px;
 

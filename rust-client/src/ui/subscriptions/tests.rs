@@ -155,6 +155,14 @@ fn render(window: &MainWindow, adapter: &MinimalSoftwareWindow, mobile: bool, na
     assert!(adapter.draw_if_needed(|renderer| {
         renderer.render(&mut pixels, width as usize);
     }));
+    // Capture the settled theme rather than an intermediate colour animation
+    // when this test switches the same window between desktop/mobile modes.
+    std::thread::sleep(Duration::from_millis(300));
+    slint::platform::update_timers_and_animations();
+    window.window().request_redraw();
+    adapter.draw_if_needed(|renderer| {
+        renderer.render(&mut pixels, width as usize);
+    });
     assert!(
         pixels.windows(2).any(|pair| pair[0] != pair[1]),
         "UI rendered an empty surface"
@@ -294,9 +302,23 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
             .starts_with("Переименованная подписка")
     );
     roundtrip(&mut active_stream, b"same TCP connection after rename");
+    let selected_before_navigation = window.get_selected_profile_index();
+    window.set_server_page(0);
+    render(&window, &adapter, false, "servers-desktop");
+    render(&window, &adapter, true, "servers-mobile");
+    window.set_dark_theme(false);
+    render(&window, &adapter, false, "servers-desktop-light");
+    render(&window, &adapter, true, "servers-mobile-light");
+    window.set_dark_theme(true);
+    window.set_server_page(1);
     render(&window, &adapter, false, "subscriptions-desktop");
     render(&window, &adapter, true, "subscriptions-mobile");
     render_scrolled(&window, &adapter, true, "subscriptions-mobile-controls");
+    assert_eq!(
+        window.get_selected_profile_index(),
+        selected_before_navigation
+    );
+    window.set_server_page(0);
     window.invoke_subscription_delete();
     drain(&receiver, &state, &window);
     assert_eq!(window.get_profile_model().row_count(), 1);

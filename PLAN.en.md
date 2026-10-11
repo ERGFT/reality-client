@@ -1,8 +1,12 @@
+## Current UI task (2026-10-11)
+
+See [UI_REDESIGN.md](docs/UI_REDESIGN.md): Clash Verge Rev inspired navigation, surfaces and separate server/subscription views, implemented in existing Slint. PR22/preview.12 is complete; these UI changes need a new PR and their own verification.
+
 [Русский](PLAN.md) | [English](PLAN.en.md)
 
 # Plan: a Rust client for vpn-core
 
-## Current task: HTTPS subscriptions
+## Previous task: HTTPS subscriptions (historical notes)
 
 Detailed plan and evidence: [SUBSCRIPTIONS_WORK_PLAN.md](docs/SUBSCRIPTIONS_WORK_PLAN.md).
 Implement protected subscription storage, plain/Base64 VLESS imports, server
