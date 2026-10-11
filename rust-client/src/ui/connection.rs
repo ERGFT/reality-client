@@ -282,12 +282,26 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                             (config, base)
                         })
                     };
+                    let selection = saved_profile.as_ref().and_then(|profile| {
+                        profile_store.lock().ok().and_then(|store| store.as_ref().and_then(|store| store.selection_key(profile.index)))
+                    });
+                    super::session_view::set(Some(super::session_view::SessionView {
+                        name: saved_profile.as_ref().map(|profile| profile.name.clone()).unwrap_or_else(|| "JSON-конфигурация".into()),
+                        endpoint: link.as_ref().map(|link| crate::server_info::server_endpoint(link)).unwrap_or_else(|| "Серверы заданы в JSON".into()),
+                        selection,
+                        diagnostic_proxy: prepared.as_ref().ok().and_then(|(config, _)| {
+                            crate::server_info::local_socks_proxy_uri(config).ok().flatten()
+                        }),
+                    }));
                     let result = match prepared {
                         Ok((config, Ok(base_dir))) => platform::request_android_vpn(&config, &base_dir, remove_profile_secret),
                         Ok((_, Err(problem))) | Err(problem) => Err(problem),
                     };
                     if result.is_err() && remove_profile_secret {
                         ffi_session::erase_android_profile_secret();
+                    }
+                    if result.is_err() {
+                        super::session_view::set(None);
                     }
                     let _ = slint::invoke_from_event_loop(move || {
                         is_starting.store(false, Ordering::Release);

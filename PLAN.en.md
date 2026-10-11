@@ -1,5 +1,10 @@
 ## Current UI task (2026-10-11)
 
+Expanded scope: completely redesign all screens using Clash Verge Rev as
+reference and retaining Android Material You. See the full sequence in
+[UI_REDESIGN.en.md](docs/UI_REDESIGN.en.md). Keep PR23 open until the full
+package and fresh CI pass. No time limit; all new data stays on D.
+
 See [UI_REDESIGN.md](docs/UI_REDESIGN.md): Clash Verge Rev inspired navigation, surfaces and separate server/subscription views, implemented in existing Slint. PR22/preview.12 is complete; these UI changes need a new PR and their own verification.
 
 [Русский](PLAN.md) | [English](PLAN.en.md)

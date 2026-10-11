@@ -137,11 +137,22 @@ fn drain(receiver: &std::sync::mpsc::Receiver<Event>, state: &UiState, window: &
 }
 
 fn render(window: &MainWindow, adapter: &MinimalSoftwareWindow, mobile: bool, name: &str) {
-    let (width, height, scale) = if mobile {
+    let dimensions = if mobile {
         (1080, 2400, 2.625)
     } else {
         (1080, 1100, 1.0)
     };
+    render_at_size(window, adapter, mobile, name, dimensions);
+}
+
+fn render_at_size(
+    window: &MainWindow,
+    adapter: &MinimalSoftwareWindow,
+    mobile: bool,
+    name: &str,
+    dimensions: (u32, u32, f32),
+) {
+    let (width, height, scale) = dimensions;
     window.set_mobile_layout(mobile);
     window
         .window()
@@ -199,7 +210,9 @@ fn render_scrolled(window: &MainWindow, adapter: &MinimalSoftwareWindow, mobile:
 #[test]
 fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
     let (sender, receiver) = std::sync::mpsc::channel();
-    let adapter = MinimalSoftwareWindow::new(RepaintBufferType::ReusedBuffer);
+    // render() allocates a fresh pixel buffer for each capture; partial repaint
+    // would otherwise leave unchanged sidebar/header regions black.
+    let adapter = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
     slint::platform::set_platform(Box::new(RenderPlatform {
         window: adapter.clone(),
         sender,
@@ -237,6 +250,7 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
     super::super::profiles::install(&window, &state);
     install(&window, &state);
     super::super::import::install(&window, &state);
+    super::super::config_editor::install(&window, &state);
     let a = "vless://00000000-0000-4000-8000-000000000000@a.example.org:443#%D0%A1%D0%B5%D1%80%D0%B2%D0%B5%D1%80%20A";
     let b = "vless://00000000-0000-4000-8000-000000000000@b.example.org:443#Server%20B";
     let url = Zeroizing::new("https://fixture.example.org/sublink/test".to_owned());
@@ -303,6 +317,71 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
     );
     roundtrip(&mut active_stream, b"same TCP connection after rename");
     let selected_before_navigation = window.get_selected_profile_index();
+    assert!(window.invoke_profile_matches("СЕРВЕР Москва".into(), " сервер ".into()));
+    assert!(!window.invoke_profile_matches("Москва".into(), "Berlin".into()));
+    window.set_server_search("ручной".into());
+    assert_eq!(
+        window.invoke_profile_match_count(window.get_profile_model(), window.get_server_search()),
+        1
+    );
+    render(&window, &adapter, false, "servers-search");
+    assert_eq!(
+        window.get_selected_profile_index(),
+        selected_before_navigation
+    );
+    window.set_server_search("not present fixture".into());
+    assert_eq!(
+        window.invoke_profile_match_count(window.get_profile_model(), window.get_server_search()),
+        0
+    );
+    render(&window, &adapter, true, "servers-search-empty");
+    window.set_server_search("".into());
+    roundtrip(&mut active_stream, b"same session after filtering");
+    window.set_config_editor_text(super::super::STARTER_CONFIG.into());
+    super::super::config_editor::sync_config_options(&window).unwrap();
+    let saved_config = root.join("settings.json");
+    window.set_config_editor_path(saved_config.to_string_lossy().into_owned().into());
+    window.set_config_tun_enabled(true);
+    window.set_fakeip_enabled(true);
+    window.invoke_network_options_save_requested();
+    assert!(window.get_config_tun_enabled());
+    assert!(window.get_fakeip_enabled());
+    window.set_route_domain_input("https://vk.com/video".into());
+    window.set_route_ip_input("203.0.113.0/24".into());
+    window.set_route_outbound_input("direct".into());
+    window.invoke_routing_rule_add_requested();
+    assert_eq!(window.get_managed_route_model().row_count(), 1);
+    assert!(
+        window
+            .get_managed_route_model()
+            .row_data(0)
+            .unwrap()
+            .contains("vk.com")
+    );
+    window.set_android_apps_input("com.example.fixture".into());
+    let before_app_filter = window.get_config_editor_text();
+    window.invoke_android_app_filter_save_requested();
+    // Host builds must reject an Android-only control rather than silently
+    // claim to apply package filtering to a Windows session.
+    assert_eq!(window.get_config_editor_text(), before_app_filter);
+    assert!(window.get_detail_text().contains("только в Android"));
+    let expected = window.get_config_editor_text().to_string();
+    window.invoke_config_save_requested();
+    drain(&receiver, &state, &window);
+    assert_eq!(std::fs::read_to_string(&saved_config).unwrap(), expected);
+    window.set_config_editor_text("{".into());
+    window.invoke_config_save_requested();
+    drain(&receiver, &state, &window);
+    assert_eq!(std::fs::read_to_string(&saved_config).unwrap(), expected);
+    window.set_config_editor_text(expected.into());
+    window.invoke_routing_rule_remove_requested(0);
+    assert_eq!(window.get_managed_route_model().row_count(), 0);
+    roundtrip(
+        &mut active_stream,
+        b"draft settings do not alter active session",
+    );
+    window.set_config_editor_text(super::super::STARTER_CONFIG.into());
+    super::super::config_editor::sync_config_options(&window).unwrap();
     window.set_server_page(0);
     render(&window, &adapter, false, "servers-desktop");
     render(&window, &adapter, true, "servers-mobile");
@@ -319,6 +398,114 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
         selected_before_navigation
     );
     window.set_server_page(0);
+    // Render every settings category and navigation destination without
+    // changing the selected server or the running isolated fixture session.
+    for dark in [true, false] {
+        window.set_dark_theme(dark);
+        let theme = if dark { "dark" } else { "light" };
+        for mobile in [false, true] {
+            let layout = if mobile { "mobile" } else { "desktop" };
+            for tab in [0, 2, 3, 4] {
+                window.set_active_tab(tab);
+                if tab == 3 {
+                    window.set_use_full_config(true);
+                    for category in 0..5 {
+                        window.set_settings_page(category);
+                        render(
+                            &window,
+                            &adapter,
+                            mobile,
+                            &format!("settings-{category}-{layout}-{theme}"),
+                        );
+                    }
+                    window.set_use_full_config(false);
+                    window.set_settings_page(2);
+                    render(
+                        &window,
+                        &adapter,
+                        mobile,
+                        &format!("settings-unavailable-{layout}-{theme}"),
+                    );
+                } else if tab == 2 {
+                    for view in 0..2 {
+                        window.set_connections_page(view);
+                        render(
+                            &window,
+                            &adapter,
+                            mobile,
+                            &format!("connections-{view}-{layout}-{theme}"),
+                        );
+                    }
+                } else {
+                    render(
+                        &window,
+                        &adapter,
+                        mobile,
+                        &format!("page-{tab}-{layout}-{theme}"),
+                    );
+                }
+                assert_eq!(
+                    window.get_selected_profile_index(),
+                    selected_before_navigation
+                );
+                assert!(state.core_session.lock().unwrap().is_some());
+                roundtrip(&mut active_stream, b"same session across all UI pages");
+            }
+        }
+    }
+    window.set_dark_theme(true);
+    window.set_active_tab(1);
+    window.set_settings_page(0);
+    window.set_connections_page(0);
+    // Render the actual DNS/TUN and routing forms at every width, not
+    // only their disabled-mode explanation. The latter is covered above.
+    window.set_use_full_config(true);
+    for dark in [true, false] {
+        window.set_dark_theme(dark);
+        let theme = if dark { "dark" } else { "light" };
+        for (size, dimensions) in [
+            ("small", (945, 2100, 2.625)),
+            ("pixel", (1082, 2100, 2.625)),
+            ("large", (1575, 2362, 2.625)),
+            ("landscape", (2100, 945, 2.625)),
+        ] {
+            for tab in 0..5 {
+                window.set_active_tab(tab);
+                let categories = if tab == 3 { 5 } else { 1 };
+                for category in 0..categories {
+                    window.set_settings_page(category);
+                    render_at_size(
+                        &window,
+                        &adapter,
+                        true,
+                        &format!("size-{size}-page-{tab}-category-{category}-{theme}"),
+                        dimensions,
+                    );
+                    assert_eq!(
+                        window.get_selected_profile_index(),
+                        selected_before_navigation
+                    );
+                    roundtrip(&mut active_stream, b"same session across display sizes");
+                }
+            }
+        }
+    }
+    window.set_use_full_config(false);
+    window.set_dark_theme(true);
+    window.global::<crate::Theme>().set_font_scale(1.3);
+    for tab in 0..5 {
+        window.set_active_tab(tab);
+        render_at_size(
+            &window,
+            &adapter,
+            true,
+            &format!("large-font-page-{tab}"),
+            (945, 2100, 2.625),
+        );
+        roundtrip(&mut active_stream, b"same session across font scaling");
+    }
+    window.global::<crate::Theme>().set_font_scale(1.0);
+    window.set_active_tab(1);
     window.invoke_subscription_delete();
     drain(&receiver, &state, &window);
     assert_eq!(window.get_profile_model().row_count(), 1);

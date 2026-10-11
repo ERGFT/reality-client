@@ -13,6 +13,8 @@ mod import;
 mod profile_flow;
 mod profiles;
 mod runtime;
+#[cfg(any(target_os = "android", test))]
+mod session_view;
 mod subscriptions;
 
 use std::{
@@ -234,7 +236,24 @@ pub fn run_ui() -> Result<(), slint::PlatformError> {
     profiles::install(&window, &state);
     subscriptions::install(&window, &state);
     import::install(&window, &state);
-    if let Some(index) = profile_flow::initial_profile_index(window.get_profile_model().row_count())
+    #[cfg(target_os = "android")]
+    let restored_selection = if matches!(platform::android_vpn_state(), 1 | 2) {
+        session_view::get()
+            .and_then(|view| view.selection)
+            .and_then(|key| {
+                state.profile_store.lock().ok().and_then(|store| {
+                    store
+                        .as_ref()
+                        .and_then(|store| store.index_for_selection_key(&key))
+                })
+            })
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "android"))]
+    let restored_selection = None;
+    if let Some(index) = restored_selection
+        .or_else(|| profile_flow::initial_profile_index(window.get_profile_model().row_count()))
     {
         let index = index as i32;
         window.set_selected_profile_index(index);

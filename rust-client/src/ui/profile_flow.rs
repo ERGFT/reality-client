@@ -137,6 +137,7 @@ mod connect_profile_tests {
         let mut store = ProfileStore::open_at(path.clone()).unwrap();
         let manual = "vless://00000000-0000-4000-8000-000000000000@manual.example.org:443";
         store.save("Manual", manual, None).unwrap();
+        let manual_key = store.selection_key(0).unwrap();
         let original = std::fs::read(&path).unwrap();
         let a = "vless://00000000-0000-4000-8000-000000000000@a.example.org:443#A";
         let b = "vless://00000000-0000-4000-8000-000000000000@b.example.org:443#B";
@@ -149,6 +150,7 @@ mod connect_profile_tests {
             .replace(None, "Group", url, &parsed)
             .unwrap();
         let identity = store.subscription_identity(2).unwrap();
+        let selection_key = store.selection_key(2).unwrap();
         let reordered = crate::subscriptions::parse(format!("{b}\n{a}").as_bytes()).unwrap();
         store
             .subscriptions
@@ -157,6 +159,7 @@ mod connect_profile_tests {
             .replace(Some(group), "Group", url, &reordered)
             .unwrap();
         assert_eq!(store.index_for_identity(identity), Some(1));
+        assert_eq!(store.index_for_selection_key(&selection_key), Some(1));
         assert_eq!(store.read_link(0).unwrap().as_str(), manual);
         let shared = Arc::new(Mutex::new(Some(store)));
         let link = Zeroizing::new(b.to_owned());
@@ -167,6 +170,8 @@ mod connect_profile_tests {
         let changed = Zeroizing::new(a.to_owned());
         assert!(save_profile_for_connection(&shared, "Ignored", &changed, Some(1)).is_err());
         let reopened = ProfileStore::open_at(path.clone()).unwrap();
+        assert_eq!(reopened.index_for_selection_key(&manual_key), Some(0));
+        assert_eq!(reopened.index_for_selection_key(&selection_key), Some(1));
         assert_eq!(reopened.len(), 3);
         assert_eq!(reopened.names(), ["Manual", "Group · B", "Group · A"]);
         assert_eq!(reopened.read_link(1).unwrap().as_str(), b);

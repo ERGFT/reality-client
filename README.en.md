@@ -143,3 +143,5 @@ therefore distributed under the same terms. Third-party components:
 A separate API36 emulator verified ARM64 APK installation, HTTPS subscription import/refresh, Keystore, VLESS/REALITY via independent local Xray, an intact 256 KiB payload, TUN disconnect and reconnect. Fixed stale disconnected UI, Android counter polling and group selection through the Android session. 123 tests passed (1 ignored), ordinary Clippy passed. This is a TCP lab test using ARM translation, not a physical phone or a real foreign exit IP. Persistent APK signing, a remote provider, UDP/DNS, multi-member selectors and physical phones remain separate tasks. Details: [report](docs/ANDROID16_RUNTIME_REPORT.en.md).
 
 Interface: [2026-10-11 refresh](docs/UI_REDESIGN.en.md).
+
+Complete UI redesign: [plan and own references](docs/UI_REDESIGN.en.md), [verification audit](docs/UI_VERIFICATION.md). The new package goes through PR23; published preview.12 does not include these changes until a separate release.

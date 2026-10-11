@@ -4,6 +4,7 @@ import { ComboBox, LineEdit, Palette, ScrollView, TextEdit } from "std-widgets.s
 // Дизайн-токены. Все цвета интерфейса берутся отсюда, а не пишутся по месту.
 // ---------------------------------------------------------------------------
 export global Theme {
+    in-out property <float> font-scale: 1;
     in-out property <bool> dark: true;
     // Material 3 Expressive на телефоне (включается из MainWindow при mobile-layout).
     in-out property <bool> m3: false;
@@ -88,6 +89,17 @@ component Btn inherits Rectangle {
     in property <int> kind: 1;
     in property <bool> enabled: true;
     callback clicked();
+    forward-focus: key-focus;
+    key-focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
 
     height: Theme.m3 ? 48px : 40px;
     border-radius: Theme.m3 ? self.height / 2 : 13px;
@@ -96,8 +108,8 @@ component Btn inherits Rectangle {
         : root.kind == 1 ? (area.has-hover ? Theme.surface-3 : Theme.surface-2)
         : root.kind == 3 ? (area.has-hover ? Theme.danger-soft : transparent)
         : (area.has-hover ? Theme.surface-2 : transparent);
-    border-width: root.kind >= 2 ? 1px : 0px;
-    border-color: root.kind == 3 ? Theme.danger : Theme.outline;
+    border-width: key-focus.has-focus ? 2px : (root.kind >= 2 ? 1px : 0px);
+    border-color: key-focus.has-focus ? Theme.accent : (root.kind == 3 ? Theme.danger : Theme.outline);
     animate background { duration: 120ms; }
     accessible-role: button;
     accessible-label: root.text;
@@ -113,7 +125,7 @@ component Btn inherits Rectangle {
                 : root.kind == 0 ? Theme.on-accent
                 : root.kind == 3 ? Theme.danger
                 : Theme.text;
-            font-size: 14px;
+            font-size: 14px * Theme.font-scale;
             font-weight: 600;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -124,7 +136,7 @@ component Btn inherits Rectangle {
     area := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => { if !Theme.m3 { key-focus.focus(); } root.clicked(); }
     }
 }
 
@@ -165,6 +177,20 @@ component ToggleRow inherits Rectangle {
     in property <string> subtitle;
     in property <bool> enabled: true;
     in-out property <bool> checked;
+    forward-focus: key-focus;
+    key-focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                root.checked = !root.checked;
+                return accept;
+            }
+            reject
+        }
+    }
+    border-width: key-focus.has-focus ? 2px : 0px;
+    border-color: Theme.accent;
+    border-radius: Theme.r-row;
 
     height: max(52px, content.preferred-height);
     accessible-role: checkbox;
@@ -185,14 +211,14 @@ component ToggleRow inherits Rectangle {
             Text {
                 text: root.title;
                 color: root.enabled ? Theme.text : Theme.faint;
-                font-size: 14px;
+                font-size: 14px * Theme.font-scale;
                 font-weight: 600;
                 wrap: word-wrap;
             }
             if root.subtitle != "": Text {
                 text: root.subtitle;
                 color: Theme.dim;
-                font-size: 12px;
+                font-size: 12px * Theme.font-scale;
                 wrap: word-wrap;
             }
         }
@@ -214,7 +240,7 @@ component Chip inherits Rectangle {
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 10px;
-        Text { text: root.text; color: root.tone; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+        Text { text: root.text; color: root.tone; font-size: 11px * Theme.font-scale; font-weight: 700; vertical-alignment: center; }
     }
 }
 
@@ -222,8 +248,8 @@ component SectionTitle inherits VerticalLayout {
     in property <string> title;
     in property <string> subtitle;
     spacing: 3px;
-    Text { text: root.title; color: Theme.text; font-size: 15px; font-weight: 700; wrap: word-wrap; }
-    if root.subtitle != "": Text { text: root.subtitle; color: Theme.dim; font-size: 12px; wrap: word-wrap; }
+    Text { text: root.title; color: Theme.text; font-size: 15px * Theme.font-scale; font-weight: 700; wrap: word-wrap; }
+    if root.subtitle != "": Text { text: root.subtitle; color: Theme.dim; font-size: 12px * Theme.font-scale; wrap: word-wrap; }
 }
 
 component Notice inherits Rectangle {
@@ -237,7 +263,7 @@ component Notice inherits Rectangle {
         Text {
             text: root.text;
             color: root.danger ? Theme.danger : Theme.warn;
-            font-size: 12px;
+            font-size: 12px * Theme.font-scale;
             wrap: word-wrap;
         }
     }
@@ -254,15 +280,15 @@ component Stat inherits Rectangle {
     VerticalLayout {
         padding: 14px;
         spacing: 3px;
-        Text { text: root.label; color: Theme.dim; font-size: 11px; font-weight: 600; }
-        Text { text: root.value; color: Theme.text; font-size: 16px; font-weight: 700; wrap: word-wrap; }
-        if root.hint != "": Text { text: root.hint; color: Theme.faint; font-size: 11px; overflow: elide; }
+        Text { text: root.label; color: Theme.dim; font-size: 11px * Theme.font-scale; font-weight: 600; }
+        Text { text: root.value; color: Theme.text; font-size: 16px * Theme.font-scale; font-weight: 700; wrap: word-wrap; }
+        if root.hint != "": Text { text: root.hint; color: Theme.faint; font-size: 11px * Theme.font-scale; overflow: elide; }
     }
 }
 
 component FieldLabel inherits Text {
     color: Theme.dim;
-    font-size: 12px;
+    font-size: 12px * Theme.font-scale;
     font-weight: 600;
 }
 
@@ -272,6 +298,18 @@ component FieldLabel inherits Text {
 component PowerButton inherits Rectangle {
     in property <int> state: 0;
     callback clicked();
+    forward-focus: key-focus;
+    key-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                root.clicked(); return accept;
+            }
+            reject
+        }
+    }
+    border-width: key-focus.has-focus ? 2px : 0px;
+    border-color: Theme.accent;
+    border-radius: self.width / 2;
 
     width: Theme.m3 ? 176px : 128px;
     height: self.width;
@@ -313,7 +351,7 @@ component PowerButton inherits Rectangle {
 
     area := TouchArea {
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => { if !Theme.m3 { key-focus.focus(); } root.clicked(); }
     }
 }
 
@@ -325,6 +363,17 @@ component RailItem inherits Rectangle {
     in property <string> glyph;
     in property <bool> selected: false;
     callback activated();
+    forward-focus: key-focus;
+    key-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                root.activated(); return accept;
+            }
+            reject
+        }
+    }
+    border-width: key-focus.has-focus ? 2px : 0px;
+    border-color: Theme.accent;
 
     height: 44px;
     border-radius: 10px;
@@ -341,12 +390,12 @@ component RailItem inherits Rectangle {
         Text {
             text: root.label;
             color: root.selected ? Theme.accent : Theme.text;
-            font-size: 14px;
+            font-size: 14px * Theme.font-scale;
             font-weight: root.selected ? 700 : 500;
             vertical-alignment: center;
         }
     }
-    area := TouchArea { mouse-cursor: pointer; clicked => { root.activated(); } }
+    area := TouchArea { mouse-cursor: pointer; clicked => { if !Theme.m3 { key-focus.focus(); } root.activated(); } }
 }
 
 component TabItem inherits Rectangle {
@@ -354,6 +403,17 @@ component TabItem inherits Rectangle {
     in property <string> glyph;
     in property <bool> selected: false;
     callback activated();
+    forward-focus: key-focus;
+    key-focus := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                root.activated(); return accept;
+            }
+            reject
+        }
+    }
+    border-width: key-focus.has-focus ? 2px : 0px;
+    border-color: Theme.accent;
 
     accessible-role: tab;
     accessible-label: root.label;
@@ -382,12 +442,12 @@ component TabItem inherits Rectangle {
         Text {
             text: root.label;
             color: root.selected ? Theme.text : Theme.dim;
-            font-size: 12px;
+            font-size: 12px * Theme.font-scale;
             font-weight: root.selected ? 700 : 500;
             horizontal-alignment: center;
         }
     }
-    TouchArea { clicked => { root.activated(); } }
+    TouchArea { clicked => { if !Theme.m3 { key-focus.focus(); } root.activated(); } }
 }
 
 component Segmented inherits Rectangle {
@@ -403,24 +463,33 @@ component Segmented inherits Rectangle {
         padding: 3px;
         spacing: 3px;
         for option[index] in root.options: Rectangle {
+            forward-focus: option-focus;
+            option-focus := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                        root.current = index; root.selected(index); return accept;
+                    }
+                    reject
+                }
+            }
             accessible-role: tab;
             accessible-label: option;
             accessible-action-default => { root.current = index; root.selected(index); }
             border-radius: Theme.m3 ? 22px : 10px;
             background: index == root.current ? (Theme.m3 ? Theme.accent-soft : Theme.surface) : transparent;
-            border-width: index == root.current && !Theme.m3 ? 1px : 0px;
-            border-color: Theme.outline;
+            border-width: option-focus.has-focus ? 2px : (index == root.current && !Theme.m3 ? 1px : 0px);
+            border-color: option-focus.has-focus ? Theme.accent : Theme.outline;
             Text {
                 text: option;
                 color: index == root.current ? (Theme.m3 ? Theme.accent : Theme.text) : Theme.dim;
-                font-size: 13px;
+                font-size: 13px * Theme.font-scale;
                 font-weight: index == root.current ? 700 : 500;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
             TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.current = index; root.selected(index); }
+                clicked => { if !Theme.m3 { option-focus.focus(); } root.current = index; root.selected(index); }
             }
         }
     }
@@ -428,21 +497,33 @@ component Segmented inherits Rectangle {
 
 component ProfileRow inherits Rectangle {
     in property <string> name;
+    in property <bool> enabled: true;
     in property <bool> selected: false;
     in property <bool> compact: false;
     callback picked();
+    forward-focus: key-focus;
+    key-focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                root.picked(); return accept;
+            }
+            reject
+        }
+    }
 
     height: max(56px, caption.preferred-height + 24px);
     min-width: 0px;
     border-radius: Theme.r-row;
     background: root.selected ? Theme.accent-soft : (area.has-hover ? Theme.surface-3 : Theme.surface-2);
-    border-width: root.selected ? 1px : 0px;
+    border-width: key-focus.has-focus ? 2px : (root.selected ? 1px : 0px);
     border-color: Theme.accent;
     animate background { duration: 120ms; }
     accessible-role: radio-button;
     accessible-label: root.name;
+    accessible-enabled: root.enabled;
     accessible-checked: root.selected;
-    accessible-action-default => { root.picked(); }
+    accessible-action-default => { if root.enabled { root.picked(); } }
 
     HorizontalLayout {
         padding-left: 16px;
@@ -468,7 +549,7 @@ component ProfileRow inherits Rectangle {
             min-width: 0px;
             text: root.name;
             color: Theme.text;
-            font-size: 14px;
+            font-size: 14px * Theme.font-scale;
             font-weight: root.selected ? 700 : 500;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -476,15 +557,15 @@ component ProfileRow inherits Rectangle {
         }
         if root.selected && !root.compact: VerticalLayout { alignment: center; Chip { text: "ВЫБРАН"; } }
     }
-    area := TouchArea { mouse-cursor: pointer; clicked => { root.picked(); } }
+    area := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { if !Theme.m3 { key-focus.focus(); } root.picked(); } }
 }
 
 component PageTitle inherits VerticalLayout {
     in property <string> title;
     in property <string> subtitle;
     spacing: 4px;
-    Text { text: root.title; color: Theme.text; font-size: 26px; font-weight: 800; wrap: word-wrap; }
-    if root.subtitle != "": Text { text: root.subtitle; color: Theme.dim; font-size: 13px; wrap: word-wrap; }
+    Text { text: root.title; color: Theme.text; font-size: 26px * Theme.font-scale; font-weight: 800; wrap: word-wrap; }
+    if root.subtitle != "": Text { text: root.subtitle; color: Theme.dim; font-size: 13px * Theme.font-scale; wrap: word-wrap; }
 }
 
 component IpRow inherits Rectangle {
@@ -502,9 +583,9 @@ component IpRow inherits Rectangle {
         VerticalLayout {
             horizontal-stretch: 1;
             spacing: 2px;
-            Text { text: root.title; color: Theme.dim; font-size: 11px; font-weight: 700; }
-            Text { text: root.value; color: Theme.text; font-size: 15px; font-weight: 700; wrap: word-wrap; }
-            Text { text: root.hint; color: Theme.faint; font-size: 11px; wrap: word-wrap; }
+            Text { text: root.title; color: Theme.dim; font-size: 11px * Theme.font-scale; font-weight: 700; }
+            Text { text: root.value; color: Theme.text; font-size: 15px * Theme.font-scale; font-weight: 700; wrap: word-wrap; }
+            Text { text: root.hint; color: Theme.faint; font-size: 11px * Theme.font-scale; wrap: word-wrap; }
         }
         VerticalLayout {
             alignment: center;
@@ -517,18 +598,27 @@ export component MainWindow inherits Window {
     title: "Reality Client";
     icon: @image-url("../assets/icon.png");
     in property <bool> mobile-layout: false;
+    in property <length> safe-left: 0px;
+    in property <length> safe-top: 0px;
+    in property <length> safe-right: 0px;
+    in property <length> safe-bottom: 0px;
     in property <string> app-version;
     preferred-width: mobile-layout ? 380px : 1080px;
     preferred-height: 760px;
     min-width: mobile-layout ? 320px : 760px;
-    min-height: mobile-layout ? 480px : 560px;
+    min-height: mobile-layout ? 0px : 560px;
     background: Theme.bg;
-    default-font-size: 14px;
+    default-font-size: 14px * Theme.font-scale;
 
     in-out property <bool> dark-theme: true;
     in-out property <int> active-tab: 0;
     // Local navigation only: never changes the selected server or live session.
     in-out property <int> server-page: 0;
+    in-out property <int> settings-page: 0;
+    in-out property <int> connections-page: 0;
+    in-out property <string> server-search;
+    pure callback profile-matches(string, string) -> bool;
+    pure callback profile-match-count([string], string) -> int;
     property <int> import-kind: 0;
     in-out property <int> theme-index: 0;
     in-out property <string> profile-name;
@@ -574,6 +664,10 @@ export component MainWindow inherits Window {
     in property <[string]> outbound-model;
     in-out property <int> selected-outbound-index: 0;
     in-out property <string> route-rules-summary: "Правила ещё не добавлены через интерфейс.";
+    in property <[string]> managed-route-model;
+    in-out property <bool> route-clear-confirmation: false;
+    in-out property <int> route-remove-confirmation: -1;
+    callback routing-rule-remove-requested(int);
     in-out property <string> android-apps-input;
     in property <bool> android-app-filter-supported: false;
     in property <[string]> android-app-model;
@@ -650,8 +744,7 @@ export component MainWindow inherits Window {
     property <int> power-state: root.connected ? 2 : (root.idle ? 0 : 1);
     property <bool> show-diagnostics: false;
     property <length> page-pad: root.compact ? 16px : 28px;
-    // AndroidActivity applies real system-bar and display-cutout insets. Keep
-    // only a small visual gap here so the page does not start below the clock twice.
+    // Safe area is supplied by the Android adapter; this is only a visual gap.
     property <length> top-pad: root.mobile-layout ? 14px : 22px;
 
     changed use-full-config => {
@@ -673,6 +766,10 @@ export component MainWindow inherits Window {
 
     HorizontalLayout {
         // ------------------------------------------------------------ боковая панель
+        padding-left: root.safe-left;
+        padding-top: root.safe-top;
+        padding-right: root.safe-right;
+        padding-bottom: root.safe-bottom;
         if !root.compact: Rectangle {
             width: 212px;
             background: Theme.surface;
@@ -692,8 +789,8 @@ export component MainWindow inherits Window {
                     }
                     VerticalLayout {
                         alignment: center;
-                        Text { text: "Reality"; color: Theme.text; font-size: 18px; font-weight: 800; }
-                        Text { text: "vpn-core · Rust"; color: Theme.dim; font-size: 11px; }
+                        Text { text: "Reality"; color: Theme.text; font-size: 18px * Theme.font-scale; font-weight: 800; }
+                        Text { text: "vpn-core · Rust"; color: Theme.dim; font-size: 11px * Theme.font-scale; }
                     }
                 }
                 RailItem { glyph: "M3 11 L12 3 L21 11 M5.5 9.5 V20 H18.5 V9.5"; label: "Главная"; selected: root.active-tab == 0; activated => { root.active-tab = 0; } }
@@ -716,7 +813,7 @@ export component MainWindow inherits Window {
                         Text {
                             text: root.connected ? "Ядро запущено" : (root.idle ? "Не подключено" : "Подождите…");
                             color: root.connected ? Theme.accent : Theme.dim;
-                            font-size: 13px;
+                            font-size: 13px * Theme.font-scale;
                             font-weight: 600;
                             vertical-alignment: center;
                         }
@@ -737,7 +834,7 @@ export component MainWindow inherits Window {
                     padding-left: root.page-pad;
                     padding-right: root.page-pad;
                     spacing: 12px;
-                    Text { text: root.active-tab == 0 ? "Обзор" : root.active-tab == 1 ? "Серверы и подписки" : root.active-tab == 2 ? "Соединения" : root.active-tab == 3 ? "Настройки" : "О приложении"; color: Theme.text; font-size: 18px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; }
+                    Text { text: root.active-tab == 0 ? "Обзор" : root.active-tab == 1 ? "Серверы и подписки" : root.active-tab == 2 ? "Соединения" : root.active-tab == 3 ? "Настройки" : "О приложении"; color: Theme.text; font-size: 18px * Theme.font-scale; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; }
                     VerticalLayout { alignment: center; Chip { text: root.connected ? "Ядро запущено" : root.idle ? "Не подключено" : "Подождите…"; tone: root.connected ? Theme.accent : Theme.dim; soft: root.connected ? Theme.accent-soft : Theme.surface-2; } }
                     VerticalLayout { alignment: center; Btn { text: root.dark-theme ? "Светлая тема" : "Тёмная тема"; kind: 2; height: 34px; clicked => { root.theme-selected(root.dark-theme ? 1 : 0); } } }
                 }
@@ -768,14 +865,15 @@ export component MainWindow inherits Window {
                             Text {
                                 text: root.idle ? "Не подключено" : (root.connected ? "Ядро запущено" : root.status-text);
                                 color: root.connected ? Theme.accent : Theme.text;
-                                font-size: 26px;
+                                font-size: 26px * Theme.font-scale;
                                 font-weight: 800;
                                 horizontal-alignment: center;
+                                wrap: word-wrap;
                             }
                             Text {
                                 text: root.idle ? (root.status-text == "Отключено" ? "Нажмите кнопку, чтобы подключиться" : root.status-text) : root.status-text;
                                 color: Theme.dim;
-                                font-size: 13px;
+                                font-size: 13px * Theme.font-scale;
                                 horizontal-alignment: center;
                                 wrap: word-wrap;
                             }
@@ -788,10 +886,10 @@ export component MainWindow inherits Window {
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 3px;
-                                    Text { text: "ТЕКУЩИЙ СЕРВЕР"; color: Theme.dim; font-size: 11px; font-weight: 700; }
-                                    Text { text: root.connected && root.connected-server-name != "" ? root.connected-server-name : (root.profile-name == "" ? "Сервер не выбран" : root.profile-name); color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
-                                    Text { text: root.connected && root.connected-server-endpoint != "" ? root.connected-server-endpoint : root.server-endpoint-text; color: Theme.dim; font-size: 12px; overflow: elide; }
-                                    if root.connected && root.network-mode-text != "": Text { text: root.network-mode-text; color: Theme.dim; font-size: 12px; wrap: word-wrap; }
+                                    Text { text: "ТЕКУЩИЙ СЕРВЕР"; color: Theme.dim; font-size: 11px * Theme.font-scale; font-weight: 700; }
+                                    Text { text: root.connected && root.connected-server-name != "" ? root.connected-server-name : (root.profile-name == "" ? "Сервер не выбран" : root.profile-name); color: Theme.text; font-size: 17px * Theme.font-scale; font-weight: 700; overflow: elide; }
+                                    Text { text: root.connected && root.connected-server-endpoint != "" ? root.connected-server-endpoint : root.server-endpoint-text; color: Theme.dim; font-size: 12px * Theme.font-scale; overflow: elide; }
+                                    if root.connected && root.network-mode-text != "": Text { text: root.network-mode-text; color: Theme.dim; font-size: 12px * Theme.font-scale; wrap: word-wrap; }
                                 }
                                 VerticalLayout {
                                     alignment: center;
@@ -818,6 +916,22 @@ export component MainWindow inherits Window {
                             pad: 0px;
                             Rectangle {
                                 height: 56px;
+                                forward-focus: diagnostic-focus;
+                                diagnostic-focus := FocusScope {
+                                    key-pressed(event) => {
+                                        if (event.text == Key.Return || event.text == " ") && !event.repeat {
+                                            root.show-diagnostics = !root.show-diagnostics;
+                                            return accept;
+                                        }
+                                        reject
+                                    }
+                                }
+                                border-radius: Theme.r-row;
+                                border-width: diagnostic-focus.has-focus ? 2px : 0px;
+                                border-color: Theme.accent;
+                                accessible-role: button;
+                                accessible-label: "Проверка IP-адреса";
+                                accessible-action-default => { root.show-diagnostics = !root.show-diagnostics; }
                                 HorizontalLayout {
                                     padding-left: 16px;
                                     padding-right: 16px;
@@ -825,20 +939,20 @@ export component MainWindow inherits Window {
                                     VerticalLayout {
                                         horizontal-stretch: 1;
                                         alignment: center;
-                                        Text { text: "Проверка IP-адреса"; color: Theme.text; font-size: 14px; font-weight: 700; }
+                                        Text { text: "Проверка IP-адреса"; color: Theme.text; font-size: 14px * Theme.font-scale; font-weight: 700; }
                                     }
                                     VerticalLayout {
                                         alignment: center;
                                         Icon { glyph: root.show-diagnostics ? "M6 15 L12 9 L18 15" : "M6 9 L12 15 L18 9"; size: 20px; }
                                     }
                                 }
-                                TouchArea { mouse-cursor: pointer; clicked => { root.show-diagnostics = !root.show-diagnostics; } }
+                                TouchArea { mouse-cursor: pointer; clicked => { if !Theme.m3 { diagnostic-focus.focus(); } root.show-diagnostics = !root.show-diagnostics; } }
                             }
                             if root.show-diagnostics: VerticalLayout {
                                 padding: 12px;
                                 padding-top: 0px;
                                 spacing: 8px;
-                                IpRow { title: "IP СЕРВЕРА"; value: root.server-ip-text; hint: root.server-endpoint-text; action: "Определить"; requested => { root.server-ip-check-requested(); } }
+                                IpRow { title: "IP ВЫБРАННОГО УЗЛА"; value: root.server-ip-text; hint: root.server-endpoint-text; action: "Определить"; requested => { root.server-ip-check-requested(); } }
                                 IpRow { title: "ПО ОБЫЧНОМУ МАРШРУТУ"; value: root.direct-ip-text; hint: "Маршрут ОС. При активном VPN это может быть адрес VPN."; action: "Проверить"; requested => { root.direct-ip-check-requested(); } }
                                 IpRow { title: "ЧЕРЕЗ ПРОКСИ ЯДРА"; value: root.public-ip-text; hint: "Правила JSON могут отправить запрос напрямую."; action: "Проверить"; requested => { root.public-ip-check-requested(); } }
                             }
@@ -889,17 +1003,35 @@ export component MainWindow inherits Window {
                         }
                         if root.server-page == 0: Card {
                             SectionTitle { title: "Сохранённые серверы"; subtitle: root.profile-count; }
+                            if root.profile-model.length > 0: LineEdit {
+                                placeholder-text: "Найти сервер по названию";
+                                text <=> root.server-search;
+                            }
+                            if root.profile-model.length > 0 && root.profile-match-count(root.profile-model, root.server-search) == 0: Text {
+                                text: "Серверы не найдены. Измените запрос или очистите поиск.";
+                                color: Theme.dim; font-size: 13px * Theme.font-scale; wrap: word-wrap;
+                            }
                             if root.profile-model.length == 0: Rectangle {
                                 height: 100px;
                                 border-radius: Theme.r-row;
                                 background: Theme.surface-2;
-                                Text { text: "Добавьте первый сервер\nВставьте VLESS-ссылку или откройте раздел «Подписки»."; wrap: word-wrap; color: Theme.dim; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+                                Text { text: "Добавьте первый сервер\nВставьте VLESS-ссылку или откройте раздел «Подписки»."; wrap: word-wrap; color: Theme.dim; font-size: 13px * Theme.font-scale; horizontal-alignment: center; vertical-alignment: center; }
                             }
-                            for profile[index] in root.profile-model: ProfileRow {
+                            for profile[index] in root.profile-model: Rectangle {
+                                property <bool> matches: root.profile-matches(profile, root.server-search);
+                                height: matches ? server-row.height : 0px;
+                                visible: matches;
+                                server-row := ProfileRow {
+                                enabled: parent.matches;
                                 name: profile;
                                 compact: root.mobile-layout;
                                 selected: index == root.selected-profile-index;
                                 picked => { root.selected-profile-index = index; root.profile-selected(index); }
+                                }
+                            }
+                            if root.profile-model.length > 0 && root.selected-profile-index >= 0: Text {
+                                text: "Выбран: " + root.profile-name;
+                                color: Theme.dim; font-size: 12px * Theme.font-scale; wrap: word-wrap;
                             }
                             if root.profile-model.length > 0: Btn { text: "Редактировать выбранный"; enabled: root.selected-profile-index >= 0 && !root.import-busy && !root.subscription-busy; clicked => { root.import-edit-selected(); } }
                             if root.profile-model.length > 0 && !root.delete-confirmation-visible: Btn {
@@ -967,13 +1099,18 @@ export component MainWindow inherits Window {
 
                         PageTitle { title: "Соединения"; subtitle: "Статистика и журнал локального ядра."; }
 
+                        Segmented {
+                            options: ["Активные потоки", "Журнал"];
+                            current <=> root.connections-page;
+                        }
+
                         HorizontalLayout {
                             spacing: 12px;
                             Stat { horizontal-stretch: 1; label: "АКТИВНЫЕ"; value: root.active-connection-count-text; hint: "соединений"; }
                             Stat { horizontal-stretch: 1; label: "СКОРОСТЬ"; value: root.connection-speed-text; hint: "вход / выход"; }
                         }
 
-                        Card {
+                        if root.connections-page == 0: Card {
                             SectionTitle { title: "Активные потоки"; subtitle: "Адреса назначения видны только в этом приложении."; }
                             Rectangle {
                                 height: 220px;
@@ -987,7 +1124,7 @@ export component MainWindow inherits Window {
                                         if root.connection-model.length == 0: Text {
                                             text: root.idle ? "Подключитесь, чтобы увидеть активные соединения." : "Сейчас активных соединений нет.";
                                             color: Theme.dim;
-                                            font-size: 13px;
+                                            font-size: 13px * Theme.font-scale;
                                             wrap: word-wrap;
                                         }
                                         for row in root.connection-model: Rectangle {
@@ -998,7 +1135,7 @@ export component MainWindow inherits Window {
                                                 padding: 10px;
                                                 spacing: 8px;
                                                 VerticalLayout { alignment: center; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.accent; } }
-                                                Text { text: row; color: Theme.text; font-size: 12px; vertical-alignment: center; wrap: word-wrap; overflow: elide; }
+                                                Text { text: row; color: Theme.text; font-size: 12px * Theme.font-scale; vertical-alignment: center; wrap: word-wrap; overflow: elide; }
                                             }
                                         }
                                     }
@@ -1006,7 +1143,7 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        Card {
+                        if root.connections-page == 1: Card {
                             HorizontalLayout {
                                 spacing: 8px;
                                 SectionTitle { horizontal-stretch: 1; title: "Журнал"; subtitle: "Секреты в журнале скрыты."; }
@@ -1017,7 +1154,7 @@ export component MainWindow inherits Window {
                                 text <=> root.log-text;
                                 read-only: true;
                                 wrap: word-wrap;
-                                font-size: 12px;
+                                font-size: 12px * Theme.font-scale;
                             }
                         }
                     }
@@ -1042,7 +1179,22 @@ export component MainWindow inherits Window {
 
                         PageTitle { title: "Настройки"; subtitle: "Оформление, режим подключения и расширенная конфигурация."; }
 
-                        Card {
+                        if root.compact: FieldLabel { text: "Раздел настроек"; }
+                        if root.compact: ComboBox {
+                            model: ["Оформление", "Подключение", "DNS и TUN", "Маршрутизация", "Расширенные"];
+                            current-index <=> root.settings-page;
+                        }
+                        if !root.compact: Segmented {
+                            options: ["Оформление", "Подключение", "DNS и TUN", "Маршруты", "Расширенные"];
+                            current <=> root.settings-page;
+                        }
+
+                        if (root.settings-page == 2 || root.settings-page == 3) && !root.use-full-config: Card {
+                            SectionTitle { title: "Нужен полный конфиг"; subtitle: "DNS, TUN и правила маршрутизации применяются через конфигурацию ядра."; }
+                            Btn { text: "Настроить подключение"; kind: 0; clicked => { root.settings-page = 1; } }
+                        }
+
+                        if root.settings-page == 0: Card {
                             SectionTitle { title: "Оформление"; }
                             Segmented {
                                 options: ["Тёмная тема", "Светлая тема"];
@@ -1051,7 +1203,7 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        Card {
+                        if root.settings-page == 1: Card {
                             SectionTitle { title: "Режим подключения"; }
                             ToggleRow {
                                 title: "Полный конфиг ядра";
@@ -1071,8 +1223,8 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        if root.use-full-config: Card {
-                            SectionTitle { title: "TUN и DNS"; subtitle: "Переключатели записываются в JSON-конфиг. На Windows для TUN нужен wintun.dll рядом с приложением и запуск от имени администратора."; }
+                        if root.settings-page == 2 && root.use-full-config: Card {
+                            SectionTitle { title: "TUN и DNS"; subtitle: root.mobile-layout ? "Параметры полного конфига. На Android TUN запускается через разрешение системы на VPN." : "Параметры полного конфига. На Windows TUN требует wintun.dll и прав администратора."; }
                             ToggleRow {
                                 title: "TUN";
                                 subtitle: "Направлять весь системный трафик через VPN.";
@@ -1096,9 +1248,11 @@ export component MainWindow inherits Window {
                                 Btn { horizontal-stretch: 1; text: "Применить"; kind: 0; clicked => { root.network-options-save-requested(); } }
                                 Btn { horizontal-stretch: 1; text: "Считать из JSON"; clicked => { root.config-options-sync-requested(); } }
                             }
+                            Btn { text: "Сохранить JSON в файл"; clicked => { root.config-save-requested(); } }
+                            Text { text: "Сначала запишите параметры в JSON, затем сохраните файл и переподключитесь. Работающая сессия не меняется автоматически."; color: Theme.dim; font-size: 12px * Theme.font-scale; wrap: word-wrap; }
                         }
 
-                        if root.use-full-config: Card {
+                        if root.settings-page == 3 && root.use-full-config: Card {
                             SectionTitle { title: "Правила маршрутизации"; subtitle: "Домен или ссылка сайта (например, https://vk.com/video) — правило действует на весь домен. IP-диапазоны задавайте в CIDR."; }
                             LineEdit { placeholder-text: "Домен или URL: vk.com/video"; text <=> root.route-domain-input; }
                             LineEdit { placeholder-text: "IP/CIDR: 203.0.113.0/24"; text <=> root.route-ip-input; }
@@ -1107,12 +1261,33 @@ export component MainWindow inherits Window {
                             HorizontalLayout {
                                 spacing: 8px;
                                 Btn { horizontal-stretch: 1; text: "Добавить правило"; kind: 0; clicked => { root.routing-rule-add-requested(); } }
-                                Btn { horizontal-stretch: 1; text: "Очистить"; kind: 3; clicked => { root.routing-rules-clear-requested(); } }
+                                Btn { horizontal-stretch: 1; text: "Очистить…"; kind: 3; enabled: root.managed-route-model.length > 0; clicked => { root.route-clear-confirmation = !root.route-clear-confirmation; root.route-remove-confirmation = -1; } }
                             }
-                            Text { text: root.route-rules-summary; color: Theme.dim; font-size: 12px; wrap: word-wrap; }
+                            if root.managed-route-model.length == 0: Text { text: root.route-rules-summary; color: Theme.dim; font-size: 12px * Theme.font-scale; wrap: word-wrap; }
+                            for rule[index] in root.managed-route-model: VerticalLayout {
+                                spacing: 6px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Text { text: rule; color: Theme.text; font-size: 13px * Theme.font-scale; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Btn { text: "Удалить…"; kind: 3; clicked => { root.route-remove-confirmation = index; root.route-clear-confirmation = false; } }
+                                }
+                                if root.route-remove-confirmation == index: HorizontalLayout {
+                                    Btn { text: "Отмена"; clicked => { root.route-remove-confirmation = -1; } }
+                                    Btn { text: "Удалить правило"; kind: 3; clicked => { root.routing-rule-remove-requested(index); root.route-remove-confirmation = -1; } }
+                                }
+                            }
+                            if root.route-clear-confirmation: VerticalLayout {
+                                Notice { text: "Удалить все правила, добавленные из интерфейса? Внешние правила JSON сохранятся."; danger: true; }
+                                HorizontalLayout {
+                                    Btn { text: "Отмена"; clicked => { root.route-clear-confirmation = false; } }
+                                    Btn { text: "Удалить правила"; kind: 3; clicked => { root.routing-rules-clear-requested(); root.route-clear-confirmation = false; } }
+                                }
+                            }
+                            Btn { text: "Сохранить JSON в файл"; clicked => { root.config-save-requested(); } }
+                            Text { text: "Правила применятся при следующем подключении после сохранения JSON."; color: Theme.dim; font-size: 12px * Theme.font-scale; wrap: word-wrap; }
                         }
 
-                        Card {
+                        if root.settings-page == 4: Card {
                             SectionTitle { title: "JSON-конфигурация ядра"; subtitle: "Для опытных пользователей: полный конфиг sing-box или Xray."; }
                             HorizontalLayout {
                                 spacing: 8px;
@@ -1128,7 +1303,7 @@ export component MainWindow inherits Window {
                                     text <=> root.config-editor-text;
                                     placeholder-text: "Вставьте конфигурацию ядра…";
                                     wrap: no-wrap;
-                                    font-size: 12px;
+                                    font-size: 12px * Theme.font-scale;
                                 }
                                 HorizontalLayout {
                                     spacing: 8px;
@@ -1144,7 +1319,7 @@ export component MainWindow inherits Window {
                             }
                         }
 
-                        if root.recovery-visible: Card {
+                        if root.settings-page == 4 && root.recovery-visible: Card {
                             fill: Theme.warn-soft;
                             SectionTitle { title: "Незавершённая сессия системного прокси"; subtitle: "Прошлый запуск закрылся, не вернув настройки прокси."; }
                             HorizontalLayout {
@@ -1154,22 +1329,22 @@ export component MainWindow inherits Window {
                             }
                             if root.recovery-confirmation-visible: HorizontalLayout {
                                 spacing: 8px;
-                                Text { horizontal-stretch: 1; text: "Вернуть прежние настройки прокси?"; color: Theme.warn; font-size: 13px; vertical-alignment: center; wrap: word-wrap; }
+                                Text { horizontal-stretch: 1; text: "Вернуть прежние настройки прокси?"; color: Theme.warn; font-size: 13px * Theme.font-scale; vertical-alignment: center; wrap: word-wrap; }
                                 Btn { text: "Восстановить"; kind: 0; clicked => { root.recover-proxy-requested(); root.recovery-confirmation-visible = false; } }
                             }
                             if root.discard-recovery-confirmation-visible: HorizontalLayout {
                                 spacing: 8px;
-                                Text { horizontal-stretch: 1; text: "Удалить только сохранённую копию?"; color: Theme.warn; font-size: 13px; vertical-alignment: center; wrap: word-wrap; }
+                                Text { horizontal-stretch: 1; text: "Удалить только сохранённую копию?"; color: Theme.warn; font-size: 13px * Theme.font-scale; vertical-alignment: center; wrap: word-wrap; }
                                 Btn { text: "Удалить копию"; kind: 3; clicked => { root.discard-proxy-recovery-requested(); root.discard-recovery-confirmation-visible = false; } }
                             }
                         }
 
-                        if root.tun-cleanup-supported: Card {
+                        if root.settings-page == 4 && root.tun-cleanup-supported: Card {
                             SectionTitle { title: "Восстановление TUN"; subtitle: "После аварийного завершения запустите очистку, предварительно отключив клиент. Ядро снимает только собственные остатки; нужны права администратора."; }
                             Btn { text: root.tun-cleanup-confirmation-visible ? "Отмена" : "Подготовить очистку…"; enabled: root.idle; clicked => { root.tun-cleanup-confirmation-visible = !root.tun-cleanup-confirmation-visible; } }
                             if root.tun-cleanup-confirmation-visible: HorizontalLayout {
                                 spacing: 8px;
-                                Text { horizontal-stretch: 1; text: "Выполнить очистку маршрутов Reality Core?"; color: Theme.warn; font-size: 13px; vertical-alignment: center; wrap: word-wrap; }
+                                Text { horizontal-stretch: 1; text: "Выполнить очистку маршрутов Reality Core?"; color: Theme.warn; font-size: 13px * Theme.font-scale; vertical-alignment: center; wrap: word-wrap; }
                                 Btn { text: "Очистить"; kind: 3; clicked => { root.tun-cleanup-requested(); root.tun-cleanup-confirmation-visible = false; } }
                             }
                         }
@@ -1211,14 +1386,14 @@ export component MainWindow inherits Window {
                                 VerticalLayout {
                                     alignment: center;
                                     spacing: 3px;
-                                    Text { text: "Reality Client"; color: Theme.text; font-size: 22px; font-weight: 800; }
-                                    Text { text: "Версия " + root.app-version + " · Rust / Slint"; color: Theme.dim; font-size: 13px; }
+                                    Text { text: "Reality Client"; color: Theme.text; font-size: 22px * Theme.font-scale; font-weight: 800; wrap: word-wrap; }
+                                    Text { text: "Версия " + root.app-version + " · Rust / Slint"; color: Theme.dim; font-size: 13px * Theme.font-scale; wrap: word-wrap; }
                                 }
                             }
                             Text {
                                 text: "Графический клиент для Reality Core — сетевого ядра VLESS/REALITY на Rust. Набор функций зависит от операционной системы и возможностей закреплённой версии ядра.";
                                 color: Theme.dim;
-                                font-size: 13px;
+                                font-size: 13px * Theme.font-scale;
                                 wrap: word-wrap;
                             }
                             Btn { text: "Открыть репозиторий ↗"; kind: 0; clicked => { root.open-repository-requested(); } }
@@ -1226,9 +1401,21 @@ export component MainWindow inherits Window {
 
                         Card {
                             SectionTitle { title: "Сведения"; }
-                            HorizontalLayout { Text { text: "Разработчик"; color: Theme.dim; font-size: 13px; horizontal-stretch: 1; } Text { text: "ERGFT"; color: Theme.text; font-size: 13px; font-weight: 600; } }
-                            HorizontalLayout { Text { text: "Платформы"; color: Theme.dim; font-size: 13px; horizontal-stretch: 1; } Text { text: "Windows · Linux · Android"; color: Theme.text; font-size: 13px; font-weight: 600; } }
-                            HorizontalLayout { Text { text: "Лицензия"; color: Theme.dim; font-size: 13px; horizontal-stretch: 1; } Text { text: "GPL-3.0-or-later"; color: Theme.text; font-size: 13px; font-weight: 600; } }
+                            if root.mobile-layout: VerticalLayout {
+                                spacing: 8px;
+                                FieldLabel { text: "Разработчик"; }
+                                Text { text: "ERGFT"; color: Theme.text; font-size: 13px * Theme.font-scale; }
+                                FieldLabel { text: "Платформы"; }
+                                Text { text: "Windows · Linux · Android"; color: Theme.text; font-size: 13px * Theme.font-scale; wrap: word-wrap; }
+                                FieldLabel { text: "Лицензия"; }
+                                Text { text: "GPL-3.0-or-later"; color: Theme.text; font-size: 13px * Theme.font-scale; wrap: word-wrap; }
+                            }
+                            if !root.mobile-layout: VerticalLayout {
+                                spacing: 8px;
+                                HorizontalLayout { Text { text: "Разработчик"; color: Theme.dim; font-size: 13px * Theme.font-scale; horizontal-stretch: 1; } Text { text: "ERGFT"; color: Theme.text; font-size: 13px * Theme.font-scale; font-weight: 600; } }
+                                HorizontalLayout { Text { text: "Платформы"; color: Theme.dim; font-size: 13px * Theme.font-scale; horizontal-stretch: 1; } Text { text: "Windows · Linux · Android"; color: Theme.text; font-size: 13px * Theme.font-scale; font-weight: 600; } }
+                                HorizontalLayout { Text { text: "Лицензия"; color: Theme.dim; font-size: 13px * Theme.font-scale; horizontal-stretch: 1; } Text { text: "GPL-3.0-or-later"; color: Theme.text; font-size: 13px * Theme.font-scale; font-weight: 600; } }
+                            }
                         }
                     }
                     Rectangle { horizontal-stretch: 1; }

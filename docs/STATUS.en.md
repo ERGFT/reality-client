@@ -13,7 +13,11 @@ Contents:
 
 ## UI: 2026-10-11
 
-Windows GNU GUI build, fmt and Android bridge Clippy passed. 120 regular / 123 bridge host tests passed, 1 ignored. Server/subscription desktop/mobile renders in both themes inspected. Native Windows home, themes, tabs and HTTPS form inspected with an isolated empty profile on D. Host VPN was not started; new Android APK/TUN not tested in this iteration. [Details](UI_REDESIGN.en.md). GitHub CI is still running.
+The full local package implements all main screens and settings categories in [the plan](UI_REDESIGN.en.md). The requirement/evidence audit is in [UI_VERIFICATION.md](UI_VERIFICATION.md).
+
+127 Android-bridge host tests passed; one opt-in diagnostic was ignored. Android16 GUI VLESS/HTTPS import, REALITY/Vision payload, rotation and Activity recreation, disconnect/reconnect were exercised. Separate native settings checks confirmed Chrome's TUN `include_package` and route addition/removal with confirmation. Windows native GUI in a separate profile passed Tab/Enter/Space and visible-focus checks. Windows networking and Happ were unchanged.
+
+The latest fix makes Android IP diagnostics use the running session's proxy rather than an edited draft. The Android build and Kotlin tests passed; the final APK passed the repeat payload/disconnect/reconnect lab test with the expected SHA256. Expanded software renders passed in both themes across all screens/settings categories at 360/412/600px and landscape. The complete package has not been pushed to PR23; exact-head CI and merge remain pending. Physical phones, a foreign public IP, and actual Chrome/DNS traffic filtering are not certified by these checks.
 
 ## 1. Verified
 

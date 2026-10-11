@@ -8,7 +8,12 @@
 ## [Не выпущено]
 
 ### Обновление оформления
-- Компактная навигация, верхняя панель, тональные карточки и отдельные вкладки серверов/подписок; Slint-адаптация по мотивам Clash Verge Rev.
+- Все основные экраны: компактная навигация, главная, поиск серверов, отдельные подписки, потоки/журнал, пять категорий настроек и сведения о приложении. Slint-адаптация по мотивам Clash Verge Rev, Material You Android.
+- Клавиатурный фокус и Enter/Space у общих контролов; настоящие Android systemBars/cutout/IME отступы и системный масштаб текста.
+- Удаление отдельных управляемых маршрутов с подтверждением и сохранением внешних правил. Явное сохранение JSON рядом с DNS/TUN и маршрутизацией.
+- Проверка черновика JSON больше не перезаписывает сохранённый файл; сохранение проверяет синтаксис и заменяет файл атомарно.
+- Android сохраняет сведения активной сессии при пересоздании Activity; IP-диагностика использует прокси подготовленного конфига сессии.
+- Аудит и собственные визуальные ориентиры: [UI_VERIFICATION.md](docs/UI_VERIFICATION.md), [UI_REDESIGN.md](docs/UI_REDESIGN.md).
 
 ### Android runtime
 - Исправлены статус отключения, счётчики трафика и выбор групп через живую Android-сессию. Проверены HTTPS-подписка и TCP REALITY на эмуляторе Android 16; см. отчёт проверок.
@@ -111,7 +116,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 ## [Unreleased]
 
 ### UI refresh
-- Compact navigation/header, tonal cards and separate server/subscription views; Slint implementation inspired by Clash Verge Rev.
+- All main screens: dashboard, searchable servers, separate subscriptions, flows/logs, five settings categories and About; Rust/Slint with Clash Verge inspired navigation and Android Material You.
+- Keyboard focus/Enter/Space, actual Android system-bar/cutout/IME insets and system font scale.
+- Confirmed managed-route removal preserving external rules; explicit JSON saving beside DNS/TUN and routing.
+- JSON checking uses a separate draft; saving validates syntax and replaces the file atomically.
+- Android active-session metadata survives Activity recreation; IP diagnostics use the prepared session's proxy.
+- Evidence and own references: [UI_VERIFICATION.md](docs/UI_VERIFICATION.md), [UI_REDESIGN.en.md](docs/UI_REDESIGN.en.md).
 
 ### Android runtime
 - Fixed disconnect status, traffic counters and group selection via the live Android session. HTTPS subscription and TCP REALITY verified on Android 16 emulator; see verification report.
