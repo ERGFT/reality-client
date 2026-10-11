@@ -383,6 +383,82 @@ pub fn read_android_system_palette() -> Result<String, String> {
 }
 
 #[cfg(target_os = "android")]
+pub fn read_android_safe_insets() -> Result<[u32; 4], String> {
+    use jni::objects::JString;
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let guard = lock_recover(slot);
+    let state = guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let text = state
+        .vm
+        .attach_current_thread(|env| -> jni::errors::Result<String> {
+            let value = env
+                .call_method(
+                    state.activity.as_ref(),
+                    jni::jni_str!("readSafeDrawingInsets"),
+                    jni::jni_sig!("()Ljava/lang/String;"),
+                    &[],
+                )?
+                .l()?;
+            env.cast_local::<JString>(value)?.try_to_string(env)
+        })
+        .map_err(|e| format!("Не удалось прочитать отступы Android: {e}"))?;
+    parse_safe_insets(&text)
+}
+
+#[cfg(target_os = "android")]
+pub fn read_android_font_scale() -> Result<f32, String> {
+    let slot = ANDROID_ACTIVITY
+        .get()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    let guard = lock_recover(slot);
+    let state = guard
+        .as_ref()
+        .ok_or("Android Activity ещё не инициализирована.")?;
+    state
+        .vm
+        .attach_current_thread(|env| -> jni::errors::Result<f32> {
+            env.call_method(
+                state.activity.as_ref(),
+                jni::jni_str!("readFontScale"),
+                jni::jni_sig!("()F"),
+                &[],
+            )?
+            .f()
+        })
+        .map_err(|e| format!("Не удалось прочитать масштаб шрифта Android: {e}"))
+}
+
+#[cfg(any(target_os = "android", test))]
+fn parse_safe_insets(text: &str) -> Result<[u32; 4], String> {
+    let values = text
+        .split(',')
+        .map(str::parse::<u32>)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| "Некорректные отступы Android.".to_string())?;
+    values
+        .try_into()
+        .map_err(|_| "Нужны четыре отступа Android.".to_string())
+}
+
+#[cfg(test)]
+mod safe_inset_tests {
+    #[test]
+    fn validates_all_four_physical_edges() {
+        assert_eq!(
+            super::parse_safe_insets("0,63,0,840").unwrap(),
+            [0, 63, 0, 840]
+        );
+        assert!(super::parse_safe_insets("0,63,0").is_err());
+        assert!(super::parse_safe_insets("0,-1,0,0").is_err());
+        assert!(super::parse_safe_insets("0,0,0,0,1").is_err());
+    }
+}
+
+#[cfg(target_os = "android")]
 pub fn list_android_launchable_apps() -> Result<Vec<(String, String)>, String> {
     use jni::objects::JString;
 

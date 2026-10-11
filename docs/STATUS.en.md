@@ -3,13 +3,21 @@
 # Verification status
 
 What was run and how it was confirmed. "Not verified" does not mean "broken", it
-means "nobody ran it". Updated: 2026-10-10.
+means "nobody ran it". Updated: 2026-10-11.
 
 Contents:
 
 1. [Verified](#1-verified)
 2. [Not verified](#2-not-verified)
 3. [Known limitations](#3-known-limitations)
+
+## UI: 2026-10-11
+
+The full package implements all main screens and settings categories in [the plan](UI_REDESIGN.en.md). The requirement/evidence audit is in [UI_VERIFICATION.md](UI_VERIFICATION.md).
+
+127 Android-bridge host tests passed; one opt-in diagnostic was ignored. Android16 GUI VLESS/HTTPS import, REALITY/Vision payload, rotation and Activity recreation, disconnect/reconnect were exercised. Separate native settings checks confirmed Chrome's TUN `include_package` and route addition/removal with confirmation. Windows native GUI in a separate profile passed Tab/Enter/Space and visible-focus checks. Windows networking and Happ were unchanged.
+
+The latest fix makes Android IP diagnostics use the running session's proxy rather than an edited draft. The Android build and Kotlin tests passed; the final APK passed the repeat payload/disconnect/reconnect lab test with the expected SHA256. Expanded software renders passed in both themes across all screens/settings categories at 360/412/600px and landscape. The complete package is submitted through PR23; final exact-head CI and merge remain pending. Physical phones, a foreign public IP, and actual Chrome/DNS traffic filtering are not certified by these checks.
 
 ## 1. Verified
 

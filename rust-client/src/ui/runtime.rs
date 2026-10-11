@@ -260,12 +260,33 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
         move || {
             #[cfg(target_os = "android")]
             if let Some(window) = window.upgrade() {
+                if let Ok(font_scale) = platform::read_android_font_scale()
+                    && font_scale.is_finite() && (0.5..=3.0).contains(&font_scale)
+                {
+                    window.global::<crate::Theme>().set_font_scale(font_scale);
+                }
+                if let Ok([left, top, right, bottom]) = platform::read_android_safe_insets() {
+                    let scale = window.window().scale_factor();
+                    if scale.is_finite() && scale > 0.0 {
+                        window.set_safe_left(left as f32 / scale);
+                        window.set_safe_top(top as f32 / scale);
+                        window.set_safe_right(right as f32 / scale);
+                        window.set_safe_bottom(bottom as f32 / scale);
+                    }
+                }
                 match platform::android_vpn_state() {
                     1 => {
                         window.set_status_text("Ожидание разрешения Android VPN…".into());
                         window.set_connect_button_text("Отмена".into());
                     }
                     2 if window.get_connect_button_text() != "Отключается…" => {
+                        if let Some(view) = super::session_view::get() {
+                            window.set_connected_server_name(view.name.into());
+                            window.set_connected_server_endpoint(view.endpoint.into());
+                        } else {
+                            window.set_connected_server_name("Активная Android VPN-сессия".into());
+                            window.set_connected_server_endpoint("Сведения о сервере недоступны".into());
+                        }
                         window.set_status_text("VPN подключён".into());
                         window.set_connect_button_text("Отключить".into());
                         window.set_detail_text(
@@ -273,16 +294,19 @@ pub(super) fn install(window: &MainWindow, state: &UiState) -> Timers {
                         );
                     }
                     3 if window.get_connect_button_text() != "Подключить" => {
+                        super::session_view::set(None);
                         window.set_status_text("Ошибка Android VPN".into());
                         window.set_connect_button_text("Подключить".into());
                         window.set_detail_text(platform::take_android_vpn_error().into());
                     }
                     state if android_session_ended(state, &window.get_connect_button_text()) => {
+                        super::session_view::set(None);
                         window.set_status_text("Отключено".into());
                         window.set_connect_button_text("Подключить".into());
                         window.set_detail_text("Android VPN остановлен.".into());
                     }
                     _ if window.get_connect_button_text() == "Отмена" => {
+                        super::session_view::set(None);
                         window.set_status_text("Отключено".into());
                         window.set_connect_button_text("Подключить".into());
                         window.set_detail_text("Запрос Android VPN отменён или отклонён.".into());

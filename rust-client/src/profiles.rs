@@ -27,6 +27,14 @@ pub struct ProfileStore {
     pub(crate) revision: u64,
 }
 
+/// An in-process selection key; never contains a decrypted VLESS link.
+#[cfg(any(target_os = "android", test))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ProfileKey {
+    Subscription(u64, u64),
+    Manual(Vec<u8>),
+}
+
 pub fn storage_backend_description() -> &'static str {
     #[cfg(windows)]
     {
@@ -47,6 +55,27 @@ pub fn storage_backend_description() -> &'static str {
 }
 
 impl ProfileStore {
+    #[cfg(any(target_os = "android", test))]
+    pub(crate) fn selection_key(&self, index: usize) -> Option<ProfileKey> {
+        if let Some((group, server)) = self.subscription_identity(index) {
+            Some(ProfileKey::Subscription(group, server))
+        } else {
+            self.profiles
+                .get(index)
+                .map(|profile| ProfileKey::Manual(profile.protected_link.clone()))
+        }
+    }
+
+    #[cfg(any(target_os = "android", test))]
+    pub(crate) fn index_for_selection_key(&self, key: &ProfileKey) -> Option<usize> {
+        match key {
+            ProfileKey::Subscription(group, server) => self.index_for_identity((*group, *server)),
+            ProfileKey::Manual(protected) => self
+                .profiles
+                .iter()
+                .position(|profile| &profile.protected_link == protected),
+        }
+    }
     pub fn open_default() -> Result<Self, String> {
         let root = data_directory()?;
         crate::platform::ensure_private_dir(&root)?;

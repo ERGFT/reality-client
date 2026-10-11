@@ -38,6 +38,9 @@ internal object PendingVpnStartStore {
 }
 
 class MainActivity : NativeActivity() {
+    @Volatile private var safeDrawingInsets = "0,0,0,0"
+    fun readSafeDrawingInsets(): String = safeDrawingInsets
+    fun readFontScale(): Float = resources.configuration.fontScale
     private external fun nativeVpnPermissionDenied()
     private external fun nativeActivityDestroyed()
 
@@ -119,20 +122,14 @@ class MainActivity : NativeActivity() {
         window.isNavigationBarContrastEnforced = false
 
         val content = findViewById<View>(android.R.id.content) ?: return
-        val baseLeft = content.paddingLeft
-        val baseTop = content.paddingTop
-        val baseRight = content.paddingRight
-        val baseBottom = content.paddingBottom
         content.setOnApplyWindowInsetsListener { view, insets ->
             val edgeInsets = insets.getInsets(
-                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime(),
             )
-            view.setPadding(
-                baseLeft + edgeInsets.left,
-                baseTop + edgeInsets.top,
-                baseRight + edgeInsets.right,
-                baseBottom + edgeInsets.bottom,
-            )
+            // NativeActivity's surface buffer can cover the entire window even
+            // when its Java View is padded. Apply the safe area in Slint itself
+            // so rendered controls and input coordinates share the same origin.
+            safeDrawingInsets = "${edgeInsets.left},${edgeInsets.top},${edgeInsets.right},${edgeInsets.bottom}"
             insets
         }
         content.post { content.requestApplyInsets() }

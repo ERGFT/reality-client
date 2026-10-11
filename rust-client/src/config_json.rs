@@ -773,6 +773,49 @@ pub(crate) fn clear_managed_routing_rules(text: &str) -> Result<String, String> 
         .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
 }
 
+pub(crate) fn remove_managed_routing_rule(
+    text: &str,
+    managed_index: usize,
+) -> Result<String, String> {
+    let mut value = parse_jsonc_value(text)?;
+    let xray = is_xray_config(&value);
+    let rules = route_rules_mut(&mut value, xray)?;
+    let index = rules
+        .iter()
+        .enumerate()
+        .filter(|(_, rule)| rule.get(MANAGED_ROUTE_MARKER).is_some())
+        .nth(managed_index)
+        .map(|(index, _)| index)
+        .ok_or("Правило больше не существует. Перечитайте JSON.")?;
+    rules.remove(index);
+    serde_json::to_string_pretty(&value)
+        .map_err(|problem| format!("Не удалось записать JSON: {problem}"))
+}
+
+#[cfg(test)]
+mod remove_rule_tests {
+    #[test]
+    fn removing_one_managed_rule_preserves_external_rules() {
+        for (section, marker) in [("route", "type"), ("routing", "protocol")] {
+            let text = serde_json::json!({
+                "outbounds": [{(marker): "direct", "tag": "direct"}],
+                (section): {"rules": [
+                    {"external": "preserve"},
+                    {(super::MANAGED_ROUTE_MARKER): "v1", "test": "first"},
+                    {(super::MANAGED_ROUTE_MARKER): "v1", "test": "second"}
+                ]}
+            })
+            .to_string();
+            let result = super::remove_managed_routing_rule(&text, 0).unwrap();
+            let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+            assert_eq!(value[section]["rules"].as_array().unwrap().len(), 2);
+            assert_eq!(value[section]["rules"][0]["external"], "preserve");
+            assert_eq!(value[section]["rules"][1]["test"], "second");
+            assert!(super::remove_managed_routing_rule(&result, 1).is_err());
+        }
+    }
+}
+
 #[cfg(test)]
 mod network_options_tests {
     use super::{default_dns_detour_tag, set_network_options, value_has_fakeip};

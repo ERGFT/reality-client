@@ -3,8 +3,6 @@ use std::sync::atomic::Ordering;
 use slint::ComponentHandle;
 
 use super::UiState;
-#[cfg(target_os = "android")]
-use crate::server_info::local_socks_proxy_uri;
 use crate::{
     MainWindow, platform,
     server_info::{
@@ -52,20 +50,12 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                 }
             };
             #[cfg(target_os = "android")]
-            let proxy_uri = if window.get_use_full_config() {
-                match local_socks_proxy_uri(window.get_config_editor_text().as_str()) {
-                    Ok(Some(proxy)) => proxy,
-                    Ok(None) => {
-                        window.set_detail_text("В полном конфиге нет локального SOCKS/mixed-inbound. Для проверки IP добавьте такой входящий узел.".into());
-                        return;
-                    }
-                    Err(problem) => {
-                        window.set_detail_text(problem.into());
-                        return;
-                    }
+            let proxy_uri = match super::session_view::get().and_then(|view| view.diagnostic_proxy) {
+                Some(proxy) => proxy,
+                None => {
+                    window.set_detail_text("В запущенной сессии нет подтверждённого локального SOCKS/mixed-прокси для проверки IP. Добавьте loopback-вход в конфиг и переподключитесь.".into());
+                    return;
                 }
-            } else {
-                "socks5h://127.0.0.1:1080".to_owned()
             };
             if public_ip_check_busy.swap(true, Ordering::AcqRel) {
                 return;

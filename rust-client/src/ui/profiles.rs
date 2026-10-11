@@ -15,6 +15,13 @@ use crate::{
 };
 
 pub(super) fn install(window: &MainWindow, state: &UiState) {
+    window.on_profile_matches(|name, query| profile_matches(name.as_str(), query.as_str()));
+    window.on_profile_match_count(|names, query| {
+        names
+            .iter()
+            .filter(|name| profile_matches(name.as_str(), query.as_str()))
+            .count() as i32
+    });
     window.on_save_profile({
         let window = window.as_weak();
         let profile_store = state.profile_store.clone();
@@ -325,4 +332,8 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             });
         }
     });
+}
+
+fn profile_matches(name: &str, query: &str) -> bool {
+    name.to_lowercase().contains(&query.trim().to_lowercase())
 }

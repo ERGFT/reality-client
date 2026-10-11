@@ -8,16 +8,82 @@ use crate::{
     MainWindow,
     config_json::{
         MANAGED_ROUTE_MARKER, add_routing_rule, android_app_filter_values,
-        clear_managed_routing_rules, is_xray_config, parse_jsonc_value, set_android_app_filter,
-        set_network_options, split_rule_values, value_has_fakeip, value_has_tun,
+        clear_managed_routing_rules, is_xray_config, parse_jsonc_value,
+        remove_managed_routing_rule, set_android_app_filter, set_network_options,
+        split_rule_values, value_has_fakeip, value_has_tun,
     },
     core::check_config_file,
     security::redact_sensitive_text,
 };
 
+fn validate_editor_json(text: &str) -> Result<(), String> {
+    if !parse_jsonc_value(text)?.is_object() {
+        return Err("Конфигурация должна быть JSON-объектом.".into());
+    }
+    Ok(())
+}
+
+/// Keep relative link_file/ruleset paths rooted in the chosen config directory.
+/// A checker never overwrites the user's saved config, including on failure.
+fn with_config_draft<T>(
+    destination: &std::path::Path,
+    text: &str,
+    operation: impl FnOnce(&std::path::Path) -> Result<T, String>,
+) -> Result<T, String> {
+    use std::io::Write;
+    validate_editor_json(text)?;
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .ok_or("Укажите полный путь к JSON-файлу.")?;
+    std::fs::create_dir_all(parent).map_err(|e| format!("Не удалось создать папку: {e}"))?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| "Не удалось подготовить временный файл.".to_owned())?
+        .as_nanos();
+    let temporary = parent.join(format!(
+        ".reality-client-config-{}-{stamp}.json",
+        std::process::id()
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(&temporary)
+        .map_err(|e| format!("Не удалось создать черновик: {e}"))?;
+    let written = file
+        .write_all(text.as_bytes())
+        .and_then(|()| file.sync_all());
+    drop(file);
+    let result = written
+        .map_err(|e| format!("Не удалось записать черновик: {e}"))
+        .and_then(|()| operation(&temporary));
+    if let Err(problem) = std::fs::remove_file(&temporary)
+        && problem.kind() != std::io::ErrorKind::NotFound
+    {
+        return Err(format!(
+            "Не удалось удалить временный JSON {}: {problem}",
+            temporary.display()
+        ));
+    }
+    result
+}
+
+fn save_editor_config(path: &std::path::Path, text: &str) -> Result<(), String> {
+    with_config_draft(path, text, |draft| {
+        std::fs::rename(draft, path).map_err(|e| format!("Не удалось заменить JSON-файл: {e}"))
+    })
+}
+
 pub(crate) fn sync_config_options(window: &MainWindow) -> Result<(), String> {
     let text = window.get_config_editor_text().to_string();
     let value = parse_jsonc_value(&text)?;
+    window.set_route_clear_confirmation(false);
+    window.set_route_remove_confirmation(-1);
     window.set_config_tun_enabled(value_has_tun(&value));
     window.set_fakeip_enabled(value_has_fakeip(&value));
     window.set_android_apps_input(android_app_filter_values(&value).join(", ").into());
@@ -98,6 +164,12 @@ pub(crate) fn sync_config_options(window: &MainWindow) -> Result<(), String> {
             )
         })
         .collect::<Vec<_>>();
+    window.set_managed_route_model(ModelRc::from(Rc::new(VecModel::from(
+        managed
+            .iter()
+            .map(|rule| SharedString::from(rule.as_str()))
+            .collect::<Vec<_>>(),
+    ))));
     window.set_route_rules_summary(
         if managed.is_empty() {
             "Нет правил, добавленных через эту форму.".to_owned()
@@ -110,6 +182,30 @@ pub(crate) fn sync_config_options(window: &MainWindow) -> Result<(), String> {
 }
 
 pub(super) fn install(window: &MainWindow, state: &UiState) {
+    window.on_routing_rule_remove_requested({
+        let window = window.as_weak();
+        move |index| {
+            let Some(window) = window.upgrade() else {
+                return;
+            };
+            let result = usize::try_from(index)
+                .map_err(|_| "Выберите правило.".to_owned())
+                .and_then(|index| {
+                    remove_managed_routing_rule(window.get_config_editor_text().as_str(), index)
+                });
+            match result {
+                Ok(text) => {
+                    window.set_config_editor_text(text.into());
+                    let _ = sync_config_options(&window);
+                    window.set_detail_text(
+                        "Правило удалено из редактора. Сохраните JSON для следующего подключения."
+                            .into(),
+                    );
+                }
+                Err(problem) => window.set_detail_text(problem.into()),
+            }
+        }
+    });
     window.on_config_options_sync_requested({
         let window = window.as_weak();
         move || {
@@ -364,7 +460,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                 return;
             };
             let path = PathBuf::from(window.get_config_editor_path().as_str());
-            let Some(parent) = path.parent().map(PathBuf::from) else {
+            let Some(_parent) = path.parent().map(PathBuf::from) else {
                 is_starting.store(false, Ordering::Release);
                 window.set_detail_text("Укажите корректный путь к JSON-файлу.".into());
                 return;
@@ -374,8 +470,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             let weak_window = window.as_weak();
             let is_starting = is_starting.clone();
             std::thread::spawn(move || {
-                let saved = std::fs::create_dir_all(&parent)
-                    .and_then(|()| std::fs::write(&path, text.as_bytes()));
+                let saved = save_editor_config(&path, &text);
                 let _ = slint::invoke_from_event_loop(move || {
                     is_starting.store(false, Ordering::Release);
                     let Some(window) = weak_window.upgrade() else {
@@ -437,17 +532,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                     if path.extension().is_none() {
                         path.set_extension("json");
                     }
-                    let result = path
-                        .parent()
-                        .ok_or_else(|| "У выбранного файла нет папки назначения.".to_owned())
-                        .and_then(|parent| {
-                            std::fs::create_dir_all(parent)
-                                .map_err(|problem| problem.to_string())
-                        })
-                        .and_then(|()| {
-                            std::fs::write(&path, text.as_bytes())
-                                .map_err(|problem| problem.to_string())
-                        });
+                    let result = save_editor_config(&path, &text);
                         result.map(|()| path)
                     });
                 let _ = slint::invoke_from_event_loop(move || {
@@ -484,6 +569,10 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             #[cfg(target_os = "android")]
             {
                 if let Some(window) = window.upgrade() {
+                    if let Err(problem) = validate_editor_json(window.get_config_editor_text().as_str()) {
+                        window.set_detail_text(problem.into());
+                        return;
+                    }
                     window.set_status_text("Проверка при запуске VPN".into());
                     window.set_detail_text(
                         "Android проверит полный JSON встроенным ядром при запуске VPN; отдельный CLI-проверяющий файл в APK не используется.".into(),
@@ -499,7 +588,7 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
                 return;
             };
             let path = PathBuf::from(window.get_config_editor_path().as_str());
-            let Some(parent) = path.parent().map(PathBuf::from) else {
+            let Some(_parent) = path.parent().map(PathBuf::from) else {
                 is_starting.store(false, Ordering::Release);
                 window.set_detail_text("Укажите корректный путь к JSON-файлу.".into());
                 return;
@@ -508,12 +597,9 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             let weak_window = window.as_weak();
             let is_starting = is_starting.clone();
             window.set_status_text("Проверка JSON…".into());
-            window.set_detail_text("Сохраняю файл и передаю его штатному валидатору ядра…".into());
+            window.set_detail_text("Передаю черновик штатному валидатору ядра. Сохранённый файл не меняется…".into());
             std::thread::spawn(move || {
-                let result = std::fs::create_dir_all(&parent)
-                    .and_then(|()| std::fs::write(&path, text.as_bytes()))
-                    .map_err(|problem| format!("Сначала не удалось сохранить JSON: {problem}"))
-                    .and_then(|()| check_config_file(&path));
+                let result = with_config_draft(&path, &text, check_config_file);
                 let _ = slint::invoke_from_event_loop(move || {
                     is_starting.store(false, Ordering::Release);
                     let Some(window) = weak_window.upgrade() else { return; };
@@ -604,4 +690,41 @@ pub(super) fn install(window: &MainWindow, state: &UiState) {
             });
         }
     });
+}
+
+#[cfg(test)]
+mod config_file_tests {
+    use super::*;
+
+    #[test]
+    fn checking_draft_and_rejecting_invalid_json_preserve_saved_file() {
+        let root = std::env::temp_dir().join(format!(
+            "config-editor-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("client.json");
+        std::fs::write(&path, "{\"saved\":true}").unwrap();
+        for invalid in ["{", "[]", "null"] {
+            assert!(save_editor_config(&path, invalid).is_err());
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), "{\"saved\":true}");
+        }
+        let result: Result<(), String> = with_config_draft(&path, "{\"draft\":true}", |draft| {
+            assert_eq!(draft.parent(), path.parent());
+            assert_eq!(std::fs::read_to_string(draft).unwrap(), "{\"draft\":true}");
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), "{\"saved\":true}");
+            Err("synthetic validator rejection".into())
+        });
+        assert_eq!(result.unwrap_err(), "synthetic validator rejection");
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
+        let jsonc = "{\n // keep the owner's comment\n \"saved\":false\n}";
+        save_editor_config(&path, jsonc).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), jsonc);
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
