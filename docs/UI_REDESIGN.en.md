@@ -4,14 +4,15 @@
 
 ## Current state
 
-The full package is implemented locally on the existing `rust-rewrite` branch.
-PR23 remains open and currently contains the earlier iteration. One active goal
+The full package is implemented on the existing `rust-rewrite` branch through PR23.
+One active goal
 runs sequentially; recurring automation is paused. All files/caches/builds are on D.
 
 127 Android-bridge host tests passed, one opt-in diagnostic ignored. CI-style
 Clippy, Windows GNU build, Android ARM64 build and Kotlin unit tests passed.
 The matrix covers all screens/settings categories in both themes at 360/412/600px,
-landscape and font scale 1.3. Final settings-form captures are being inspected.
+landscape and font scale 1.3. Settings-form captures have been inspected; the
+expanded editor and confirmation-state audit is recorded in the verification report.
 Windows native Tab/Enter/Space and visible focus were exercised in a separate profile.
 
 Our Android16 emulator exercised GUI VLESS/HTTPS import, REALITY/Vision,
@@ -25,7 +26,7 @@ Detailed evidence and limitations: [UI_VERIFICATION.md](UI_VERIFICATION.md).
 
 Fixed active-server display after Activity recreation, JSON validation overwriting
 the saved configuration, and Android diagnostics reading the edited draft instead
-of the active proxy. Full-package push, exact-head CI and merge/main CI remain pending.
+of the active proxy. Exact-head CI and merge/main CI remain pending.
 Releases are a separate task. Happ and Windows networking were unchanged.
 
 ## Design reference and implementation

@@ -245,6 +245,7 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
         android_package_ids: Arc::new(Vec::new()),
     };
     let window = MainWindow::new().unwrap();
+    window.set_app_version(env!("CARGO_PKG_VERSION").into());
     window.set_active_tab(1);
     window.set_profile_model(model(vec!["Ручной сервер".into()]));
     super::super::profiles::install(&window, &state);
@@ -505,6 +506,82 @@ fn subscription_slint_models_preserve_selection_and_render_desktop_mobile() {
         roundtrip(&mut active_stream, b"same session across font scaling");
     }
     window.global::<crate::Theme>().set_font_scale(1.0);
+    // Exercise expanded/confirmation states, not just closed category cards.
+    // These are render-only state changes: never invoke host recovery actions.
+    for dark in [true, false] {
+        window.set_dark_theme(dark);
+        let theme = if dark { "dark" } else { "light" };
+        for mobile in [false, true] {
+            let layout = if mobile { "mobile" } else { "desktop" };
+            window.set_file_dialog_supported(!mobile);
+            window.set_active_tab(3);
+            window.set_settings_page(4);
+            window.set_config_editor_visible(true);
+            render(
+                &window,
+                &adapter,
+                mobile,
+                &format!("editor-{layout}-{theme}"),
+            );
+            render_scrolled(
+                &window,
+                &adapter,
+                mobile,
+                &format!("editor-controls-{layout}-{theme}"),
+            );
+            window.set_config_editor_visible(false);
+            window.set_recovery_visible(true);
+            window.set_recovery_confirmation_visible(true);
+            render(
+                &window,
+                &adapter,
+                mobile,
+                &format!("recovery-confirm-{layout}-{theme}"),
+            );
+            window.set_recovery_confirmation_visible(false);
+            window.set_discard_recovery_confirmation_visible(true);
+            render(
+                &window,
+                &adapter,
+                mobile,
+                &format!("recovery-discard-{layout}-{theme}"),
+            );
+            window.set_discard_recovery_confirmation_visible(false);
+            window.set_recovery_visible(false);
+            window.set_active_tab(1);
+            window.set_delete_confirmation_visible(true);
+            render(
+                &window,
+                &adapter,
+                mobile,
+                &format!("profile-delete-{layout}-{theme}"),
+            );
+            window.set_delete_confirmation_visible(false);
+            window.set_server_page(1);
+            window.set_subscription_delete_confirmation(true);
+            render(
+                &window,
+                &adapter,
+                mobile,
+                &format!("subscription-delete-{layout}-{theme}"),
+            );
+            window.set_subscription_delete_confirmation(false);
+            window.set_subscription_busy(true);
+            render(
+                &window,
+                &adapter,
+                mobile,
+                &format!("subscription-loading-{layout}-{theme}"),
+            );
+            window.set_subscription_busy(false);
+            window.set_server_page(0);
+            roundtrip(
+                &mut active_stream,
+                b"same session across confirmations and editor",
+            );
+        }
+    }
+    window.set_dark_theme(true);
     window.set_active_tab(1);
     window.invoke_subscription_delete();
     drain(&receiver, &state, &window);
