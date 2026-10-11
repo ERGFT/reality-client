@@ -1,3 +1,5 @@
+[Русский](UI_REDESIGN.md) | [English](UI_REDESIGN.en.md)
+
 # Интерфейс Reality Client: обновление 2026-10-11
 
 ## Запрос владельца

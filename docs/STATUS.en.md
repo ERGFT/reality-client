@@ -3,13 +3,17 @@
 # Verification status
 
 What was run and how it was confirmed. "Not verified" does not mean "broken", it
-means "nobody ran it". Updated: 2026-10-10.
+means "nobody ran it". Updated: 2026-10-11.
 
 Contents:
 
 1. [Verified](#1-verified)
 2. [Not verified](#2-not-verified)
 3. [Known limitations](#3-known-limitations)
+
+## UI: 2026-10-11
+
+Windows GNU GUI build, fmt and Android bridge Clippy passed. 120 regular / 123 bridge host tests passed, 1 ignored. Server/subscription desktop/mobile renders in both themes inspected. Native Windows home, themes, tabs and HTTPS form inspected with an isolated empty profile on D. Host VPN was not started; new Android APK/TUN not tested in this iteration. [Details](UI_REDESIGN.en.md). GitHub CI is still running.
 
 ## 1. Verified
 
