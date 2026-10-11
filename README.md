@@ -21,8 +21,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/android.jpg" alt="Android: Material 3 Expressive, тёмная и светлая темы" width="720">
+  <img src="docs/images/android-home.png" alt="Android 16: новый интерфейс и счётчики лабораторного подключения" width="320">
 </p>
+
+Снимки интерфейса после полного обновления (PR23, 11 октября 2026): компьютер — программный рендер Slint с тестовыми данными; Android — фактический APK в собственном эмуляторе Android 16. На Android показано лабораторное подключение, а не проверка зарубежного IP. [Больше экранов и описание](docs/UI_REDESIGN.md).
 
 ## Что как называется
 

@@ -19,6 +19,8 @@ Contents:
   <img src="images/desktop-settings.png" alt="Settings on desktop" width="640">
 </p>
 
+Routing settings after PR23: Slint software render with synthetic test data.
+
 ## 1. Principles
 
 - **One UI.** Platform differences live in tokens and layout, not in copies of screens.
