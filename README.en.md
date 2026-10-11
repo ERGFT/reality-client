@@ -21,8 +21,10 @@ device, and shows speed, traffic, connections and logs.
 </p>
 
 <p align="center">
-  <img src="docs/images/android.jpg" alt="Android: Material 3 Expressive, dark and light themes" width="720">
+  <img src="docs/images/android-home.png" alt="Android 16: redesigned UI and lab connection counters" width="320">
 </p>
+
+UI captures after the complete redesign (PR23, 11 October 2026): desktop uses the Slint software renderer with test data; Android shows the actual APK in our own Android 16 emulator. The Android image shows a laboratory connection, not a foreign public IP check. [More screens and details](docs/UI_REDESIGN.en.md).
 
 ## Naming
 

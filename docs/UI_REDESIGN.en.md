@@ -70,11 +70,10 @@ on `D:/reality-client-work`; host VPN/proxy/DNS/routes/security stay unchanged.
 
 ## Own visual references
 
-Windows home is native; routing/connections/mobile settings are software renders.
-Android images use our own emulator with synthetic profiles. They are references
-for the implemented layout, not copied third-party assets or traffic proof.
+Gallery refreshed after the complete PR23 redesign (11 October 2026).
+Desktop home, routing, connections and light mobile settings use Slint software renders of the final UI with synthetic data. Android images are actual captures from our own Android 16 emulator; they are not third-party assets or traffic proof.
 
-![Windows home](design/references/home-windows.png)
+![Desktop home: software render](design/references/home-windows.png)
 
 ![Routing](design/references/routing-desktop.png)
 
